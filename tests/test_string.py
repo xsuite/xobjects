@@ -1,5 +1,12 @@
 import xobjects as xo
 
+
+def test_string_class():
+    size, off = xo.String._get_size_from_args("abcde")
+    assert size==5+8
+    assert off==None
+
+
 def test_string_init1():
     ss=xo.String(10)
     assert ss._buffer.capacity==18

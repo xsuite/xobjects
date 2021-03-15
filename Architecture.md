@@ -37,18 +37,40 @@ Types can be composed of:
 - scalar: numbers, string
 - compound: struct, array, list, union
 
-The scalar types are returned as copy, while the compound type are views of the memory behind.
-
-
 Types can be
 - static-size: scalar, struct of static-size members, fixed dimension array of static-size member, union of flexible-size members, reference
 - flexible-size: does not change after initialization, string, arrays with flexible-size members
 - dynamic-size: can change after creation
 
 
+
+### String
+Definition: String [size]
+Python Initialization: StructA(int_or_string)
+JSON: "..."
+
 ### Struct
-struct name fname1 ftype1 ... fnameN ftypeN
-array mtype dim1 ... dimN 
+Definition: struct name fname1 ftype1 ... fnameN ftypeN
+Python Initialization: StructA(**fields), StructA(a_dict), StructA(another_StructA)
+JSON: {...}
+
+### Array
+Definition: array mtype dim1 ... dimN
+Dimensions can be integer or None
+Initialization: ArrayA(iterable) compatibile dimension or StructA(d1,d2,d3) unknown dimension
+JSON: [...]
+
+### Union
+Definition: union type1 type2 ... typeN
+Python Initialization: UnionA(element), UnionA(typename,arg1,...,argn)
+JSON: (type,arg1,...)
+
+Initialization from JSON for compound type:
+- if arg is tuple -> *arg
+- elif arg is dict -> **arg
+- else arg -> arg
+
+The scalar types are returned as copy, while the compound type are views of the memory behind.
 
 
 ## Data layout is part of the specification.
@@ -71,8 +93,58 @@ Array:
   [dims ... ]
   data
 
+Union:
+  [size]
+  typeid
+  data
 
 ## Implementation details
+
+Serialization tasks:
+- _get_size_from_args(*args, **nargs)  [specialized]
+  Returns the size and the full offsets data of the hierarchy
+   -> size: int , offsets: None or dict (None is the root, 'name' or index are the leaf
+  - used in __init__
+  - init:
+    - string(string_or_int)
+    - struct(**nargs), struct(adict), struct(a_struct)
+    - array(d1,d2,...), array(iterable), array(an_array)
+
+
+- _get_a_buffer(size,context,buffer,offset)  [generic]
+   -> context,buffer,offset, size: offsets:list[pairs], extra: dict[part,offset]
+   - make sure memory region is available
+   - create or reuse a context  -> a context exists
+   - create (need size) or reuse a buffer  -> a buffer exists
+   - create (need size) or use a buffer region  -> an offset exists
+   - used in _init_
+
+- _write_offsets(buffer,offset, offsets, extra) [generic]
+- write offsets if needed into buffer, offset
+  - need offsets unless class does not need or value is an xobject
+  - done in _init_ recursively
+
+
+- _to_buffer(buffer,offset, value): [specialized]
+  - can be used only if memory is prepared
+  - if value is xobject:
+     _copy(buffer,offset, xobject)
+  - else
+     _value_to_buffer(buffer,offset, value)
+
+- _copy(buffer,offset, xobject)
+ - check if size is correct (optionally?)
+ - copy memory in xobject to buffer
+
+- _check_value(buffer,offset, value)
+  - check if value is compatible with type
+  - used by __set__ and __setitem__
+
+
+- read data from buffer, offset
+  store buffer, offset
+  cache offsets?
+
 
 Initialization option:
 - _context, _buffer, _offset can be given to specify resources
@@ -83,10 +155,14 @@ init:
    array(dimensions as integers or iterable)
    union(value) or union(_type=...,**fields)
 
-Initialization steps:
-  - compute size from args: if no resources
-  - acquire resources or using resources
+Object creation:
+  - compute size and offsets from args
+  - acquire resources or use resources
+  - set offsets
   - set args
+
+Object reference:
+  - set buffer and offset
 
 Field attributes
   - type (with or without internal constraints?)
@@ -97,7 +173,7 @@ Field attributes
 
 generic api class:
   _size: None if dynamic
-  _to_buffer(cls,buffer, offset, value):
+  _to_buffer(cls, buffer, offset, value):
       - store a python object into buffer
       - used by __set__ in Struct
   _from_buffer(cls,buffer,offset):
@@ -160,10 +236,22 @@ Kernel convention:
 
 ## TODO
 
+### Critical
+- add check shape from argument
+- implement Array
+- implement Union
+- test type creation then type access
+- review struct tests due to dynamic caching offsets
+- speed-up array creation for basic types
+
+### Later
+
 - Consider return opencl array rather than bytearray
 - Consider exposing Buffer and removing CLBuffer, ByteArrayBuffers..
 - Consider creating an `api` object type factory
 - Consider Buffer[offset] to create View and avoid _offset in type API
 - Consider mutable string class
 - Consider to add arg_default (in alternative of factory)
-- Add to_buffer user in context memory
+- Add String.to_buffer to use same context copy
+- Make types read-only instances to avoid messing
+- Evaluate round-trips versus caching

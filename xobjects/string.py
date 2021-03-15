@@ -1,4 +1,14 @@
-from .context import ByteArrayContext
+"""
+
+
+TODO:
+- consider caching  the length
+- consider using __slots__
+- consider adding size in the class
+"""
+
+
+from .context import get_a_buffer
 from .scalar import Int64
 
 class String:
@@ -8,7 +18,7 @@ class String:
     def _to_buffer(cls, buffer, offset, value):
         size,_= cls._get_size_from_args(value)
         if isinstance(value,String):
-            value=value.to_str()
+            value=value.to_str() #TODO not optimal
         if isinstance(value,str):
            data = bytes(value, "utf8")
            stored_size = Int64._from_buffer(buffer, offset)
@@ -41,16 +51,9 @@ class String:
     def __init__(self, string_or_int, _buffer=None, _offset=None, _context=None):
         new_object=False
         size,_ = self.__class__._get_size_from_args(string_or_int)
-        if _buffer is None:
-            if _context is None:
-                _context = ByteArrayContext()
-            _buffer = _context.new_buffer(size)
-        if _offset is None:
-           _offset = _buffer.allocate(size)
-        self._buffer = _buffer
-        self._offset = _offset
+        self._buffer, self._offset = get_a_buffer(size,_context, _buffer, _offset)
 
-        Int64._to_buffer(_buffer, _offset, size)
+        Int64._to_buffer(self._buffer, self._offset, size)
 
         if isinstance(string_or_int,str):
             self.set(string_or_int)

@@ -1,6 +1,12 @@
 import weakref
 import pyopencl
 
+"""
+
+TODO:
+    - add test get_a_buffer
+"""
+
 
 class CLContext:
     @classmethod
@@ -174,3 +180,18 @@ class CLBuffer(Buffer):
             self.context.queue, data, self.buffer, device_offset=offset
         )
         return data
+
+
+def get_a_buffer(size, context=None,buffer=None,offset=None):
+    if buffer is None:
+        if offset is not None:
+            raise ValueError("Cannot set `offset` without buffer")
+        if context is None:
+            context = ByteArrayContext()
+        buffer = context.new_buffer(size)
+    if offset is None:
+        offset = buffer.allocate(size)
+    return buffer, offset
+
+
+

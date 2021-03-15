@@ -1,6 +1,9 @@
 import numpy as np
 
-# TODO make base class and classmethods
+"""
+TODO:
+    - make scalars as class instead of instances
+"""
 
 
 class NumpyScalar:

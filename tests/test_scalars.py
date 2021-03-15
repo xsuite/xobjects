@@ -13,8 +13,17 @@ scalars=(
     xo.UInt8
 )
 
+def test_scalar_class():
+    for sc in scalars:
+        s1,off=sc._get_size_from_args(1.1)
+        s2,off=sc._get_size_from_args(1)
+        assert s1==sc._size
+        assert s2==sc._size
+        assert off==None
 
-def test_scalar():
+
+
+def test_scalar_buffer():
     nn=123
     for ctx in xo.ByteArrayContext(), xo.CLContext():
         buff=ctx.new_buffer()
@@ -24,5 +33,8 @@ def test_scalar():
             vv=sc._from_buffer(buff, offset)
             assert nn==vv
             assert nn==sc(nn)
+
+
+
 
 

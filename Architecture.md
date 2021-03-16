@@ -39,19 +39,19 @@ Types can be composed of:
 - compound: struct, array, list, union
 
 ### Scalars
-examples: Float64, Int64, ...
-create: Float64(3.14)
+- examples: Float64, Int64, ...
+- create: Float64(3.14)
 
 ### String:
-create: String(string_or_int)
-layout
-  size
-  bytes
+- create: String(string_or_int)
+- layout
+  - size
+  - bytes
 
 ### Struct
-example: struct  MyStruct field1 f ... 
-create: Struct(dict), Struct(**args)
-layout
+- example: struct  MyStruct field1 f ... 
+- create: Struct(dict), Struct(**args)
+- layout:
   [ instance size ]
   static-field1
   ..
@@ -60,35 +60,32 @@ layout
   [ offset ...
   [ offset field n ]
   [ dynamic-field1 ]
-  [ ...
+  [ ... ]
   [ dynamic-fieldn ]
 
 ### Array:
-create: Array(d1,d2,d3) or Array([...]) or Array(nparray)
-layout
-  [size]
-  [ndims]
-  [dims ... ]
-  [offsets]
-  data
+- create: Array(d1,d2,...) or Array([...]) or Array(nparray)
+- layout:
+  - [size]
+  - [ndims]
+  - [dims ... ]
+  - [offsets]
+  - data
 
 ### Union:
-create: Union(element), Union( (typename,{}) )
-
-layout
-  typeid
-  offset [or data?]
-
+- create: Union(element), Union( (typename,{}) )
+- layout
+  - typeid
+  - offset [or data?]
 
 ## Implementation details
 
-| calculate resources for object on buffer from args | _get_size_from_args |
-| acquire resources for object on buffer from size |  _get_a_buffer |
-| create python object from initialized buffer |  _from_buffer |
-
-| initialize buffer from value  | _to_buffer  |
-| create python object from args | __init__ |
-
+create python object from args:
+  - needs sizeinfo <- get_size_from_args
+  - needs buffer offsets <- _get_a_buffer
+  - write offsets
+  - write values (and pass offsets from size)
+  - need to create python object
 
 initialize buffer from value:
   - needs offsets <- get_size_from_args
@@ -96,18 +93,13 @@ initialize buffer from value:
   - write offsets
   - write values (and pass offsets)
 
-create python object from args:
-  - needs size and offsets <- get_size_from_args
-  - needs buffer offsets <- _get_a_buffer
-  - write offsets
-  - write values (and pass offsets)
-  - need to create python object
+| calculate resources for object on buffer from args | _get_size_from_args |
+| acquire resources for object on buffer from size |  _get_a_buffer |
 
+| create python object from initialized buffer |  _from_buffer |
 
-
-
-
-
+| initialize buffer from value  | _to_buffer  |
+| create python object from args | __init__ |
 
 
 Generic:

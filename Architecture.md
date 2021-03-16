@@ -38,17 +38,17 @@ Types can be composed of:
 - scalar: numbers, string
 - compound: struct, array, list, union
 
-###Scalars
+### Scalars
 examples: Float64, Int64, ...
 create: Float64(3.14)
 
-###String:
+### String:
 create: String(string_or_int)
 layout
   size
   bytes
 
-###Struct
+### Struct
 example: struct  MyStruct field1 f ... 
 create: Struct(dict), Struct(**args)
 layout
@@ -63,7 +63,7 @@ layout
   [ ...
   [ dynamic-fieldn ]
 
-###Array:
+### Array:
 create: Array(d1,d2,d3) or Array([...]) or Array(nparray)
 layout
   [size]
@@ -72,7 +72,7 @@ layout
   [offsets]
   data
 
-###Union:
+### Union:
 create: Union(element), Union( (typename,{}) )
 
 layout

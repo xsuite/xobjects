@@ -15,11 +15,10 @@ scalars=(
 
 def test_scalar_class():
     for sc in scalars:
-        s1,off=sc._get_size_from_args(1.1)
-        s2,off=sc._get_size_from_args(1)
-        assert s1==sc._size
-        assert s2==sc._size
-        assert off==None
+        info1=sc._inspect_args(1.1)
+        info2=sc._inspect_args(1)
+        assert info1.size==sc._size
+        assert info2.size==sc._size
 
 
 

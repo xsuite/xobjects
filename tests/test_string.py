@@ -2,9 +2,8 @@ import xobjects as xo
 
 
 def test_string_class():
-    size, off = xo.String._get_size_from_args("abcde")
-    assert size==5+8
-    assert off==None
+    info = xo.String._inspect_args("abcde")
+    assert info.size==5+8
 
 
 def test_string_init1():

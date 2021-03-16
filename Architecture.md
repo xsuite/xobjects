@@ -80,26 +80,38 @@ Types can be composed of:
 
 ## Implementation details
 
-create python object from args:
-  - needs sizeinfo <- get_size_from_args
-  - needs buffer offsets <- _get_a_buffer
-  - write offsets
-  - write values (and pass offsets from size)
-  - need to create python object
+Operation:
 
-initialize buffer from value:
-  - needs offsets <- get_size_from_args
-  - has buffer offset but cannot check size in buffer [not safe]
-  - write offsets
-  - write values (and pass offsets)
+- _inspect_args(*args, **args) -> info: Info
+  - check value and calculate size, offsets and dimensions from arguments, recursively
 
-| calculate resources for object on buffer from args | _get_size_from_args |
-| acquire resources for object on buffer from size |  _get_a_buffer |
+- _get_a_buffer(size, _context, _buffer, _offset):
+  - make sure a valid buffer and offset is created
 
-| create python object from initialized buffer |  _from_buffer |
+- _from_buffer(buffer, offset) -> value:
+  - create python object from data on buffer. Can be a native type (scalar or string) or another XObject (struct, array)
 
-| initialize buffer from value  | _to_buffer  |
-| create python object from args | __init__ |
+- _to_buffer(buffer, offset, value, info, size?):
+  - set data on buffer with offset from pyhon value, using info and implicitely respecting size
+  - if value same class -> binary copy (passing from context if needed)
+
+- __init__(self,_context, _buffer, _offset, ...)
+  - initialize object data on buffer from args and create python object
+  - check value and calculate size using _inspect_args
+  - get resources using _get_a_buffer
+  - write data using _to_buffer
+  - set python object
+
+- _update(self, value, size=None):
+  - Optional update object using value, in case respecting size for string
+
+- __get__(field,instance) or __getitem__(self,index...)
+  - if return instance._cache[field.index] else  #should implement item caching for struct and array
+  - else return _from_buffer
+
+- __set__(..., value) or __setitem__(...,value)
+  - if hasattr(self.ftype._update) get object and update in place
+    else call _to_buffer
 
 
 Generic:
@@ -109,7 +121,7 @@ Generic:
 
 Class content:
 
-- _get_size_from_args(cls, *args, **nargs) -> size, offsets
+- _inspect_args(cls, *args, **nargs) -> size, offsets
   compute size and sizes and offsets from arguments
 
 - _to_buffer(cls, buffer, offset, value, offsets=None):

@@ -5,6 +5,7 @@ TODO:
     - make scalars as class instead of instances
 """
 
+from .context import Info
 
 class NumpyScalar:
     def __init__(self, dtype):
@@ -15,15 +16,15 @@ class NumpyScalar:
         data = buffer.read(offset, self._size)
         return np.frombuffer(data, dtype=self._dtype)[0]
 
-    def _to_buffer(self, buffer, offset, value):
+    def _to_buffer(self, buffer, offset, value, info=None):
         data = self._dtype.type(value).tobytes()
         buffer.write(offset, data)
 
     def __call__(self, value=0):
         return self._dtype.type(value)
 
-    def _get_size_from_args(self,arg):
-        return self._size,None
+    def _inspect_args(self,arg):
+        return Info(size=self._size)
 
 
 Float64 = NumpyScalar("float64")

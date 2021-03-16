@@ -85,7 +85,7 @@ class Array(metaclass=MetaArray):
 
     def __init__(self, *args, _buffer=None, _offset=None, _context=None):
         # determin resources
-        size, offsets = self.__class__._get_size_from_args(*args)
+        size, offsets = self.__class__._inspect_args(*args)
 
         # acquire resources
         if _buffer is None:
@@ -133,7 +133,7 @@ class Array(metaclass=MetaArray):
         return buffer.read(buffer, offset + 8, ll).decode("utf8")
 
     @classmethod
-    def _get_size_from_args(cls, *args):
+    def _inspect_args(cls, *args):
         """
         return size and optionally
         - complete shape

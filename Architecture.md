@@ -5,30 +5,30 @@
 The librarties is based on:
 - Buffers: manage dynamic unstructured data on CPU and GPU memory using different backends
 - Contexts: keep track of buffers, launch functions operating on buffers
-- Api: type system describing structured data. Types are composed using
-  scalars, string, struct, array, union primitives. Types generate python objects that can create and modify objects on buffers and generate C operate with data.
+- Api: type system describing structured data. Types are composed using scalars, string, struct, array, union primitives.
+- Types generate python objects that can create and modify objects on buffers and generate C operate with data.
 
 
 ## Contexts and Buffers
 
-Context:
+A context contain:
 
-- new_buffer(capacity): create new buffer of initial capacity
-- buffers: list of weakref to buffers
-- <run kernels>
+- `new_buffer(capacity)`: create new buffer of initial capacity
+- `buffers`: list of weakref to buffers
+- contain kernels...
 
 Buffer:
-- allocate(self,size)
-- free(self,offset,size)
-- grow(self,capacity)
+- `allocate(self,size)`
+- `free(self,offset,size)`
+- `grow(self,capacity)`
 
-- .buffer: low level buffer
-- read(offset,size) -> bytearray
-- write(offset,size,data):
+- `buffer`: low level buffer
+- `read(offset,size)` -> bytearray
+- `write(offset,size,data)`:
 
-- _new_buffer: lowlevel buffer
-- copy_to(self, dest: bytearray)
-- copy_from(self,source, src_offset, dest_offset, byte_count): source must be of the same time
+- `_new_buffer`: lowlevel buffer
+- `copy_to(self, dest: bytearray)`
+- `copy_from(self,source, src_offset, dest_offset, byte_count)`: source must be of the same time
 
 
 ## Types

@@ -5,6 +5,8 @@ import pyopencl
 
 TODO:
     - add test get_a_buffer
+    - Consider exposing Buffer and removing CLBuffer, ByteArrayBuffers..
+    - Consider Buffer[offset] to create View and avoid _offset in type API
 """
 
 
@@ -193,5 +195,13 @@ def get_a_buffer(size, context=None,buffer=None,offset=None):
         offset = buffer.allocate(size)
     return buffer, offset
 
+
+def dispatch_arg(f,arg):
+    if isinstance(arg,tuple):
+        return f(*arg)
+    elif isinstance(arg,dict):
+        return f(**arg)
+    else:
+        return f(arg)
 
 

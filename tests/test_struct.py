@@ -1,5 +1,6 @@
 import xobjects as xo
 
+
 def test_static_struct():
     class StructA(xo.Struct):
         a=xo.Field(xo.Float64,default=3.5)
@@ -44,7 +45,6 @@ def test_dynamic_struct():
         b=xo.Field(xo.String,default=10)
         c=xo.Field(xo.Int8,default=-1)
 
-
     d=StructD(b="this is a test")
     assert d.a==3.5
     assert d.b=="this is a test"
@@ -57,15 +57,23 @@ def test_dynamic_nested_struct():
         b=xo.Field(xo.String,default=10)
         c=xo.Field(xo.Int8,default=-1)
 
+    size,offsets=StructE._get_size_from_args(b= "this is a test")
+    assert offsets == ({1: 24}, [])
+
     class StructF(xo.Struct):
-        a=xo.Field(xo.Float64,default=3.5)
-        b=xo.Field(StructE)
-        c=xo.Field(xo.Int8,default=-1)
+        e=xo.Field(xo.Float64,default=3.5)
+        f=xo.Field(xo.Float64,default=1.5)
+        g=xo.Field(StructE)
+        h=xo.Field(xo.Int8,default=-1)
 
-    f=StructF(b={"b": "this is a test"})
-    assert f.a==3.5
-    assert f.b.b=="this is a test"
-    assert f.c==-1
+    size,offsets=StructF._get_size_from_args(g={"b": "this is a test"})
 
+    assert offsets ==  ({2: 32}, [(2, ({1: 24}, []))])
+
+    s=StructF(g={"b": "this is a test"})
+    assert s.e==3.5
+    assert s.f==1.5
+    assert s.g.b=="this is a test"
+    #assert f.h==-1
 
 

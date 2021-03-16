@@ -2,20 +2,26 @@
 
 
 TODO:
+- String._to_buffer to use same context copy
 - consider caching  the length
 - consider using __slots__
 - consider adding size in the class
 """
 
-
 from .context import get_a_buffer
 from .scalar import Int64
+
+import logging
+
+log=logging.getLogger(__name__)
+
 
 class String:
     _size = None
 
     @classmethod
-    def _to_buffer(cls, buffer, offset, value):
+    def _to_buffer(cls, buffer, offset, value, offsets=None):
+        log.debug(f"{cls} to buffer {offset}  `{value}`")
         size,_= cls._get_size_from_args(value)
         if isinstance(value,String):
             value=value.to_str() #TODO not optimal

@@ -20,13 +20,15 @@ Struct:
   [ dynamic-fieldn ]
 
 
-
-
 """
 
-from .context import get_a_buffer
+from .context import get_a_buffer, dispatch_arg
 
 from .scalar import Int64
+
+import logging
+
+log=logging.getLogger(__name__)
 
 
 def _to_slot_size(size):
@@ -41,12 +43,9 @@ def _is_dynamic(cls):
 class Field:
     def __init__(self, ftype, default=None, readonly=False, default_factory=None):
         self.ftype = ftype
+        self.default=default
         if default_factory is not None:
             self.get_default=default_factory
-        elif default is None:
-            self.default=self.ftype()
-        else:
-            self.default=self.ftype(default)
         self.index = None  # filled by class creation
         self.name = None  # filled by class creation
         self.offset = None # filled by class creation
@@ -80,8 +79,9 @@ class Field:
             offset = instance._offset + self.offset
         self.ftype._to_buffer(instance._buffer, offset, value)
 
+
     def get_default(self):
-        return self.default
+        return dispatch_arg(self.ftype,self.default)
 
 
 class MetaStruct(type):
@@ -119,7 +119,7 @@ class MetaStruct(type):
                 return self.__class__._size
 
             def _get_size_from_args(cls, *args, **nargs):
-                return cls._size, None, None
+                return cls._size, None
 
         else:
             size = None
@@ -143,35 +143,33 @@ class MetaStruct(type):
                 return Int64._from_buffer(self._buffer, self._offset)
 
             def _get_size_from_args(cls, *args, **nargs):
+                log.debug(f"get size for {cls} from {args} {nargs}")
                 if len(args)==1:
                     arg=args[0]
                     if isinstance(arg, dict):
                        offsets = {} # offset of dynamic data
-                       offsets[None]={}
+                       extra =[]
                        offset = d_fields[0].offset # offset first dynamic data
+                       log.debug(f"{arg}")
                        for field in cls._d_fields:
-                         farg =  nargs.get(field.name, field.get_default())
-                         # prepare input for field constructor
-                         if isinstance(farg, tuple):
-                             fsize,foffsets = field.ftype._get_size_from_args(*farg)
-                         elif isinstance(farg, dict):
-                             fsize,foffsets = field.ftype._get_size_from_args(**farg)
-                         else:
-                             fsize, foffsets = field.ftype._get_size_from_args(farg)
+                         farg =  arg.get(field.name, field.get_default())
+                         log.debug(f"get size for field `{field.name}` using `{farg}`")
+                         fsize, foffsets =\
+                                 dispatch_arg(field.ftype._get_size_from_args,farg)
+                         log.debug(f"got size {fsize} and {foffsets}")
                          if foffsets is not None:
-                            offsets[field.name]=foffsets
-                         offsets[None][field.index] = offset
+                            extra.append( (field.index,foffsets) )
+                         offsets[field.index]= offset
                          offset += _to_slot_size(fsize)
                        size=offset
-                       return size, offsets
+                       return size, (offsets, extra)
                     elif isinstance(arg, cls):
                         size=arg._get_size()
                         return size,None # extra info not needed
                     else:
                         raise ValueError(f"{arg} Not valid type for {cls}")
                 else: #python argument
-                    cls._get_size_from_args(nargs)
-                return size, offsets, extra
+                    return cls._get_size_from_args(nargs)
 
         data["_size"] = size
         data["_get_size"] = _get_size
@@ -195,7 +193,7 @@ class Struct(metaclass=MetaStruct):
         return self
 
     @classmethod
-    def _to_buffer(cls, buffer, offset, value):
+    def _to_buffer(cls, buffer, offset, value, mdata=None):
         if isinstance(value, cls): #binary copy
             value_size=value._size
             if value._buffer.context is buffer.context:
@@ -203,8 +201,25 @@ class Struct(metaclass=MetaStruct):
             else:
                 data = value._buffer.read(value._offset, value_size)
                 buffer.write(offset, data)
-        else: # value must be a dict
-            cls(_buffer=buffer, _offset=offset, **value)
+        else: # value must be a dict, again potential disctructive
+            if mdata is None:
+                size,mdata = cls._get_size_from_args(value)
+            if mdata is not None:
+                if len(mdata)==2:
+                  loffsets,extra= mdata
+                  cls._set_offsets(buffer, offset, loffsets)
+            else:
+                extra={}
+            for field in cls._fields:
+                fvalue = value.get(field.name, field.get_default())
+                if field.deferenced:
+                    foffset=offset+loffset[field.index]
+                    if field.index in extra:
+                       field.ftype._to_buffer(
+                               buffer, foffset, fvalue, extra[field.index])
+                else:
+                    foffset=offset+field.offset
+                    field.ftype._to_buffer( buffer, foffset, fvalue)
 
     def __init__(self, _context=None, _buffer=None, _offset=None,**nargs):
         """
@@ -213,22 +228,22 @@ class Struct(metaclass=MetaStruct):
         """
         cls = self.__class__
         # compute resources
-        size, _offsets = cls._get_size_from_args(**nargs)
-        if _offsets is not None:  # dynamic struct
+        size, offsets = cls._get_size_from_args(**nargs)
+        if offsets is not None:  # dynamic struct
             self._size = size
         # acquire buffer
         self._buffer, self._offset=get_a_buffer(size)
         # if dynamic struct store dynamic offsets
-        if _offsets is not None:
-            self._offsets=_offsets
-            for index, data_offset in _offsets.items():
-                offset=self._offset + self._fields[index].offset
-                Int64._to_buffer(self._buffer, offset, data_offset)
+        if offsets is not None:
+            self._offsets=offsets[0] #struct offsets
+        self.__class__._to_buffer(self._buffer, self._offset, nargs, offsets)
 
-        # populate fields
-        for field in self._fields:
-            value = nargs.get(field.name, field.get_default())
-            field.__set__(self, value)
+    @classmethod
+    def _set_offsets(cls, buffer, offset, loffsets):
+        log.debug(f"{cls} set offset {loffsets}")
+        for index, data_offset in loffsets.items():
+            foffset=offset + cls._fields[index].offset
+            Int64._to_buffer(buffer, foffset, data_offset)
 
     def _update_from_dict(self, data):
         for field in self._fields:

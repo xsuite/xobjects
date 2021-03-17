@@ -76,9 +76,14 @@ Types can be composed of:
 - create: Union(element), Union( (typename,{}) )
 - layout
   - typeid
-  - offset [or data?]
+  - offset [or data and introducing Ref?]
 
 ## Implementation details
+
+Assumptions:
+- Python user API cannot change the internal structure of the object but only the content
+- Python object caches the structure information to avoid round trips to access data
+- C user API does not manipulate structures
 
 Operation:
 
@@ -114,11 +119,6 @@ Operation:
     else call _to_buffer
 
 
-Generic:
-
-- _get_a_buffer(size,context,buffer,offset) -> buffer,offset
-  get a valid buffer and offsets, creating buffer and allocating space if necessary
-
 Class content:
 
 - _inspect_args(cls, *args, **nargs) -> size, offsets
@@ -136,27 +136,6 @@ Class content:
 Instance content:
 
 - _get_size(self) -> size
-
-Field class:
-- ftype
-- index
-- name
-- offset
-- deferenced
-- readonly
-
-Struct class:
-- _fields: list of fields
-- _d_fields: list of dynamic fields
-- _s_fields: list of dynamic fields
-
-Struct instance:
-- _offsets: cached offsets of dynamic fields dict indexed by field.index
-- _sizes: cached sizes of dynamic fields dict indexed by field.index
-
-
-
-
 
 ## C-API
 

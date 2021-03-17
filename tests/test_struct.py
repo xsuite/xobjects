@@ -2,7 +2,6 @@ import xobjects as xo
 
 from xobjects.context import Info
 
-
 def test_static_struct_def():
     class StructA(xo.Struct):
         a = xo.Float64
@@ -34,9 +33,6 @@ def test_static_struct():
     s.c = 7
     assert s.c == 7
     s.b = -4
-
-
-
 
 
 def test_nested_struct():

@@ -6,56 +6,55 @@ typedef long long int i64;
 typedef struct {
     double x;
     double y;
-} B;
+} Field;
 
 typedef struct {
-    i64 a;
-    B b[NN];
-} S;
+    i64 order;
+    Field field[NN];
+} Multipole;
 
 
-typedef struct{} Bs;
-typedef struct{} Ss;
+i64 Multipole_get_order(Multipole* mult){ return   mult->order; };
+void Multipole_set_order(Multipole* mult, i64 val){  mult->order=val; };
+Field* Multipole_get_field(Multipole* mult, i64 i){ return  &(mult->field[i]); };
 
-i64 Ss_get_a(Ss* s){ return   ((i64 *) s)[0]; };
-i64 S_get_a(S* s){ return   s->a; };
+double Multipole_get_field_normal(Multipole* mult, i64 i){ return mult->field[i].x; };
+void Multipole_set_field_normal(Multipole* mult, i64 i, double val){  mult->field[i].x=val; };
 
-void Ss_set_a(Ss* s, i64 val ){ ((i64 *) s)[0]=val; };
-void S_set_a(S* s, i64 val){  s->a=val; };
+double Multipole_get_field_skew(Multipole* mult, i64 i){ return mult->field[i].y; };
+void Multipole_set_field_skew(Multipole* mult, i64 i, double val){  mult->field[i].y=val; };
 
 
-Bs* Ss_get_b(Ss* s, i64 i){ return   (Bs*) ( ((i64*)s) [1+2*i]); };
-B* S_get_b(S* s, i64 i){ return  &(s->b[i]); };
+//xobjects
+typedef struct{} XField;
+typedef struct{} XMultipole;
 
-double Ss_get_b_x(Ss* s, i64 i){ return  ((double *) s)[1+2*i]; };
-double Ss_get2_b_x(Ss* s, i64 i){ return ((double*) Ss_get_b(s,i))[0]; };
-double S_get_b_x(S* s, i64 i){ return s->b[i].x; };
+i64 XMultipole_get_order(XMultipole* mult){ return ((i64 *) mult)[0]; };
+void XMultipole_set_order(XMultipole* mult, i64 val ){ ((i64 *) mult)[0]=val; };
 
-void Ss_set_b_x(Ss* s, i64 i, double val ){ ((double *) s)[1+2*i]=val; };
-void S_set_b_x(S* s, i64 i, double val){  s->b[i].x=val; };
+XField* XMultipole_get_field(XMultipole* mult, i64 i){ return (XField*) ( ((i64*)mult) [1+2*i]); };
 
-double Ss_get_b_y(Ss* s, i64 i){ return  ((double *) s)[1+2*i+1]; };
-double Ss_get2_b_y(Ss* s, i64 i){ return ((double*) Ss_get_b(s,i))[1]; };
-double S_get_b_y(S* s, i64 i){ return s->b[i].y; };
+double XMultipole_get_field_normal(XMultipole* mult, i64 i){ return  ((double *) mult)[1+2*i]; };
+void XMultipole_set_field_normal(XMultipole* mult, i64 i, double val ){ ((double *) mult)[1+2*i]=val; };
 
-void Ss_set_b_y(Ss* s, i64 i, double val ){ ((double *) s)[1+2*i+1]=val; };
-void S_set_b_y(S* s, i64 i, double val){  s->b[i].y=val; };
+double XMultipole_get_field_skew(XMultipole* mult, i64 i){ return  ((double *) mult)[1+2*i+1]; };
+void XMultipole_set_field_skew(XMultipole* mult, i64 i, double val ){ ((double *) mult)[1+2*i+1]=val; };
 
-double S_f(S* restrict s){
-    int l = s->a;
+double Multipole_f(Multipole* restrict mult){
+    int l = mult->order;
     double res=0;
     for (int i=0; i<l; i++){
-        res+=s->b[i].x+s->b[i].y;
+        res+=mult->field[i].x+mult->field[i].y;
     }
     return res;
 };
 
-
-double Ss_f(Ss* restrict s){
-    int l = Ss_get_a(s);
+double XMultipole_f(XMultipole* restrict mult){
+    int l = XMultipole_get_order(mult);
     double res=0;
     for (int i=0; i<l; i++){
-        res+=Ss_get_b_x(s,i)+Ss_get_b_y(s,i);
+        res+=XMultipole_get_field_normal(mult,i) +
+             XMultipole_get_field_skew(mult,i);
     }
     return res;
 };
@@ -67,39 +66,35 @@ double Ss_f(Ss* restrict s){
 int main (void){
     int begin;
     double r1,r2;
-    S* s1 = (S*) malloc(sizeof(S));
-    Ss* s2 = (Ss*) malloc(sizeof(S));
+    Multipole* mult1 = (Multipole*) malloc(sizeof(Multipole));
+    XMultipole* mult2 = (XMultipole*) malloc(sizeof(Multipole));
 
-    S_set_a(s1,NN);
-    Ss_set_a(s2,NN);
+    Multipole_set_order(mult1,NN);
+    XMultipole_set_order(mult2,NN);
 
     for(int i; i<NN; i++){
-       S_set_b_x(s1,i,i);
-       S_set_b_y(s1,i,2*i);
-//       printf("%g %g\n",S_get_b_x(s1,i), S_get_b_y(s1,i));
+       Multipole_set_field_normal(mult1,i,i);
+       Multipole_set_field_skew(mult1,i,2*i);
+//       printf("%g %g\n",Multipole_get_field_normal(mult1,i), Multipole_get_field_skew(mult1,i));
     };
 
     for(int i; i<NN; i++){
-       Ss_set_b_x(s2,i,1*i);
-       Ss_set_b_y(s2,i,2*i);
-//       printf("%g %g\n",Ss_get_b_x(s2,i), Ss_get_b_y(s2,i));
+       XMultipole_set_field_normal(mult2,i,1*i);
+       XMultipole_set_field_skew(mult2,i,2*i);
+//       printf("%g %g\n",XMultipole_get_field_normal(mult2,i), XMultipole_get_field_skew(mult2,i));
     };
 
 
-    printf("%d\n",S_get_a(s1));
-    printf("%d\n",Ss_get_a(s2));
+    printf("%d\n",Multipole_get_order(mult1));
+    printf("%d\n",XMultipole_get_order(mult2));
 
     begin=clock();
-    r1=S_f(s1);
+    r1=Multipole_f(mult1);
     printf("%30.25e %g\n",(double)(clock() - begin) / CLOCKS_PER_SEC, r1);
 
     begin=clock();
-    r2=Ss_f(s2);
+    r2=XMultipole_f(mult2);
     printf("%30.25e %g\n",(double)(clock() - begin) / CLOCKS_PER_SEC, r2);
 
     return 1;
 };
-
-
-
-

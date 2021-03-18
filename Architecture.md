@@ -49,7 +49,7 @@ Types can be composed of:
   - bytes
 
 ### Struct
-- example: struct  MyStruct field1 f ... 
+- example: struct  MyStruct field1 field2 ... 
 - create: Struct(dict), Struct(**args)
 - layout:
   [ instance size ]
@@ -65,9 +65,9 @@ Types can be composed of:
 
 ### Array:
 - create: Array(d1,d2,...) or Array([...]) or Array(nparray)
+- example: array d1 d2 d3 'C' ; array d1 : d3 'F' ;
 - layout:
   - [size]
-  - [ndims]
   - [dims ... ]
   - [offsets]
   - data
@@ -77,6 +77,11 @@ Types can be composed of:
 - layout
   - typeid
   - offset [or data and introducing Ref?]
+
+### Ref?:
+- layout
+  - offset
+
 
 ## Implementation details
 

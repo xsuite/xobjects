@@ -27,6 +27,7 @@ class NumpyScalar:
         return Info(size=self._size)
 
 
+Float128 = NumpyScalar("float128")
 Float64 = NumpyScalar("float64")
 Float32 = NumpyScalar("float32")
 Int64 = NumpyScalar("int64")
@@ -37,3 +38,6 @@ Int16 = NumpyScalar("int16")
 UInt16 = NumpyScalar("uint16")
 Int8 = NumpyScalar("int8")
 UInt8 = NumpyScalar("uint8")
+Complex64 = NumpyScalar("complex64")
+Complex128 = NumpyScalar("complex128")
+Complex256 = NumpyScalar("complex256")

@@ -1,4 +1,5 @@
 from typing import NamedTuple
+from abc import ABC, abstractmethod
 
 
 """
@@ -9,9 +10,31 @@ TODO:
     - Consider Buffer[offset] to create View and avoid _offset in type API
 """
 
+class MinimalDotDict(dict):
+    def __getattr__(self, attr):
+        return self.get(attr)
+
+class Context(ABC):
+
+    def __init__(self):
+        self._kernels = MinimalDotDict()
+        self._buffers = []
+
+    @property
+    def buffers(self):
+        return self._buffers
+
+    @property
+    def kernels(self):
+        return self._kernels
+
+    @abstractmethod
+    def new_buffer(self, capacity):
+        pass
 
 
-class Buffer:
+
+class Buffer(ABC):
     def __init__(self, capacity=1048576, context=None):
         if context is None:
             from . import ContextDefault

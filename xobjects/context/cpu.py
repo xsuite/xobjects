@@ -1,10 +1,12 @@
 import weakref
 
-from .general import Buffer
+from .general import Buffer, Context
 
-class ContextCpu:
-    def __init__(self):
-        self.buffers = []
+class ContextCpu(Context):
+
+    def __init__(self): # Unnecessary
+                        # but I keep it for symmetry with other contexts
+        super().__init__()
 
     def new_buffer(self, capacity=1048576):
         buf = ByteArrayBuffer(capacity=capacity, context=self)

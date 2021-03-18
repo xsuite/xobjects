@@ -14,8 +14,8 @@ TODO:
 class Buffer:
     def __init__(self, capacity=1048576, context=None):
         if context is None:
-            from .cpu import ByteArrayContext
-            self.context = ByteArrayContext()
+            from . import ContextDefault
+            self.context = ContextDefault()
         else:
             self.context = context
         self.buffer = self._new_buffer(capacity)
@@ -107,8 +107,8 @@ def get_a_buffer(size, context=None, buffer=None, offset=None):
         if offset is not None:
             raise ValueError("Cannot set `offset` without buffer")
         if context is None:
-            from .cpu import ByteArrayContext
-            context = ByteArrayContext()
+            from . import ContextDefault
+            context = ContextDefault()
         buffer = context.new_buffer(size)
     if offset is None:
         offset = buffer.allocate(size)
@@ -127,7 +127,7 @@ class View(NamedTuple):
             if offset is not None:
                 raise ValueError("Cannot set `offset` without buffer")
             if context is None:
-                context = ByteArrayContext()
+                context = ContextDefault()
             buffer = context.new_buffer(size)
         if offset is None:
             offset = buffer.allocate(size)

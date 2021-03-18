@@ -2,7 +2,7 @@ import weakref
 
 from .general import Buffer
 
-class ByteArrayContext:
+class ContextCpu:
     def __init__(self):
         self.buffers = []
 

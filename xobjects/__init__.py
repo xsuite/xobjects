@@ -1,4 +1,5 @@
-from .context import CLContext, ByteArrayContext
+from .context import ContextCpu, ContextCupy, ContextPyopencl, ContextDefault
+
 from .scalar import (
     Float64,
     Float32,
@@ -14,3 +15,7 @@ from .scalar import (
 from .string import String
 from .struct import Struct, Field
 from .array import Array
+
+# TODO: adapt the the tests and remove these
+CLContext = ContextPyopencl
+ByteArrayContext = ContextCpu

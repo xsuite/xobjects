@@ -1,26 +1,36 @@
 import weakref
 import ctypes
+import numpy as np
+
+
+from .general import Buffer, Context, ModuleNotAvailable
 
 try:
     import cppyy
 except ImportError:
-    print('WARNING: cppyy is not installed, this platform will not be available')
-    from .platnotavail import ModuleNotAvailable
+    print('WARNING:'
+        'cppyy is not installed, this platform will not be available')
     cppyy = ModuleNotAvailable(message=('cppyy is not installed. '
                             'this platform is not available!'))
 
-import numpy as np
-
-from .general import Buffer, Context
-
 class ContextCpu(Context):
+
+    """
+
+    Creates a CPU Platform object, that allows performing the computations
+    on conventional CPUs.
+
+    Returns:
+         ContextCpu: platform object.
+
+    """
 
     def __init__(self): # Unnecessary
                         # but I keep it for symmetry with other contexts
         super().__init__()
 
     def new_buffer(self, capacity=1048576):
-        buf = ByteArrayBuffer(capacity=capacity, context=self)
+        buf = BufferByteArray(capacity=capacity, context=self)
         self.buffers.append(weakref.finalize(buf, print, "free", repr(buf)))
         return buf
 
@@ -99,7 +109,7 @@ class ContextCpu(Context):
             self.kernels[nn] = KernelCpu(cppyy_kernel=kk,
                 arg_names=aa_names, arg_types=aa_types)
 
-    def nparray_to_context_mem(self, arr):
+    def nparray_to_context_array(self, arr):
         """
         Moves a numpy array to the device memory. No action is performed by
         this function in the CPU context. The method is provided
@@ -114,7 +124,7 @@ class ContextCpu(Context):
         """
         return arr
 
-    def nparray_from_context_mem(self, dev_arr):
+    def nparray_from_context_array(self, dev_arr):
         """
         Moves an array to the device to a numpy array. No action is performed by
         this function in the CPU context. The method is provided so that the CPU
@@ -222,7 +232,7 @@ class ContextCpu(Context):
 
         return self._kernels
 
-class ByteArrayBuffer(Buffer):
+class BufferByteArray(Buffer):
 
     _DefaultContext = ContextCpu
 

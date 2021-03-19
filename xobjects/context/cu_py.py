@@ -5,62 +5,36 @@ import numpy as np
 from .general import Buffer, Context, ModuleNotAvailable
 
 try:
-    import pyopencl as cl
-    import pyopencl.array as cla
+    import cupy
+    from cupyx.scipy import fftpack as cufftp
 except ImportError:
-    print('WARNING: pyopencl is not installed, this context will not be available')
-    cl = ModuleNotAvailable(message=('pyopencl is not installed. '
+    print('WARNING: cupy is not installed, this context will not be available')
+    cupy = ModuleNotAvailable(message=('cupy is not installed. '
                             'this context is not available!'))
-    cla = cl
+    cufftp = cupy
 
-from ._patch_pyopencl_array import _patch_pyopencl_array
+class ContextCupy(Context):
 
+    """
+    Creates a Cupy Context object, that allows performing the computations
+    on nVidia GPUs.
 
-class ContextPyopencl(Context):
+    Args:
+        default_block_size (int):  CUDA thread size that is used by default
+            for kernel execution in case a block size is not specified
+            directly in the kernel object. The default value is 256.
+    Returns:
+        ContextCupy: context object.
 
-    @classmethod
-    def print_devices(cls):
-        for ip, platform in enumerate(cl.get_platforms()):
-            print(f"Context {ip}: {platform.name}")
-            for id, device in enumerate(platform.get_devices()):
-                print(f"Device {ip}.{id}: {device.name}")
+    """
 
-    def __init__(self, device="0.0", patch_pyopencl_array=True):
-
-        """
-        Creates a Pyopencl Context object, that allows performing the computations
-        on GPUs and CPUs through PyOpenCL.
-
-        Args:
-            device (str or Device): The device (CPU or GPU) for the simulation.
-            default_kernels (bool): If ``True``, the Xfields defult kernels are
-                automatically imported.
-            patch_pyopencl_array (bool): If ``True``, the PyOpecCL class is patched to
-                allow some operations with non-contiguous arrays.
-
-        Returns:
-            ContextPyopencl: context object.
-
-        """
+    def __init__(self, default_block_size=256):
 
         super().__init__()
-
-        if isinstance(device, str):
-            platform, device = map(int, device.split("."))
-        else:
-            self.device = device
-            self.platform = device.platform
-
-        self.platform = cl.get_platforms()[platform]
-        self.device = self.platform.get_devices()[device]
-        self.context = cl.Context([self.device])
-        self.queue = cl.CommandQueue(self.context)
-
-        if patch_pyopencl_array:
-            _patch_pyopencl_array(cl, cla, self.context)
+        self.default_block_size = default_block_size
 
     def new_buffer(self, capacity=1048576):
-        buf = BufferPyopencl(capacity=capacity, context=self)
+        buf = CupyBuffer(capacity=capacity, context=self)
         self.buffers.append(weakref.finalize(buf, print, "free", repr(buf)))
         return buf
 
@@ -87,10 +61,10 @@ class ContextPyopencl(Context):
         .. code-block:: python
 
             src_code = r'''
-            __kernel
-            void my_mul(const int n, __global const float* x1,
-                        __global const float* x2, __global float* y) {
-                int tid = get_global_id(0);
+            __global__
+            void my_mul(const int n, const float* x1,
+                        const float* x2, float* y) {
+                int tid = blockDim.x * blockIdx.x + threadIdx.x;
                 if (tid < n){
                     y[tid] = x1[tid] * x2[tid];
                     }
@@ -113,45 +87,45 @@ class ContextPyopencl(Context):
             context.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
         """
 
-        src_content = src_code
+        src_content = 'extern "C"{'
         for ff in src_files:
             with open(ff, 'r') as fid:
                 src_content += ('\n\n' + fid.read())
+        src_content += "}"
 
-        prg = cl.Program(self.context, src_content).build()
+        module = cupy.RawModule(code=src_content)
 
         ker_names = kernel_descriptions.keys()
         for nn in ker_names:
-            kk = getattr(prg, nn)
+            kk = module.get_function(nn)
             aa = kernel_descriptions[nn]['args']
             nt_from = kernel_descriptions[nn]['num_threads_from_arg']
             aa_types, aa_names = zip(*aa)
-            self.kernels[nn] = KernelCpu(pyopencl_kernel=kk,
+            self.kernels[nn] = KernelCupy(cupy_kernel=kk,
                 arg_names=aa_names, arg_types=aa_types,
                 num_threads_from_arg=nt_from,
-                queue=self.queue)
+                block_size=self.default_block_size)
 
     def nparray_to_context_array(self, arr):
-
         """
         Copies a numpy array to the device memory.
+
         Args:
             arr (numpy.ndarray): Array to be transferred
 
         Returns:
-            pyopencl.array.Array:The same array copied to the device.
+            cupy.ndarray:The same array copied to the device.
 
         """
-        dev_arr = cla.to_device(self.queue, arr)
+        dev_arr = cupy.array(arr)
         return dev_arr
 
     def nparray_from_context_array(self, dev_arr):
-
         """
         Copies an array to the device to a numpy array.
 
         Args:
-            dev_arr (pyopencl.array.Array): Array to be transferred.
+            dev_arr (cupy.ndarray): Array to be transferred.
         Returns:
             numpy.ndarray: The same data copied to a numpy array.
 
@@ -161,36 +135,34 @@ class ContextPyopencl(Context):
     @property
     def nplike_lib(self):
         """
-        Module containing all the numpy features supported by PyOpenCL (optionally
-        with patches to operate with non-contiguous arrays).
+        Module containing all the numpy features supported by cupy.
         """
-        return cla
+        return cupy
 
     def synchronize(self):
         """
         Ensures that all computations submitted to the context are completed.
-        No action is performed by this function in the Pyopencl context. The method
-        is provided so that the Pyopencl context has an identical API to the Cupy one.
+        Equivalent to ``cupy.cuda.stream.get_current_stream().synchronize()``
         """
-        pass
+        cupy.cuda.stream.get_current_stream().synchronize()
 
     def zeros(self, *args, **kwargs):
         """
         Allocates an array of zeros on the device. The function has the same
         interface of numpy.zeros"""
-        return self.nplike_lib.zeros(queue=self.queue, *args, **kwargs)
+        return self.nplike_lib.zeros(*args, **kwargs)
 
-    def plan_FFT(self, data, axes, wait_on_call=True):
+    def plan_FFT(self, data, axes, ):
         """
         Generates an FFT plan object to be executed on the context.
 
         Args:
-            data (pyopencl.array.Array): Array having type and shape for which
-                the FFT needs to be planned.
+            data (cupy.ndarray): Array having type and shape for which the FFT
+                needs to be planned.
             axes (sequence of ints): Axes along which the FFT needs to be
                 performed.
         Returns:
-            FFTPyopencl: FFT plan for the required array shape, type and axes.
+            FFTCupy: FFT plan for the required array shape, type and axes.
 
         Example:
 
@@ -206,7 +178,7 @@ class ContextPyopencl(Context):
             # Inverse tranform (in place)
             plan.itransform(data2)
         """
-        return FFTPyopencl(self, data, axes, wait_on_call)
+        return FFTCupy(self, data, axes)
 
     @property
     def kernels(self):
@@ -220,10 +192,10 @@ class ContextPyopencl(Context):
         .. code-block:: python
 
             src_code = r'''
-            __kernel
-            void my_mul(const int n, __global const float* x1,
-                        __global const float* x2, __global float* y) {
-                int tid = get_global_id(0);
+            __global__
+            void my_mul(const int n, const float* x1,
+                        const float* x2, float* y) {
+                int tid = blockDim.x * blockIdx.x + threadIdx.x;
                 if (tid < n){
                     y[tid] = x1[tid] * x2[tid];
                     }
@@ -248,62 +220,43 @@ class ContextPyopencl(Context):
             context.kernels['my_mul'](n=len(a1), x1=a1, x2=a2)
 
         """
-
         return self._kernels
 
+class CupyBuffer(Buffer):
 
-class BufferPyopencl(Buffer):
-
-
-    _DefaultContext = ContextPyopencl
+    _DefaultContext = ContextCupy
 
     def _new_buffer(self, capacity):
-        return cl.Buffer(
-            self.context.context, cl.mem_flags.READ_WRITE, capacity
-        )
+        return cupy.zeros(shape=(capacity,), dtype=cupy.uint8)
 
     def copy_to(self, dest):
-        # Does not pass through cpu if it can
-        # dest: python object that uses buffer protocol or opencl buffer
-        cl.enqueue_copy(self.context.queue, dest, self.buffer)
+        dest[:len(self.buffer)] = self.buffer
 
     def copy_from(self, source, src_offset, dest_offset, byte_count):
-        # Does not pass through cpu if it can
-        # source: python object that uses buffer protocol or opencl buffer
-        cl.enqueue_copy(
-            self.context.queue, self.buffer, source, src_offset, dest_offset, byte_count
-        )
+        self.buffer[dest_offset : dest_offset + byte_count] = source[
+            src_offset : src_offset + byte_count
+        ]
 
     def write(self, offset, data):
-        # From python object on cpu
-        cl.enqueue_copy(
-            self.context.queue, self.buffer, data, device_offset=offset
-        )
+        self.buffer[offset : offset + len(data)] = cupy.array(
+                                            np.frombuffer(data, dtype=np.uint8))
 
     def read(self, offset, size):
-        # To python object on cpu
-        data = bytearray(size)
-        cl.enqueue_copy(
-            self.context.queue, data, self.buffer, device_offset=offset
-        )
-        return data
+        return self.buffer[offset : offset + size].get().tobytes()
 
+class KernelCupy(object):
 
-class KernelCpu(object):
+    def __init__(self, cupy_kernel, arg_names, arg_types,
+                 num_threads_from_arg, block_size):
 
-    def __init__(self, pyopencl_kernel, arg_names, arg_types,
-                 num_threads_from_arg, queue,
-                 wait_on_call=True):
-
-        assert (len(arg_names) == len(arg_types) == pyopencl_kernel.num_args)
+        assert (len(arg_names) == len(arg_types))
         assert num_threads_from_arg in arg_names
 
-        self.pyopencl_kernel = pyopencl_kernel
+        self.cupy_kernel = cupy_kernel
         self.arg_names = arg_names
         self.arg_types = arg_types
         self.num_threads_from_arg = num_threads_from_arg
-        self.queue = queue
-        self.wait_on_call = wait_on_call
+        self.block_size = block_size
 
     @property
     def num_args(self):
@@ -318,53 +271,34 @@ class KernelCpu(object):
                 assert np.isscalar(vv)
                 arg_list.append(tt[1](vv))
             elif tt[0] == 'array':
-                assert isinstance(vv, cla.Array)
-                assert vv.context == self.pyopencl_kernel.context
-                arg_list.append(vv.base_data[vv.offset:])
+                assert isinstance(vv, cupy.ndarray)
+                arg_list.append(vv.data)
             else:
                 raise ValueError(f'Type {tt} not recognized')
 
-        event = self.pyopencl_kernel(self.queue,
-                (kwargs[self.num_threads_from_arg],),
-                None, *arg_list)
+        n_threads = kwargs[self.num_threads_from_arg]
+        grid_size = int(np.ceil(n_threads/self.block_size))
+        self.cupy_kernel((grid_size, ), (self.block_size, ), arg_list)
 
-        if self.wait_on_call:
-            event.wait()
 
-        return event
-
-class FFTPyopencl(object):
-    def __init__(self, context, data, axes, wait_on_call=True):
+class FFTCupy(object):
+    def __init__(self, context, data, axes):
 
         self.context = context
         self.axes = axes
-        self.wait_on_call = wait_on_call
 
         assert len(data.shape) > max(axes)
 
-        # Check internal dimensions are powers of two
-        for ii in axes[:-1]:
-            nn = data.shape[ii]
-            frac_part, _ = np.modf(np.log(nn)/np.log(2))
-            assert np.isclose(frac_part, 0) , ('PyOpenCL FFT requires'
-                    ' all dimensions apart from the last to be powers of two!')
-
-        import gpyfft
-        self._fftobj = gpyfft.fft.FFT(context.context,
-                context.queue, data, axes=axes)
+        from cupyx.scipy import fftpack as cufftp
+        self._fftplan = cufftp.get_fft_plan(
+                data, axes=self.axes, value_type='C2C')
 
     def transform(self, data):
+        data[:] = cufftp.fftn(data, axes=self.axes, plan=self._fftplan)[:]
         """The transform is done inplace"""
 
-        event, = self._fftobj.enqueue_arrays(data)
-        if self.wait_on_call:
-            event.wait()
-        return event
 
     def itransform(self, data):
         """The transform is done inplace"""
+        data[:] = cufftp.ifftn(data, axes=self.axes, plan=self._fftplan)[:]
 
-        event, = self._fftobj.enqueue_arrays(data, forward=False)
-        if self.wait_on_call:
-            event.wait()
-        return event

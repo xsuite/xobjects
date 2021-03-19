@@ -98,6 +98,26 @@ class Buffer(ABC):
                 pch = ch
         self.chunks = newchunks
 
+    @abstractmethod
+    def _new_buffer(self, capacity):
+        return newbuffer
+
+    @abstractmethod
+    def copy_to(self, dest):
+        pass
+
+    @abstractmethod
+    def copy_from(self, source, src_offset, dest_offset, byte_count):
+        pass
+
+    @abstractmethod
+    def write(self, offset, data):
+        pass
+
+    @abstractmethod
+    def read(self, offset, size):
+        return data
+
 
 class Chunk:
     def __init__(self, start, end):

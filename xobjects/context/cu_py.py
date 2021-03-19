@@ -228,7 +228,7 @@ class CupyBuffer(Buffer):
         return cupy.zeros(shape=(capacity,), dtype=cupy.uint8)
 
     def copy_to(self, dest):
-        dest[:] = self.buffer
+        dest[:len(self.buffer)] = self.buffer
 
     def copy_from(self, source, src_offset, dest_offset, byte_count):
         self.buffer[dest_offset : dest_offset + byte_count] = source[
@@ -236,7 +236,8 @@ class CupyBuffer(Buffer):
         ]
 
     def write(self, offset, data):
-        self.buffer[offset : offset + len(data)] = data
+        self.buffer[offset : offset + len(data)] = cupy.array(
+                                            np.frombuffer(data, dtype=np.uint8))
 
     def read(self, offset, size):
         return self.buffer[offset : offset + size].get().tobytes()

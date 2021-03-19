@@ -8,7 +8,7 @@ TODO:
 - consider adding size in the class
 """
 
-from .context import get_a_buffer, Info
+from .typeutils import get_a_buffer, Info
 from .scalar import Int64
 
 import logging

@@ -5,7 +5,7 @@ TODO:
     - make scalars as class instead of instances
 """
 
-from .context import Info
+from .typeutils import Info
 
 class NumpyScalar:
     def __init__(self, dtype):

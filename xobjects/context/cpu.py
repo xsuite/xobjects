@@ -15,6 +15,16 @@ except ImportError:
 
 class ContextCpu(Context):
 
+    """
+
+    Creates a CPU Platform object, that allows performing the computations
+    on conventional CPUs.
+
+    Returns:
+         ContextCpu: platform object.
+
+    """
+
     def __init__(self): # Unnecessary
                         # but I keep it for symmetry with other contexts
         super().__init__()

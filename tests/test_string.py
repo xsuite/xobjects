@@ -3,7 +3,7 @@ import xobjects as xo
 
 def test_string_class():
     info = xo.String._inspect_args("abcde")
-    assert info.size==5+8
+    assert info.size==5+1+2+8
 
 
 def test_string_init1():

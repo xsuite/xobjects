@@ -44,7 +44,7 @@ Field instance:
 """
 import logging
 
-from .context import get_a_buffer, dispatch_arg, Info
+from .typeutils import get_a_buffer, dispatch_arg, Info
 
 from .scalar import Int64
 

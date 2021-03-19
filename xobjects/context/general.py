@@ -36,9 +36,9 @@ class Context(ABC):
 
 class Buffer(ABC):
     def __init__(self, capacity=1048576, context=None):
+
         if context is None:
-            from . import ContextDefault
-            self.context = ContextDefault()
+            self.context = self._DefaultContext()
         else:
             self.context = context
         self.buffer = self._new_buffer(capacity)
@@ -145,18 +145,6 @@ class Chunk:
     def __repr__(self):
         return f"Chunk({self.start},{self.end})"
 
-def get_a_buffer(size, context=None, buffer=None, offset=None):
-    if buffer is None:
-        if offset is not None:
-            raise ValueError("Cannot set `offset` without buffer")
-        if context is None:
-            from . import ContextDefault
-            context = ContextDefault()
-        buffer = context.new_buffer(size)
-    if offset is None:
-        offset = buffer.allocate(size)
-    return buffer, offset
-
 
 class View(NamedTuple):
     context: None
@@ -165,7 +153,7 @@ class View(NamedTuple):
     size: int
 
     @classmethod
-    def _from_sise(cls, size, context=None, buffer=None, offset=None):
+    def _from_size(cls, size, context=None, buffer=None, offset=None):
         if buffer is None:
             if offset is not None:
                 raise ValueError("Cannot set `offset` without buffer")
@@ -177,22 +165,3 @@ class View(NamedTuple):
         return cls(context, buffer, offset, size)
 
 
-def dispatch_arg(f, arg):
-    if isinstance(arg, tuple):
-        return f(*arg)
-    elif isinstance(arg, dict):
-        return f(**arg)
-    else:
-        return f(arg)
-
-
-class Info:
-    def __init__(self, **nargs):
-        self.__dict__.update(nargs)
-
-    def __repr__(self):
-        args = [f"{k}={repr(v)}" for k, v in self.__dict__.items()]
-        return f"Info({','.join(args)})"
-
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__

@@ -1,4 +1,15 @@
 import weakref
+import ctypes
+
+try:
+    import cppyy
+except ImportError:
+    print('WARNING: cppyy is not installed, this platform will not be available')
+    from .platnotavail import ModuleNotAvailable
+    cppyy = ModuleNotAvailable(message=('cppyy is not installed. '
+                            'this platform is not available!'))
+
+import numpy as np
 
 from .general import Buffer, Context
 
@@ -212,6 +223,9 @@ class ContextCpu(Context):
         return self._kernels
 
 class ByteArrayBuffer(Buffer):
+
+    _DefaultContext = ContextCpu
+
     def _new_buffer(self, capacity):
         return bytearray(capacity)
 

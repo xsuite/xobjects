@@ -1,6 +1,6 @@
 import xobjects as xo
 
-from xobjects.context import Info
+from xobjects.typeutils import Info
 
 def test_get_shape():
     from xobjects.array import get_shape_from_array

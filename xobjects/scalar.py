@@ -7,6 +7,7 @@ TODO:
 
 from .typeutils import Info
 
+
 class NumpyScalar:
     def __init__(self, dtype):
         self._dtype = np.dtype(dtype)
@@ -23,7 +24,7 @@ class NumpyScalar:
     def __call__(self, value=0):
         return self._dtype.type(value)
 
-    def _inspect_args(self,arg):
+    def _inspect_args(self, arg):
         return Info(size=self._size)
 
 

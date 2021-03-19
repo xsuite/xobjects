@@ -8,10 +8,12 @@ try:
     import cupy
     from cupyx.scipy import fftpack as cufftp
 except ImportError:
-    print('WARNING: cupy is not installed, this context will not be available')
-    cupy = ModuleNotAvailable(message=('cupy is not installed. '
-                            'this context is not available!'))
+    print("WARNING: cupy is not installed, this context will not be available")
+    cupy = ModuleNotAvailable(
+        message=("cupy is not installed. " "this context is not available!")
+    )
     cufftp = cupy
+
 
 class ContextCupy(Context):
 
@@ -38,7 +40,7 @@ class ContextCupy(Context):
         self.buffers.append(weakref.finalize(buf, print, "free", repr(buf)))
         return buf
 
-    def add_kernels(self, src_code='', src_files=[], kernel_descriptions={}):
+    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
 
         """
         Adds user-defined kernels to to the context. The kernel source
@@ -89,8 +91,8 @@ class ContextCupy(Context):
 
         src_content = 'extern "C"{'
         for ff in src_files:
-            with open(ff, 'r') as fid:
-                src_content += ('\n\n' + fid.read())
+            with open(ff, "r") as fid:
+                src_content += "\n\n" + fid.read()
         src_content += "}"
 
         module = cupy.RawModule(code=src_content)
@@ -98,13 +100,16 @@ class ContextCupy(Context):
         ker_names = kernel_descriptions.keys()
         for nn in ker_names:
             kk = module.get_function(nn)
-            aa = kernel_descriptions[nn]['args']
-            nt_from = kernel_descriptions[nn]['num_threads_from_arg']
+            aa = kernel_descriptions[nn]["args"]
+            nt_from = kernel_descriptions[nn]["num_threads_from_arg"]
             aa_types, aa_names = zip(*aa)
-            self.kernels[nn] = KernelCupy(cupy_kernel=kk,
-                arg_names=aa_names, arg_types=aa_types,
+            self.kernels[nn] = KernelCupy(
+                cupy_kernel=kk,
+                arg_names=aa_names,
+                arg_types=aa_types,
                 num_threads_from_arg=nt_from,
-                block_size=self.default_block_size)
+                block_size=self.default_block_size,
+            )
 
     def nparray_to_context_array(self, arr):
         """
@@ -152,7 +157,11 @@ class ContextCupy(Context):
         interface of numpy.zeros"""
         return self.nplike_lib.zeros(*args, **kwargs)
 
-    def plan_FFT(self, data, axes, ):
+    def plan_FFT(
+        self,
+        data,
+        axes,
+    ):
         """
         Generates an FFT plan object to be executed on the context.
 
@@ -222,6 +231,7 @@ class ContextCupy(Context):
         """
         return self._kernels
 
+
 class CupyBuffer(Buffer):
 
     _DefaultContext = ContextCupy
@@ -230,7 +240,7 @@ class CupyBuffer(Buffer):
         return cupy.zeros(shape=(capacity,), dtype=cupy.uint8)
 
     def copy_to(self, dest):
-        dest[:len(self.buffer)] = self.buffer
+        dest[: len(self.buffer)] = self.buffer
 
     def copy_from(self, source, src_offset, dest_offset, byte_count):
         self.buffer[dest_offset : dest_offset + byte_count] = source[
@@ -239,17 +249,19 @@ class CupyBuffer(Buffer):
 
     def write(self, offset, data):
         self.buffer[offset : offset + len(data)] = cupy.array(
-                                            np.frombuffer(data, dtype=np.uint8))
+            np.frombuffer(data, dtype=np.uint8)
+        )
 
     def read(self, offset, size):
         return self.buffer[offset : offset + size].get().tobytes()
 
+
 class KernelCupy(object):
+    def __init__(
+        self, cupy_kernel, arg_names, arg_types, num_threads_from_arg, block_size
+    ):
 
-    def __init__(self, cupy_kernel, arg_names, arg_types,
-                 num_threads_from_arg, block_size):
-
-        assert (len(arg_names) == len(arg_types))
+        assert len(arg_names) == len(arg_types)
         assert num_threads_from_arg in arg_names
 
         self.cupy_kernel = cupy_kernel
@@ -267,18 +279,18 @@ class KernelCupy(object):
         arg_list = []
         for nn, tt in zip(self.arg_names, self.arg_types):
             vv = kwargs[nn]
-            if tt[0] == 'scalar':
+            if tt[0] == "scalar":
                 assert np.isscalar(vv)
                 arg_list.append(tt[1](vv))
-            elif tt[0] == 'array':
+            elif tt[0] == "array":
                 assert isinstance(vv, cupy.ndarray)
                 arg_list.append(vv.data)
             else:
-                raise ValueError(f'Type {tt} not recognized')
+                raise ValueError(f"Type {tt} not recognized")
 
         n_threads = kwargs[self.num_threads_from_arg]
-        grid_size = int(np.ceil(n_threads/self.block_size))
-        self.cupy_kernel((grid_size, ), (self.block_size, ), arg_list)
+        grid_size = int(np.ceil(n_threads / self.block_size))
+        self.cupy_kernel((grid_size,), (self.block_size,), arg_list)
 
 
 class FFTCupy(object):
@@ -290,15 +302,13 @@ class FFTCupy(object):
         assert len(data.shape) > max(axes)
 
         from cupyx.scipy import fftpack as cufftp
-        self._fftplan = cufftp.get_fft_plan(
-                data, axes=self.axes, value_type='C2C')
+
+        self._fftplan = cufftp.get_fft_plan(data, axes=self.axes, value_type="C2C")
 
     def transform(self, data):
         data[:] = cufftp.fftn(data, axes=self.axes, plan=self._fftplan)[:]
         """The transform is done inplace"""
 
-
     def itransform(self, data):
         """The transform is done inplace"""
         data[:] = cufftp.ifftn(data, axes=self.axes, plan=self._fftplan)[:]
-

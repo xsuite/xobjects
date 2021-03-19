@@ -8,10 +8,11 @@ from .general import Buffer, Context, ModuleNotAvailable
 try:
     import cppyy
 except ImportError:
-    print('WARNING:'
-        'cppyy is not installed, this platform will not be available')
-    cppyy = ModuleNotAvailable(message=('cppyy is not installed. '
-                            'this platform is not available!'))
+    print("WARNING:" "cppyy is not installed, this platform will not be available")
+    cppyy = ModuleNotAvailable(
+        message=("cppyy is not installed. " "this platform is not available!")
+    )
+
 
 class ContextCpu(Context):
 
@@ -25,8 +26,8 @@ class ContextCpu(Context):
 
     """
 
-    def __init__(self): # Unnecessary
-                        # but I keep it for symmetry with other contexts
+    def __init__(self):  # Unnecessary
+        # but I keep it for symmetry with other contexts
         super().__init__()
 
     def new_buffer(self, capacity=1048576):
@@ -34,7 +35,7 @@ class ContextCpu(Context):
         self.buffers.append(weakref.finalize(buf, print, "free", repr(buf)))
         return buf
 
-    def add_kernels(self, src_code='', src_files=[], kernel_descriptions={}):
+    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
 
         """
         Adds user-defined kernels to to the context. The kernel source
@@ -82,10 +83,10 @@ class ContextCpu(Context):
             context.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
         """
 
-        src_content = src_code;
+        src_content = src_code
         for ff in src_files:
-            with open(ff, 'r') as fid:
-                src_content += ('\n\n' + fid.read())
+            with open(ff, "r") as fid:
+                src_content += "\n\n" + fid.read()
 
         ker_names = kernel_descriptions.keys()
 
@@ -96,18 +97,21 @@ class ContextCpu(Context):
                 break
 
         if skip_compile:
-            print('Warning! Compilation is skipped because some of'
-                  ' the kernels already exist! To recompile all '
-                  'please restart python')
+            print(
+                "Warning! Compilation is skipped because some of"
+                " the kernels already exist! To recompile all "
+                "please restart python"
+            )
         else:
             cppyy.cppdef(src_content)
 
         for nn in ker_names:
             kk = getattr(cppyy.gbl, nn)
-            aa = kernel_descriptions[nn]['args']
+            aa = kernel_descriptions[nn]["args"]
             aa_types, aa_names = zip(*aa)
-            self.kernels[nn] = KernelCpu(cppyy_kernel=kk,
-                arg_names=aa_names, arg_types=aa_types)
+            self.kernels[nn] = KernelCpu(
+                cppyy_kernel=kk, arg_names=aa_names, arg_types=aa_types
+            )
 
     def nparray_to_context_array(self, arr):
         """
@@ -232,6 +236,7 @@ class ContextCpu(Context):
 
         return self._kernels
 
+
 class BufferByteArray(Buffer):
 
     _DefaultContext = ContextCpu
@@ -257,16 +262,14 @@ class BufferByteArray(Buffer):
 # One could implement something like this and chose between Numpy and ByteArr
 # when building the context
 class NumpyArrayBuffer(Buffer):
-
     def __init__(self, *args, **kwargs):
         raise NotImplementedError
 
 
 class KernelCpu(object):
-
     def __init__(self, cppyy_kernel, arg_names, arg_types):
 
-        assert (len(arg_names) == len(arg_types))
+        assert len(arg_names) == len(arg_types)
 
         self.cppyy_kernel = cppyy_kernel
         self.arg_names = arg_names
@@ -274,15 +277,15 @@ class KernelCpu(object):
 
         c_argtypes = []
         for tt in arg_types:
-            if tt[0] == 'scalar':
+            if tt[0] == "scalar":
                 if np.issubdtype(tt[1], np.integer):
                     c_argtypes.append(int)
                 else:
                     c_argtypes.append(tt[1])
-            elif tt[0] == 'array':
-                c_argtypes.append(None) # Not needed for cppyy
+            elif tt[0] == "array":
+                c_argtypes.append(None)  # Not needed for cppyy
             else:
-                raise ValueError(f'Type {tt} not recognized')
+                raise ValueError(f"Type {tt} not recognized")
         self.c_arg_types = c_argtypes
 
     @property
@@ -294,14 +297,17 @@ class KernelCpu(object):
         arg_list = []
         for nn, tt, ctt in zip(self.arg_names, self.arg_types, self.c_arg_types):
             vv = kwargs[nn]
-            if tt[0] == 'scalar':
+            if tt[0] == "scalar":
                 assert np.isscalar(vv)
                 arg_list.append(ctt(vv))
-            elif tt[0] == 'array':
-                arg_list.append(vv.ctypes.data_as(ctypes.POINTER(
-                    np.ctypeslib.as_ctypes_type(tt[1]))))
+            elif tt[0] == "array":
+                arg_list.append(
+                    vv.ctypes.data_as(
+                        ctypes.POINTER(np.ctypeslib.as_ctypes_type(tt[1]))
+                    )
+                )
             else:
-                raise ValueError(f'Type {tt} not recognized')
+                raise ValueError(f"Type {tt} not recognized")
 
         event = self.cppyy_kernel(*arg_list)
 

@@ -20,59 +20,63 @@ array Elements Element :
 """
 
 
-
 import xobject as xo
 
+
 class Particle(xo.Struct):
-    x=xo.Float64
-    px=xo.Float64
-    y=xo.Float64
-    py=xo.Float64
+    x = xo.Float64
+    px = xo.Float64
+    y = xo.Float64
+    py = xo.Float64
 
 
 class Particles(xo.Array):
-    _itemtype=Particle
-    _shape=[None]
+    _itemtype = Particle
+    _shape = [None]
 
-#or
+
+# or
 class Particles(Particle[:]):
     pass
 
 
 class Particles(xo.SOA):
-    _itemtype=Particle
-    _shape=[None]
+    _itemtype = Particle
+    _shape = [None]
 
-#or
+
+# or
 class Particles(Particle.soa[:]):
     pass
 
 
 class Drift(xo.Struct):
-    length=xo.Float64
+    length = xo.Float64
+
 
 class Field(xo.Struct):
-    normal=xo.Float64
-    skew=xo.Float64
+    normal = xo.Float64
+    skew = xo.Float64
+
 
 class Multipole(xo.Struct):
-    order=xo.Int8
-    angle=xo.Float64
-    vlength=xo.Float64
-    field=Field[:]
+    order = xo.Int8
+    angle = xo.Float64
+    vlength = xo.Float64
+    field = Field[:]
 
 
 class BeamBeam6D(xo.Struct):
-    charge=xo.Float64
-    location=xo.Float64[3]
-    sigma = xo.Float64[6,6]
+    charge = xo.Float64
+    location = xo.Float64[3]
+    sigma = xo.Float64[6, 6]
     weak_orbit = xo.Float64[6]
     correction = xo.Float64[6]
 
 
 class Element(xo.Union):
-    _members=(Drift,Multipole,BeamBeam6D)
+    _members = (Drift, Multipole, BeamBeam6D)
+
 
 class Elements(Element[:]):
     pass
-

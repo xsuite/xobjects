@@ -10,19 +10,21 @@ TODO:
     - Consider Buffer[offset] to create View and avoid _offset in type API
 """
 
+
 class MinimalDotDict(dict):
     def __getattr__(self, attr):
         return self.get(attr)
 
+
 class ModuleNotAvailable(object):
-    def __init__(self, message='Module not available'):
-        self.message=message
+    def __init__(self, message="Module not available"):
+        self.message = message
 
     def __getattr__(self, attr):
         raise NameError(self.message)
 
-class Context(ABC):
 
+class Context(ABC):
     def __init__(self):
         self._kernels = MinimalDotDict()
         self._buffers = []
@@ -40,7 +42,7 @@ class Context(ABC):
         pass
 
     @abstractmethod
-    def add_kernels(self, src_code='', src_files=[], kernel_descriptions={}):
+    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
         pass
 
     @abstractmethod
@@ -154,10 +156,10 @@ class Buffer(ABC):
         return data
 
     def get_free(self):
-        return sum([ ch.size for ch in self.chunks])
+        return sum([ch.size for ch in self.chunks])
 
     def __repr__(self):
-        name=self.__class__.__name__
+        name = self.__class__.__name__
         return f"<{name} {self.get_free()}/{self.capacity}>"
 
 
@@ -207,3 +209,4 @@ class View(NamedTuple):
         return cls(context, buffer, offset, size)
 
 
+available = []

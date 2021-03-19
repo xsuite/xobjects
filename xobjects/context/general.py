@@ -66,7 +66,7 @@ class Context(ABC):
 
     @abstractmethod
     def plan_FFT(self, data, axes):
-        return fft 
+        return fft
 
 
 class Buffer(ABC):

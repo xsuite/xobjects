@@ -29,7 +29,7 @@ Buffer:
 
 - `_new_buffer`: lowlevel buffer
 - `copy_to(self, dest: bytearray)`
-- `copy_from(self,source, src_offset, dest_offset, byte_count)`: source must be of the same time
+- `copy_from(self,source, src_offset, dest_offset, byte_count)`: source must be of the same type
 
 
 ## Types

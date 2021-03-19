@@ -8,7 +8,7 @@ TODO:
 - consider adding size in the class
 """
 
-from .typeutils import get_a_buffer, Info
+from .typeutils import get_a_buffer, Info, _to_slot_size
 from .scalar import Int64
 
 import logging
@@ -19,38 +19,47 @@ class String:
     _size = None
 
     @classmethod
+    def _inspect_args(cls, string_or_int):
+        if isinstance(string_or_int, int):
+            return Info(size=string_or_int + 8)
+        elif isinstance(string_or_int, str):
+            data=bytes(string_or_int,"utf8")
+            size= _to_slot_size(len(data)+1 + 8)
+            return Info(size=size,data=data) # add zero termination
+        elif isinstance(string_or_int, cls):
+            return Info(size=string_or_int._get_size())
+        raise ValueError(
+            f"String can accept only one integer or string and not `{string_or_int}`"
+        )
+
+    @classmethod
     def _to_buffer(cls, buffer, offset, value, info=None):
         log.debug(f"{cls} to buffer {offset}  `{value}`")
         if info is None:  # string is always dynamic therefore index is necessary
             info = cls._inspect_args(value)
         size = info.size
         if isinstance(value, String):
-            value = value.to_str()  # TODO not optimal
-        if isinstance(value, str):
-            data = bytes(value, "utf8")
+            buffer.write(offset, value.to_bytes())
+        elif isinstance(value, str):
+            data =info.data
+            off=_to_slot_size(size)-len(data)
+            data += b'\x00'*off
             stored_size = Int64._from_buffer(buffer, offset)
             if size > stored_size:
                 raise ValueError(f"{value} to large to fit in {size}")
             buffer.write(offset + 8, data)
         else:
-            raise ValueError("{value} not a string")
+            raise ValueError(f"{value} not a string")
+
+
+    @classmethod
+    def _get_data(cls,buffer, offset):
+        ll = Int64._from_buffer(buffer, offset)
+        return buffer.read(offset + 8, ll)
 
     @classmethod
     def _from_buffer(cls, buffer, offset):
-        ll = Int64._from_buffer(buffer, offset)
-        return buffer.read(offset + 8, ll).decode("utf8").rstrip("\x00")
-
-    @classmethod
-    def _inspect_args(cls, string_or_int):
-        if isinstance(string_or_int, int):
-            return Info(size=string_or_int + 8)
-        elif isinstance(string_or_int, str):
-            return Info(size=len(string_or_int) + 8)
-        elif isinstance(string_or_int, cls):
-            return Info(size=string_or_int._get_size())
-        raise ValueError(
-            f"String can accept only one integer or string and not `{string_or_int}`"
-        )
+        return cls._get_data(buffer, offset).decode("utf8").rstrip("\x00")
 
     def _get_size(self):
         return Int64._from_buffer(self._buffer, self._offset)
@@ -71,3 +80,7 @@ class String:
 
     def to_str(self):
         return self.__class__._from_buffer(self._buffer, self._offset)
+
+    def to_bytes(self):
+        return self.__class__._get_data(self._buffer, self._offset)
+

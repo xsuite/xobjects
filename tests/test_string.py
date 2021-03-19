@@ -3,7 +3,7 @@ import xobjects as xo
 
 def test_string_class():
     info = xo.String._inspect_args("abcde")
-    assert info.size==5+8
+    assert info.size==5+1+2+8
 
 
 def test_string_init1():
@@ -16,7 +16,6 @@ def test_string_init2():
 
 def test_string_init3():
     for ctx in xo.ByteArrayContext(), xo.CLContext():
-       ctx=xo.ByteArrayContext()
        ss=xo.String("test",_context=ctx)
        assert xo.String._from_buffer(ss._buffer,ss._offset)=="test"
 

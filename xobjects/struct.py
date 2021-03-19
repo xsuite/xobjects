@@ -44,21 +44,12 @@ Field instance:
 """
 import logging
 
-from .typeutils import get_a_buffer, dispatch_arg, Info
+from .typeutils import get_a_buffer, dispatch_arg, Info, _to_slot_size, _is_dynamic
 
 from .scalar import Int64
 
 
 log = logging.getLogger(__name__)
-
-
-def _to_slot_size(size):
-    "round to nearest multiple of 8"
-    return (size + 7) & (-8)
-
-
-def _is_dynamic(cls):
-    return cls._size is None
 
 
 class Field:

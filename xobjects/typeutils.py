@@ -30,3 +30,13 @@ class Info:
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
+
+
+def _to_slot_size(size):
+    "round to nearest multiple of 8"
+    return (size + 7) & (-8)
+
+
+def _is_dynamic(cls):
+    return cls._size is None
+

@@ -60,7 +60,7 @@ class ContextPyopencl(Context):
             _patch_pyopencl_array(cl, cla, self.context)
 
     def new_buffer(self, capacity=1048576):
-        buf = CLBuffer(capacity=capacity, context=self)
+        buf = BufferPyopencl(capacity=capacity, context=self)
         self.buffers.append(weakref.finalize(buf, print, "free", repr(buf)))
         return buf
 
@@ -252,7 +252,7 @@ class ContextPyopencl(Context):
         return self._kernels
 
 
-class CLBuffer(Buffer):
+class BufferPyopencl(Buffer):
 
 
     _DefaultContext = ContextPyopencl

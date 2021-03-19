@@ -1,17 +1,17 @@
 import weakref
 import ctypes
+import numpy as np
+
+
+from .general import Buffer, Context, ModuleNotAvailable
 
 try:
     import cppyy
 except ImportError:
-    print('WARNING: cppyy is not installed, this platform will not be available')
-    from .platnotavail import ModuleNotAvailable
+    print('WARNING:'
+        'cppyy is not installed, this platform will not be available')
     cppyy = ModuleNotAvailable(message=('cppyy is not installed. '
                             'this platform is not available!'))
-
-import numpy as np
-
-from .general import Buffer, Context
 
 class ContextCpu(Context):
 

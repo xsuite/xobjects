@@ -14,6 +14,13 @@ class MinimalDotDict(dict):
     def __getattr__(self, attr):
         return self.get(attr)
 
+class ModuleNotAvailable(object):
+    def __init__(self, message='Module not available'):
+        self.message=message
+
+    def __getattr__(self, attr):
+        raise NameError(self.message)
+
 class Context(ABC):
 
     def __init__(self):

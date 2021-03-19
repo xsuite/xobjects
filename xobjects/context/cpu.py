@@ -30,7 +30,7 @@ class ContextCpu(Context):
         super().__init__()
 
     def new_buffer(self, capacity=1048576):
-        buf = ByteArrayBuffer(capacity=capacity, context=self)
+        buf = BufferByteArray(capacity=capacity, context=self)
         self.buffers.append(weakref.finalize(buf, print, "free", repr(buf)))
         return buf
 
@@ -232,7 +232,7 @@ class ContextCpu(Context):
 
         return self._kernels
 
-class ByteArrayBuffer(Buffer):
+class BufferByteArray(Buffer):
 
     _DefaultContext = ContextCpu
 

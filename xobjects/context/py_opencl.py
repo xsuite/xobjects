@@ -259,19 +259,25 @@ class CLBuffer(Buffer):
         )
 
     def copy_to(self, dest):
+        # Does not pass through cpu if it can
+        # dest: python object that uses buffer protocol or opencl buffer
         cl.enqueue_copy(self.context.queue, dest, self.buffer)
 
     def copy_from(self, source, src_offset, dest_offset, byte_count):
+        # Does not pass through cpu if it can
+        # source: python object that uses buffer protocol or opencl buffer
         cl.enqueue_copy(
             self.context.queue, self.buffer, source, src_offset, dest_offset, byte_count
         )
 
     def write(self, offset, data):
+        # From python object on cpu
         cl.enqueue_copy(
             self.context.queue, self.buffer, data, device_offset=offset
         )
 
     def read(self, offset, size):
+        # To python object on cpu
         data = bytearray(size)
         cl.enqueue_copy(
             self.context.queue, data, self.buffer, device_offset=offset

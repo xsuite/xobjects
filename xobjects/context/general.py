@@ -39,6 +39,34 @@ class Context(ABC):
     def new_buffer(self, capacity):
         pass
 
+    @abstractmethod
+    def add_kernels(self, src_code='', src_files=[], kernel_descriptions={}):
+        pass
+
+    @abstractmethod
+    def nparray_to_context_array(self, arr):
+        return arr
+
+    @abstractmethod
+    def nparray_from_context_array(self, dev_arr):
+        return dev_arr
+
+    @property
+    @abstractmethod
+    def nplike_lib(self):
+        return lib
+
+    @abstractmethod
+    def synchronize(self):
+        pass
+
+    @abstractmethod
+    def zeros(self, *args, **kwargs):
+        return arr
+
+    @abstractmethod
+    def plan_FFT(self, data, axes):
+        return fft 
 
 
 class Buffer(ABC):

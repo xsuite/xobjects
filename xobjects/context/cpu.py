@@ -109,7 +109,7 @@ class ContextCpu(Context):
             self.kernels[nn] = KernelCpu(cppyy_kernel=kk,
                 arg_names=aa_names, arg_types=aa_types)
 
-    def nparray_to_context_mem(self, arr):
+    def nparray_to_context_array(self, arr):
         """
         Moves a numpy array to the device memory. No action is performed by
         this function in the CPU context. The method is provided
@@ -124,7 +124,7 @@ class ContextCpu(Context):
         """
         return arr
 
-    def nparray_from_context_mem(self, dev_arr):
+    def nparray_from_context_array(self, dev_arr):
         """
         Moves an array to the device to a numpy array. No action is performed by
         this function in the CPU context. The method is provided so that the CPU

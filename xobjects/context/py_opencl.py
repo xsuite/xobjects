@@ -131,7 +131,7 @@ class ContextPyopencl(Context):
                 num_threads_from_arg=nt_from,
                 queue=self.queue)
 
-    def nparray_to_context_mem(self, arr):
+    def nparray_to_context_array(self, arr):
 
         """
         Copies a numpy array to the device memory.
@@ -145,7 +145,7 @@ class ContextPyopencl(Context):
         dev_arr = cla.to_device(self.queue, arr)
         return dev_arr
 
-    def nparray_from_context_mem(self, dev_arr):
+    def nparray_from_context_array(self, dev_arr):
 
         """
         Copies an array to the device to a numpy array.

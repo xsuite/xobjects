@@ -1,4 +1,5 @@
 import xobjects as xo
+import xobjects.context as xoc
 
 
 def test_string_class():
@@ -17,6 +18,12 @@ def test_string_init2():
 
 
 def test_string_init3():
-    for ctx in [xo.ByteArrayContext()]:  # , xo.CLContext():
+    for cls in [xoc.ContextCpu, xoc.ContextPyopencl, xoc.ContextCupy]:
+
+        if cls in xoc.available:
+            ctx = cls()
+        else:
+            continue
+        print(repr(cls))
         ss = xo.String("test", _context=ctx)
         assert xo.String._from_buffer(ss._buffer, ss._offset) == "test"

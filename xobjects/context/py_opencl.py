@@ -8,7 +8,6 @@ from .general import Buffer, Context, ModuleNotAvailable, available
 try:
     import pyopencl as cl
     import pyopencl.array as cla
-
     _enabled = True
 except ImportError:
     print("WARNING: pyopencl is not installed, this context will not be available")

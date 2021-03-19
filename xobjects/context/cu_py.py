@@ -2,17 +2,20 @@ import weakref
 
 import numpy as np
 
-from .general import Buffer, Context, ModuleNotAvailable
+from .general import Buffer, Context, ModuleNotAvailable, available
+
 
 try:
     import cupy
     from cupyx.scipy import fftpack as cufftp
+    _enabled = True
 except ImportError:
     print("WARNING: cupy is not installed, this context will not be available")
     cupy = ModuleNotAvailable(
         message=("cupy is not installed. " "this context is not available!")
     )
     cufftp = cupy
+    _enabled = False
 
 
 class ContextCupy(Context):
@@ -312,3 +315,6 @@ class FFTCupy(object):
     def itransform(self, data):
         """The transform is done inplace"""
         data[:] = cufftp.ifftn(data, axes=self.axes, plan=self._fftplan)[:]
+
+if _enabled:
+    available.append(ContextCupy)

@@ -3,15 +3,17 @@ import ctypes
 import numpy as np
 
 
-from .general import Buffer, Context, ModuleNotAvailable
+from .general import Buffer, Context, ModuleNotAvailable, available
 
 try:
     import cppyy
+    _enabled = True
 except ImportError:
     print("WARNING:" "cppyy is not installed, this platform will not be available")
     cppyy = ModuleNotAvailable(
         message=("cppyy is not installed. " "this platform is not available!")
     )
+    _enabled = False
 
 
 class ContextCpu(Context):
@@ -327,3 +329,6 @@ class FFTCpu(object):
     def itransform(self, data):
         """The transform is done inplace"""
         data[:] = np.fft.ifftn(data, axes=self.axes)[:]
+
+if _enabled:
+    available.append(ContextCpu)

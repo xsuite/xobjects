@@ -224,6 +224,8 @@ class ContextCupy(Context):
 
 class CupyBuffer(Buffer):
 
+    _DefaultContext = ContextCupy
+
     def _new_buffer(self, capacity):
         return cupy.zeros(shape=(capacity,), dtype=cupy.uint8)
 

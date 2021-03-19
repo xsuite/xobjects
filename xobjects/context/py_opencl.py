@@ -253,6 +253,10 @@ class ContextPyopencl(Context):
 
 
 class CLBuffer(Buffer):
+
+
+    _DefaultContext = ContextPyopencl
+
     def _new_buffer(self, capacity):
         return cl.Buffer(
             self.context.context, cl.mem_flags.READ_WRITE, capacity

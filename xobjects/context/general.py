@@ -118,6 +118,13 @@ class Buffer(ABC):
     def read(self, offset, size):
         return data
 
+    def get_free(self):
+        return sum([ ch.size for ch in self.chunks])
+
+    def __repr__(self):
+        name=self.__class__.__name__
+        return f"<{name} {self.get_free()}/{self.capacity}>"
+
 
 class Chunk:
     def __init__(self, start, end):

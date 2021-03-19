@@ -46,9 +46,7 @@ class String:
             data =info.data
             off=string_capacity-len(data)
             data += b'\x00'*off
-            stored_size = Int64._from_buffer(buffer, offset)
-            if size > stored_size:
-                raise ValueError(f"{value} to large to fit in {size}")
+            log.debug(f"to_buffer {offset+8} {len(data)} {string_capacity}")
             buffer.write(offset + 8, data)
         elif isinstance(value, int):
             pass
@@ -59,7 +57,7 @@ class String:
     @classmethod
     def _get_data(cls,buffer, offset):
         ll = Int64._from_buffer(buffer, offset)
-        return buffer.read(offset + 8, ll)
+        return buffer.read(offset + 8, ll-8)
 
     @classmethod
     def _from_buffer(cls, buffer, offset):

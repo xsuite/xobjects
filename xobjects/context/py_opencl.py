@@ -49,7 +49,7 @@ class CLBuffer(Buffer):
         )
 
     def write(self, offset, data):
-        log.debug(f"write {offset} {data}")
+        log.debug(f"write {self} {offset} {data}")
         pyopencl.enqueue_copy(
             self.context.queue, self.buffer, data, device_offset=offset
         )

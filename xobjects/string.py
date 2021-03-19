@@ -8,7 +8,7 @@ TODO:
 - consider adding size in the class
 """
 
-from .typeutils import get_a_buffer, Info
+from .typeutils import get_a_buffer, Info, _to_slot_size
 from .scalar import Int64
 
 import logging
@@ -28,6 +28,10 @@ class String:
             value = value.to_str()  # TODO not optimal
         if isinstance(value, str):
             data = bytes(value, "utf8")
+            if size<len(data):
+                raise ValueError(f"bug: mismatch `{value}` {size} {len(data)}")
+            off=_to_slot_size(size)-len(data)
+            data += b'\x00'*off
             stored_size = Int64._from_buffer(buffer, offset)
             if size > stored_size:
                 raise ValueError(f"{value} to large to fit in {size}")

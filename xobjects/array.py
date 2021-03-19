@@ -147,6 +147,10 @@ class MetaArray(type):
 
 class Array(metaclass=MetaArray):
     @classmethod
+    def mk_arrayclass(cls,itemtype,shape,order):
+        pass
+
+    @classmethod
     def _inspect_args(cls, *args):
         if cls._size is not None:
             # static,static array

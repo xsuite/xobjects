@@ -1,8 +1,11 @@
 import weakref
+import logging
 
 import pyopencl
 
 from .general import Buffer
+
+log=logging.getLogger(__name__)
 
 class CLContext:
     @classmethod
@@ -46,6 +49,7 @@ class CLBuffer(Buffer):
         )
 
     def write(self, offset, data):
+        log.debug(f"write {offset} {data}")
         pyopencl.enqueue_copy(
             self.context.queue, self.buffer, data, device_offset=offset
         )

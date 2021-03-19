@@ -38,12 +38,13 @@ class String:
         if info is None:  # string is always dynamic therefore index is necessary
             info = cls._inspect_args(value)
         size = info.size
+        string_capacity=info.size-8
         Int64._to_buffer(buffer, offset, size)
         if isinstance(value, String):
             buffer.write(offset, value.to_bytes())
         elif isinstance(value, str):
             data =info.data
-            off=_to_slot_size(size)-len(data)
+            off=string_capacity-len(data)
             data += b'\x00'*off
             stored_size = Int64._from_buffer(buffer, offset)
             if size > stored_size:

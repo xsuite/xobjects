@@ -1,36 +1,40 @@
 import weakref
-import ctypes
-import numpy as np
 
+import numpy as np
 
 from .general import Buffer, Context, ModuleNotAvailable
 
 try:
-    import cppyy
+    import cupy
+    from cupyx.scipy import fftpack as cufftp
 except ImportError:
-    print('WARNING:'
-        'cppyy is not installed, this platform will not be available')
-    cppyy = ModuleNotAvailable(message=('cppyy is not installed. '
-                            'this platform is not available!'))
+    print('WARNING: cupy is not installed, this context will not be available')
+    cupy = ModuleNotAvailable(message=('cupy is not installed. '
+                            'this context is not available!'))
+    cufftp = cupy
 
-class ContextCpu(Context):
+class ContextCupy(Context):
 
     """
+    Creates a Cupy Context object, that allows performing the computations
+    on nVidia GPUs.
 
-    Creates a CPU Platform object, that allows performing the computations
-    on conventional CPUs.
-
+    Args:
+        default_block_size (int):  CUDA thread size that is used by default
+            for kernel execution in case a block size is not specified
+            directly in the kernel object. The default value is 256.
     Returns:
-         ContextCpu: platform object.
+        ContextCupy: context object.
 
     """
 
-    def __init__(self): # Unnecessary
-                        # but I keep it for symmetry with other contexts
+    def __init__(self, default_block_size=256):
+
         super().__init__()
+        self.default_block_size = default_block_size
 
     def new_buffer(self, capacity=1048576):
-        buf = BufferByteArray(capacity=capacity, context=self)
+        buf = CupyBuffer(capacity=capacity, context=self)
         self.buffers.append(weakref.finalize(buf, print, "free", repr(buf)))
         return buf
 
@@ -57,10 +61,11 @@ class ContextCpu(Context):
         .. code-block:: python
 
             src_code = r'''
+            __global__
             void my_mul(const int n, const float* x1,
                         const float* x2, float* y) {
-                int tid;
-                for (tid=0; tid<n; tid++){
+                int tid = blockDim.x * blockIdx.x + threadIdx.x;
+                if (tid < n){
                     y[tid] = x1[tid] * x2[tid];
                     }
                 }
@@ -82,79 +87,64 @@ class ContextCpu(Context):
             context.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
         """
 
-        src_content = src_code;
+        src_content = 'extern "C"{'
         for ff in src_files:
             with open(ff, 'r') as fid:
                 src_content += ('\n\n' + fid.read())
+        src_content += "}"
+
+        module = cupy.RawModule(code=src_content)
 
         ker_names = kernel_descriptions.keys()
-
-        skip_compile = False
-        for kk in ker_names:
-            if hasattr(cppyy.gbl, kk):
-                skip_compile = True
-                break
-
-        if skip_compile:
-            print('Warning! Compilation is skipped because some of'
-                  ' the kernels already exist! To recompile all '
-                  'please restart python')
-        else:
-            cppyy.cppdef(src_content)
-
         for nn in ker_names:
-            kk = getattr(cppyy.gbl, nn)
+            kk = module.get_function(nn)
             aa = kernel_descriptions[nn]['args']
+            nt_from = kernel_descriptions[nn]['num_threads_from_arg']
             aa_types, aa_names = zip(*aa)
-            self.kernels[nn] = KernelCpu(cppyy_kernel=kk,
-                arg_names=aa_names, arg_types=aa_types)
+            self.kernels[nn] = KernelCupy(cupy_kernel=kk,
+                arg_names=aa_names, arg_types=aa_types,
+                num_threads_from_arg=nt_from,
+                block_size=self.default_block_size)
 
     def nparray_to_context_array(self, arr):
         """
-        Moves a numpy array to the device memory. No action is performed by
-        this function in the CPU context. The method is provided
-        so that the CPU context has an identical API to the GPU ones.
+        Copies a numpy array to the device memory.
 
         Args:
             arr (numpy.ndarray): Array to be transferred
 
         Returns:
-            numpy.ndarray: The same array (no copy!).
+            cupy.ndarray:The same array copied to the device.
 
         """
-        return arr
+        dev_arr = cupy.array(arr)
+        return dev_arr
 
     def nparray_from_context_array(self, dev_arr):
         """
-        Moves an array to the device to a numpy array. No action is performed by
-        this function in the CPU context. The method is provided so that the CPU
-        context has an identical API to the GPU ones.
+        Copies an array to the device to a numpy array.
 
         Args:
-            dev_arr (numpy.ndarray): Array to be transferred
+            dev_arr (cupy.ndarray): Array to be transferred.
         Returns:
-            numpy.ndarray: The same array (no copy!)
+            numpy.ndarray: The same data copied to a numpy array.
 
         """
-        return dev_arr
+        return dev_arr.get()
 
     @property
     def nplike_lib(self):
         """
-        Module containing all the numpy features. Numpy members should be accessed
-        through ``nplike_lib`` to keep compatibility with the other contexts.
-
+        Module containing all the numpy features supported by cupy.
         """
-
-        return np
+        return cupy
 
     def synchronize(self):
         """
         Ensures that all computations submitted to the context are completed.
-        No action is performed by this function in the CPU context. The method
-        is provided so that the CPU context has an identical API to the GPU ones.
+        Equivalent to ``cupy.cuda.stream.get_current_stream().synchronize()``
         """
-        pass
+        cupy.cuda.stream.get_current_stream().synchronize()
 
     def zeros(self, *args, **kwargs):
         """
@@ -162,17 +152,17 @@ class ContextCpu(Context):
         interface of numpy.zeros"""
         return self.nplike_lib.zeros(*args, **kwargs)
 
-    def plan_FFT(self, data, axes):
+    def plan_FFT(self, data, axes, ):
         """
-        Generate an FFT plan object to be executed on the context.
+        Generates an FFT plan object to be executed on the context.
 
         Args:
-            data (numpy.ndarray): Array having type and shape for which the FFT
+            data (cupy.ndarray): Array having type and shape for which the FFT
                 needs to be planned.
             axes (sequence of ints): Axes along which the FFT needs to be
                 performed.
         Returns:
-            FFTCpu: FFT plan for the required array shape, type and axes.
+            FFTCupy: FFT plan for the required array shape, type and axes.
 
         Example:
 
@@ -188,7 +178,7 @@ class ContextCpu(Context):
             # Inverse tranform (in place)
             plan.itransform(data2)
         """
-        return FFTCpu(data, axes)
+        return FFTCupy(self, data, axes)
 
     @property
     def kernels(self):
@@ -202,10 +192,11 @@ class ContextCpu(Context):
         .. code-block:: python
 
             src_code = r'''
+            __global__
             void my_mul(const int n, const float* x1,
                         const float* x2, float* y) {
-                int tid;
-                for (tid=0; tid<n; tid++){
+                int tid = blockDim.x * blockIdx.x + threadIdx.x;
+                if (tid < n){
                     y[tid] = x1[tid] * x2[tid];
                     }
                 }
@@ -229,18 +220,17 @@ class ContextCpu(Context):
             context.kernels['my_mul'](n=len(a1), x1=a1, x2=a2)
 
         """
-
         return self._kernels
 
-class BufferByteArray(Buffer):
+class CupyBuffer(Buffer):
 
-    _DefaultContext = ContextCpu
+    _DefaultContext = ContextCupy
 
     def _new_buffer(self, capacity):
-        return bytearray(capacity)
+        return cupy.zeros(shape=(capacity,), dtype=cupy.uint8)
 
     def copy_to(self, dest):
-        dest[:] = self.buffer
+        dest[:len(self.buffer)] = self.buffer
 
     def copy_from(self, source, src_offset, dest_offset, byte_count):
         self.buffer[dest_offset : dest_offset + byte_count] = source[
@@ -248,42 +238,25 @@ class BufferByteArray(Buffer):
         ]
 
     def write(self, offset, data):
-        self.buffer[offset : offset + len(data)] = data
+        self.buffer[offset : offset + len(data)] = cupy.array(
+                                            np.frombuffer(data, dtype=np.uint8))
 
     def read(self, offset, size):
-        return self.buffer[offset : offset + size]
+        return self.buffer[offset : offset + size].get().tobytes()
 
+class KernelCupy(object):
 
-# One could implement something like this and chose between Numpy and ByteArr
-# when building the context
-class NumpyArrayBuffer(Buffer):
-
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError
-
-
-class KernelCpu(object):
-
-    def __init__(self, cppyy_kernel, arg_names, arg_types):
+    def __init__(self, cupy_kernel, arg_names, arg_types,
+                 num_threads_from_arg, block_size):
 
         assert (len(arg_names) == len(arg_types))
+        assert num_threads_from_arg in arg_names
 
-        self.cppyy_kernel = cppyy_kernel
+        self.cupy_kernel = cupy_kernel
         self.arg_names = arg_names
         self.arg_types = arg_types
-
-        c_argtypes = []
-        for tt in arg_types:
-            if tt[0] == 'scalar':
-                if np.issubdtype(tt[1], np.integer):
-                    c_argtypes.append(int)
-                else:
-                    c_argtypes.append(tt[1])
-            elif tt[0] == 'array':
-                c_argtypes.append(None) # Not needed for cppyy
-            else:
-                raise ValueError(f'Type {tt} not recognized')
-        self.c_arg_types = c_argtypes
+        self.num_threads_from_arg = num_threads_from_arg
+        self.block_size = block_size
 
     @property
     def num_args(self):
@@ -292,32 +265,40 @@ class KernelCpu(object):
     def __call__(self, **kwargs):
         assert len(kwargs.keys()) == self.num_args
         arg_list = []
-        for nn, tt, ctt in zip(self.arg_names, self.arg_types, self.c_arg_types):
+        for nn, tt in zip(self.arg_names, self.arg_types):
             vv = kwargs[nn]
             if tt[0] == 'scalar':
                 assert np.isscalar(vv)
-                arg_list.append(ctt(vv))
+                arg_list.append(tt[1](vv))
             elif tt[0] == 'array':
-                arg_list.append(vv.ctypes.data_as(ctypes.POINTER(
-                    np.ctypeslib.as_ctypes_type(tt[1]))))
+                assert isinstance(vv, cupy.ndarray)
+                arg_list.append(vv.data)
             else:
                 raise ValueError(f'Type {tt} not recognized')
 
-        event = self.cppyy_kernel(*arg_list)
+        n_threads = kwargs[self.num_threads_from_arg]
+        grid_size = int(np.ceil(n_threads/self.block_size))
+        self.cupy_kernel((grid_size, ), (self.block_size, ), arg_list)
 
 
-class FFTCpu(object):
-    def __init__(self, data, axes):
+class FFTCupy(object):
+    def __init__(self, context, data, axes):
 
+        self.context = context
         self.axes = axes
 
-        # I perform one fft to have numpy cache the plan
-        _ = np.fft.ifftn(np.fft.fftn(data, axes=axes), axes=axes)
+        assert len(data.shape) > max(axes)
+
+        from cupyx.scipy import fftpack as cufftp
+        self._fftplan = cufftp.get_fft_plan(
+                data, axes=self.axes, value_type='C2C')
 
     def transform(self, data):
+        data[:] = cufftp.fftn(data, axes=self.axes, plan=self._fftplan)[:]
         """The transform is done inplace"""
-        data[:] = np.fft.fftn(data, axes=self.axes)[:]
+
 
     def itransform(self, data):
         """The transform is done inplace"""
-        data[:] = np.fft.ifftn(data, axes=self.axes)[:]
+        data[:] = cufftp.ifftn(data, axes=self.axes, plan=self._fftplan)[:]
+

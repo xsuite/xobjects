@@ -31,8 +31,10 @@ class ContextCupy(Context):
         super().__init__()
         self.default_block_size = default_block_size
 
-    def new_buffer(self, capacity):
-       raise NotImplementedError
+    def new_buffer(self, capacity=1048576):
+        buf = CupyBuffer(capacity=capacity, context=self)
+        self.buffers.append(weakref.finalize(buf, print, "free", repr(buf)))
+        return buf
 
     def add_kernels(self, src_code='', src_files=[], kernel_descriptions={}):
 
@@ -218,6 +220,24 @@ class ContextCupy(Context):
         """
         return self._kernels
 
+class CupyBuffer(Buffer):
+
+    def _new_buffer(self, capacity):
+        return cupy.zeros(shape=(capacity,), dtype=cupy.uint8)
+
+    def copy_to(self, dest):
+        dest[:] = self.buffer
+
+    def copy_from(self, source, src_offset, dest_offset, byte_count):
+        self.buffer[dest_offset : dest_offset + byte_count] = source[
+            src_offset : src_offset + byte_count
+        ]
+
+    def write(self, offset, data):
+        self.buffer[offset : offset + len(data)] = data
+
+    def read(self, offset, size):
+        return self.buffer[offset : offset + size].get().tobytes()
 
 class KernelCupy(object):
 

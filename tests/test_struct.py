@@ -2,6 +2,7 @@ import xobjects as xo
 
 from xobjects.typeutils import Info
 
+
 def test_static_struct_def():
     class StructA(xo.Struct):
         a = xo.Float64

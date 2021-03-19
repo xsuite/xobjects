@@ -1,7 +1,10 @@
 import numpy as np
 
+
 def _patch_pyopencl_array(cl, cla, ctx):
-    prg = cl.Program(ctx, """
+    prg = cl.Program(
+        ctx,
+        """
         __kernel void copy_array_fcont(
                      const int    fcont, // bool not accepted
                      const int    ndim,
@@ -50,26 +53,27 @@ def _patch_pyopencl_array(cl, cla, ctx):
             buffer_dest[pos_dest + ibyte] = buffer_src[pos_src + ibyte];
             }
         }
-        """).build()
+        """,
+    ).build()
 
     knl_copy_array_fcont = prg.copy_array_fcont
 
     def _infer_fccont(arr):
-        if arr.strides[0]<arr.strides[-1]:
-            return 'F'
+        if arr.strides[0] < arr.strides[-1]:
+            return "F"
         else:
-            return 'C'
+            return "C"
 
     def copy_non_cont(src, dest, custom_itemsize=None, skip_typecheck=False):
 
         assert src.shape == dest.shape
 
         # The case float -> complex just works (by using the src itemsize)
-        if not(src.dtype == np.float64 and dest.dtype == np.complex128):
+        if not (src.dtype == np.float64 and dest.dtype == np.complex128):
             if not skip_typecheck:
                 assert src.dtype == dest.dtype
 
-        if src.strides[0] != src.strides[-1]: # check is needed for 1d arrays
+        if src.strides[0] != src.strides[-1]:  # check is needed for 1d arrays
             assert _infer_fccont(src) == _infer_fccont(dest)
 
         if custom_itemsize is not None:
@@ -78,26 +82,36 @@ def _patch_pyopencl_array(cl, cla, ctx):
             itemsize = np.int32(src.dtype.itemsize)
 
         fcontiguous = 0
-        if _infer_fccont(dest) == 'F':
+        if _infer_fccont(dest) == "F":
             fcontiguous = 1
         fcont = np.int32(fcontiguous)
         shape = cla.to_device(dest.queue, np.array(src.shape, dtype=np.int32))
         ndim = np.int32(len(shape))
         nelem = np.int32(np.prod(src.shape))
         buffer_src = src.base_data
-        strides_src = cla.to_device(dest.queue,
-                np.array(src.strides, dtype=np.int32))
+        strides_src = cla.to_device(dest.queue, np.array(src.strides, dtype=np.int32))
         offset_src = np.int32(src.offset)
         buffer_dest = dest.base_data
-        strides_dest = cla.to_device(dest.queue,
-                np.array(dest.strides, dtype=np.int32))
+        strides_dest = cla.to_device(dest.queue, np.array(dest.strides, dtype=np.int32))
         offset_dest = np.int32(dest.offset)
 
-        event = knl_copy_array_fcont(dest.queue, (nelem,), None,
-                # args:
-                fcont, ndim,  nelem, shape.data, itemsize,
-                buffer_src, strides_src.data, offset_src,
-                buffer_dest, strides_dest.data, offset_dest)
+        event = knl_copy_array_fcont(
+            dest.queue,
+            (nelem,),
+            None,
+            # args:
+            fcont,
+            ndim,
+            nelem,
+            shape.data,
+            itemsize,
+            buffer_src,
+            strides_src.data,
+            offset_src,
+            buffer_dest,
+            strides_dest.data,
+            offset_dest,
+        )
         event.wait()
 
     def mysetitem(self, *args, **kwargs):
@@ -117,8 +131,9 @@ def _patch_pyopencl_array(cl, cla, ctx):
 
     def myreal(self):
         assert self.dtype == np.complex128
-        res = cla.zeros(self.queue, shape=self.shape, dtype=np.float64,
-                    order=_infer_fccont(self))
+        res = cla.zeros(
+            self.queue, shape=self.shape, dtype=np.float64, order=_infer_fccont(self)
+        )
         copy_non_cont(self, res, custom_itemsize=8, skip_typecheck=True)
         return res
 
@@ -129,11 +144,12 @@ def _patch_pyopencl_array(cl, cla, ctx):
             return self.copy().get()
 
     def _cont_zeros_like_me(self):
-         res = cla.zeros(self.queue, shape=self.shape, dtype=self.dtype,
-                    order=_infer_fccont(self))
-         return res
+        res = cla.zeros(
+            self.queue, shape=self.shape, dtype=self.dtype, order=_infer_fccont(self)
+        )
+        return res
 
-    if not hasattr(cla.Array, '_old_setitem'):
+    if not hasattr(cla.Array, "_old_setitem"):
 
         cla.Array._cont_zeros_like_me = _cont_zeros_like_me
 

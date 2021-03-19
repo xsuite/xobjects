@@ -1,5 +1,6 @@
 from .context import ContextDefault
 
+
 def get_a_buffer(size, context=None, buffer=None, offset=None):
     if buffer is None:
         if offset is not None:
@@ -10,6 +11,7 @@ def get_a_buffer(size, context=None, buffer=None, offset=None):
     if offset is None:
         offset = buffer.allocate(size)
     return buffer, offset
+
 
 def dispatch_arg(f, arg):
     if isinstance(arg, tuple):
@@ -39,4 +41,3 @@ def _to_slot_size(size):
 
 def _is_dynamic(cls):
     return cls._size is None
-

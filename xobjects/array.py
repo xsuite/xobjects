@@ -147,7 +147,7 @@ class MetaArray(type):
 
 class Array(metaclass=MetaArray):
     @classmethod
-    def mk_arrayclass(cls,itemtype,shape,order):
+    def mk_arrayclass(cls, itemtype, shape, order):
         pass
 
     @classmethod
@@ -203,18 +203,18 @@ class Array(metaclass=MetaArray):
             if cls._is_static_itemtype:
                 offset += items * cls._itemtype  # starting of data
                 info.data_offset = offset  # starting of data
-                info.size=offset
+                info.size = offset
             else:
                 # args must be an array of correct dimensions
                 extra = {}
-                offsets = np.empty(shape,dtype='int64').transpose(cls._order)
+                offsets = np.empty(shape, dtype="int64").transpose(cls._order)
                 offset += items * 8
                 for idx in iter_index(shape, order):
-                    extra[idx]=cls._itemtype._inspect_args(value[idx])
-                    offsets[idx]=offset
-                    offset+=extra[idx].size
+                    extra[idx] = cls._itemtype._inspect_args(value[idx])
+                    offsets[idx] = offset
+                    offset += extra[idx].size
                 info.extra = extra
-                info.size=offset
+                info.size = offset
             return info
 
     @classmethod
@@ -275,13 +275,10 @@ class Array(metaclass=MetaArray):
             else:
                 buffer.write(value.astype(cls._itemtype._dtype).tobytes())
         else:
-            for idx in iter_index(info.shape,cls._order):
+            for idx in iter_index(info.shape, cls._order):
                 cls._itemtype._to_buffer(
-                        buffer,
-                        offset+info.offsets[idx],
-                        value[idx],
-                        info.extra.get(idx)
-                        )
+                    buffer, offset + info.offsets[idx], value[idx], info.extra.get(idx)
+                )
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
         # determin resources
@@ -290,14 +287,14 @@ class Array(metaclass=MetaArray):
         self._buffer, self._offset = get_a_buffer(_context, _buffer, _offset)
 
         if info.value is not None:
-           self.__class__._to_buffer(self._buffer, self._offset, info.value, info)
+            self.__class__._to_buffer(self._buffer, self._offset, info.value, info)
 
-        if hasattr(info,'size'):
-            self._size=info.size
-        if hasattr(info,'shape'):
-            self._shape=info.shape
-        if hasattr(info,'offsets'):
-            self._offsets=info.offsets
+        if hasattr(info, "size"):
+            self._size = info.size
+        if hasattr(info, "shape"):
+            self._shape = info.shape
+        if hasattr(info, "offsets"):
+            self._offsets = info.offsets
 
     def _get_size(self):
         if self.__class__._size is None:

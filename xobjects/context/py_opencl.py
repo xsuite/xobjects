@@ -1,23 +1,29 @@
 import weakref
+import logging
 
 import numpy as np
 
-from .general import Buffer, Context, ModuleNotAvailable
+from .general import Buffer, Context, ModuleNotAvailable, available
 
 try:
     import pyopencl as cl
     import pyopencl.array as cla
+
+    _enabled = True
 except ImportError:
-    print('WARNING: pyopencl is not installed, this context will not be available')
-    cl = ModuleNotAvailable(message=('pyopencl is not installed. '
-                            'this context is not available!'))
+    print("WARNING: pyopencl is not installed, this context will not be available")
+    cl = ModuleNotAvailable(
+        message=("pyopencl is not installed. " "this context is not available!")
+    )
     cla = cl
+    _enabled = False
 
 from ._patch_pyopencl_array import _patch_pyopencl_array
 
+log = logging.getLogger(__name__)
+
 
 class ContextPyopencl(Context):
-
     @classmethod
     def print_devices(cls):
         for ip, platform in enumerate(cl.get_platforms()):
@@ -64,7 +70,7 @@ class ContextPyopencl(Context):
         self.buffers.append(weakref.finalize(buf, print, "free", repr(buf)))
         return buf
 
-    def add_kernels(self, src_code='', src_files=[], kernel_descriptions={}):
+    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
 
         """
         Adds user-defined kernels to to the context. The kernel source
@@ -115,21 +121,24 @@ class ContextPyopencl(Context):
 
         src_content = src_code
         for ff in src_files:
-            with open(ff, 'r') as fid:
-                src_content += ('\n\n' + fid.read())
+            with open(ff, "r") as fid:
+                src_content += "\n\n" + fid.read()
 
         prg = cl.Program(self.context, src_content).build()
 
         ker_names = kernel_descriptions.keys()
         for nn in ker_names:
             kk = getattr(prg, nn)
-            aa = kernel_descriptions[nn]['args']
-            nt_from = kernel_descriptions[nn]['num_threads_from_arg']
+            aa = kernel_descriptions[nn]["args"]
+            nt_from = kernel_descriptions[nn]["num_threads_from_arg"]
             aa_types, aa_names = zip(*aa)
-            self.kernels[nn] = KernelCpu(pyopencl_kernel=kk,
-                arg_names=aa_names, arg_types=aa_types,
+            self.kernels[nn] = KernelCpu(
+                pyopencl_kernel=kk,
+                arg_names=aa_names,
+                arg_types=aa_types,
                 num_threads_from_arg=nt_from,
-                queue=self.queue)
+                queue=self.queue,
+            )
 
     def nparray_to_context_array(self, arr):
 
@@ -254,13 +263,10 @@ class ContextPyopencl(Context):
 
 class BufferPyopencl(Buffer):
 
-
     _DefaultContext = ContextPyopencl
 
     def _new_buffer(self, capacity):
-        return cl.Buffer(
-            self.context.context, cl.mem_flags.READ_WRITE, capacity
-        )
+        return cl.Buffer(self.context.context, cl.mem_flags.READ_WRITE, capacity)
 
     def copy_to(self, dest):
         # Does not pass through cpu if it can
@@ -276,26 +282,28 @@ class BufferPyopencl(Buffer):
 
     def write(self, offset, data):
         # From python object on cpu
-        cl.enqueue_copy(
-            self.context.queue, self.buffer, data, device_offset=offset
-        )
+        log.debug(f"write {self} {offset} {data}")
+        cl.enqueue_copy(self.context.queue, self.buffer, data, device_offset=offset)
 
     def read(self, offset, size):
         # To python object on cpu
         data = bytearray(size)
-        cl.enqueue_copy(
-            self.context.queue, data, self.buffer, device_offset=offset
-        )
+        cl.enqueue_copy(self.context.queue, data, self.buffer, device_offset=offset)
         return data
 
 
 class KernelCpu(object):
+    def __init__(
+        self,
+        pyopencl_kernel,
+        arg_names,
+        arg_types,
+        num_threads_from_arg,
+        queue,
+        wait_on_call=True,
+    ):
 
-    def __init__(self, pyopencl_kernel, arg_names, arg_types,
-                 num_threads_from_arg, queue,
-                 wait_on_call=True):
-
-        assert (len(arg_names) == len(arg_types) == pyopencl_kernel.num_args)
+        assert len(arg_names) == len(arg_types) == pyopencl_kernel.num_args
         assert num_threads_from_arg in arg_names
 
         self.pyopencl_kernel = pyopencl_kernel
@@ -314,24 +322,25 @@ class KernelCpu(object):
         arg_list = []
         for nn, tt in zip(self.arg_names, self.arg_types):
             vv = kwargs[nn]
-            if tt[0] == 'scalar':
+            if tt[0] == "scalar":
                 assert np.isscalar(vv)
                 arg_list.append(tt[1](vv))
-            elif tt[0] == 'array':
+            elif tt[0] == "array":
                 assert isinstance(vv, cla.Array)
                 assert vv.context == self.pyopencl_kernel.context
-                arg_list.append(vv.base_data[vv.offset:])
+                arg_list.append(vv.base_data[vv.offset :])
             else:
-                raise ValueError(f'Type {tt} not recognized')
+                raise ValueError(f"Type {tt} not recognized")
 
-        event = self.pyopencl_kernel(self.queue,
-                (kwargs[self.num_threads_from_arg],),
-                None, *arg_list)
+        event = self.pyopencl_kernel(
+            self.queue, (kwargs[self.num_threads_from_arg],), None, *arg_list
+        )
 
         if self.wait_on_call:
             event.wait()
 
         return event
+
 
 class FFTPyopencl(object):
     def __init__(self, context, data, axes, wait_on_call=True):
@@ -345,18 +354,20 @@ class FFTPyopencl(object):
         # Check internal dimensions are powers of two
         for ii in axes[:-1]:
             nn = data.shape[ii]
-            frac_part, _ = np.modf(np.log(nn)/np.log(2))
-            assert np.isclose(frac_part, 0) , ('PyOpenCL FFT requires'
-                    ' all dimensions apart from the last to be powers of two!')
+            frac_part, _ = np.modf(np.log(nn) / np.log(2))
+            assert np.isclose(frac_part, 0), (
+                "PyOpenCL FFT requires"
+                " all dimensions apart from the last to be powers of two!"
+            )
 
         import gpyfft
-        self._fftobj = gpyfft.fft.FFT(context.context,
-                context.queue, data, axes=axes)
+
+        self._fftobj = gpyfft.fft.FFT(context.context, context.queue, data, axes=axes)
 
     def transform(self, data):
         """The transform is done inplace"""
 
-        event, = self._fftobj.enqueue_arrays(data)
+        (event,) = self._fftobj.enqueue_arrays(data)
         if self.wait_on_call:
             event.wait()
         return event
@@ -364,7 +375,11 @@ class FFTPyopencl(object):
     def itransform(self, data):
         """The transform is done inplace"""
 
-        event, = self._fftobj.enqueue_arrays(data, forward=False)
+        (event,) = self._fftobj.enqueue_arrays(data, forward=False)
         if self.wait_on_call:
             event.wait()
         return event
+
+
+if _enabled:
+    available.append(ContextPyopencl)

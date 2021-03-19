@@ -38,6 +38,7 @@ class String:
         if info is None:  # string is always dynamic therefore index is necessary
             info = cls._inspect_args(value)
         size = info.size
+        Int64._to_buffer(buffer, offset, size)
         if isinstance(value, String):
             buffer.write(offset, value.to_bytes())
         elif isinstance(value, str):
@@ -48,6 +49,8 @@ class String:
             if size > stored_size:
                 raise ValueError(f"{value} to large to fit in {size}")
             buffer.write(offset + 8, data)
+        elif isinstance(value, int):
+            pass
         else:
             raise ValueError(f"{value} not a string")
 
@@ -70,13 +73,25 @@ class String:
         size = info.size
         self._buffer, self._offset = get_a_buffer(size, _context, _buffer, _offset)
 
-        Int64._to_buffer(self._buffer, self._offset, size)
+        self.__class__._to_buffer(self._buffer, self._offset, string_or_int, info=info)
 
-        if isinstance(string_or_int, str):
-            self.set(string_or_int)
-
-    def set(self, string):
-        self.__class__._to_buffer(self._buffer, self._offset, string)
+    def update(self, string):
+        if isinstance(value, String):
+            if value._size<self._size:
+                buffer.write(offset+8, value.to_bytes()) #TODO use copy
+            else:
+                raise ValueError(f"{value} to large to fit in {size}")
+        elif isinstance(value, str):
+            info = self.__class__._inspect_args(value)
+            if info > self._size:
+                raise ValueError(f"{value} to large to fit in {size}")
+            else:
+                data =info.data
+                off=_to_slot_size(size)-len(data)
+                data += b'\x00'*off
+                buffer.write(offset + 8, data)
+        else:
+            raise ValueError(f"{value} not a string")
 
     def to_str(self):
         return self.__class__._from_buffer(self._buffer, self._offset)

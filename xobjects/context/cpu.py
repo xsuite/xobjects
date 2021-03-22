@@ -6,14 +6,19 @@ import numpy as np
 from .general import Buffer, Context, ModuleNotAvailable, available
 
 try:
-    import cppyy
+    import cffi
     _enabled = True
 except ImportError:
     print("WARNING:" "cppyy is not installed, this platform will not be available")
-    cppyy = ModuleNotAvailable(
+    cffi = ModuleNotAvailable(
         message=("cppyy is not installed. " "this platform is not available!")
     )
     _enabled = False
+
+type_mapping = {
+    np.int32: 'int32_t',
+    np.int64: 'int64_y',
+    np.float64: 'double'}
 
 
 class ContextCpu(Context):
@@ -90,7 +95,26 @@ class ContextCpu(Context):
             with open(ff, "r") as fid:
                 src_content += "\n\n" + fid.read()
 
+
+        ffibuilder = cffi.FFI()
         ker_names = kernel_descriptions.keys()
+        for kk in ker_names:
+            signature = f'void {kk}('
+            for aa in kernel_descriptions[kk]["args"]:
+                tt = aa[0]
+                signature += type_mapping[tt[1]]
+                signature += {'array':'*', 'scalar': ''}[tt[0]]
+                signature += ', '
+            signature = signature[:-2] # remove the last comma and space
+            signature += ');'
+
+            ffibuilder.cdef(signature)
+
+        ffibuilder.set_source("_example",src_content)
+        ffibuilder.compile(verbose=True)
+        prrrr
+
+
 
         skip_compile = False
         for kk in ker_names:

@@ -8,11 +8,16 @@ from .general import Buffer, Context, ModuleNotAvailable, available
 try:
     import pyopencl as cl
     import pyopencl.array as cla
+
     _enabled = True
 except ImportError:
-    print("WARNING: pyopencl is not installed, this context will not be available")
+    print(
+        "WARNING: pyopencl is not installed, this context will not be available"
+    )
     cl = ModuleNotAvailable(
-        message=("pyopencl is not installed. " "this context is not available!")
+        message=(
+            "pyopencl is not installed. " "this context is not available!"
+        )
     )
     cla = cl
     _enabled = False
@@ -265,7 +270,9 @@ class BufferPyopencl(Buffer):
     _DefaultContext = ContextPyopencl
 
     def _new_buffer(self, capacity):
-        return cl.Buffer(self.context.context, cl.mem_flags.READ_WRITE, capacity)
+        return cl.Buffer(
+            self.context.context, cl.mem_flags.READ_WRITE, capacity
+        )
 
     def copy_to(self, dest):
         # Does not pass through cpu if it can
@@ -276,18 +283,27 @@ class BufferPyopencl(Buffer):
         # Does not pass through cpu if it can
         # source: python object that uses buffer protocol or opencl buffer
         cl.enqueue_copy(
-            self.context.queue, self.buffer, source, src_offset, dest_offset, byte_count
+            self.context.queue,
+            self.buffer,
+            source,
+            src_offset,
+            dest_offset,
+            byte_count,
         )
 
     def write(self, offset, data):
         # From python object on cpu
         log.debug(f"write {self} {offset} {data}")
-        cl.enqueue_copy(self.context.queue, self.buffer, data, device_offset=offset)
+        cl.enqueue_copy(
+            self.context.queue, self.buffer, data, device_offset=offset
+        )
 
     def read(self, offset, size):
         # To python object on cpu
         data = bytearray(size)
-        cl.enqueue_copy(self.context.queue, data, self.buffer, device_offset=offset)
+        cl.enqueue_copy(
+            self.context.queue, data, self.buffer, device_offset=offset
+        )
         return data
 
 
@@ -361,7 +377,9 @@ class FFTPyopencl(object):
 
         import gpyfft
 
-        self._fftobj = gpyfft.fft.FFT(context.context, context.queue, data, axes=axes)
+        self._fftobj = gpyfft.fft.FFT(
+            context.context, context.queue, data, axes=axes
+        )
 
     def transform(self, data):
         """The transform is done inplace"""

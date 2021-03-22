@@ -12,9 +12,10 @@ from .scalar import (
     Int8,
     UInt8,
 )
+from .array import Array
 from .string import String
 from .struct import Struct, Field
-from .array import Array
+from .union import Union
 
 # TODO: adapt the the tests and remove these
 CLContext = ContextPyopencl

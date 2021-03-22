@@ -8,6 +8,7 @@ from .general import Buffer, Context, ModuleNotAvailable, available
 try:
     import cupy
     from cupyx.scipy import fftpack as cufftp
+
     _enabled = True
 except ImportError:
     print("WARNING: cupy is not installed, this context will not be available")
@@ -261,7 +262,12 @@ class CupyBuffer(Buffer):
 
 class KernelCupy(object):
     def __init__(
-        self, cupy_kernel, arg_names, arg_types, num_threads_from_arg, block_size
+        self,
+        cupy_kernel,
+        arg_names,
+        arg_types,
+        num_threads_from_arg,
+        block_size,
     ):
 
         assert len(arg_names) == len(arg_types)
@@ -306,7 +312,9 @@ class FFTCupy(object):
 
         from cupyx.scipy import fftpack as cufftp
 
-        self._fftplan = cufftp.get_fft_plan(data, axes=self.axes, value_type="C2C")
+        self._fftplan = cufftp.get_fft_plan(
+            data, axes=self.axes, value_type="C2C"
+        )
 
     def transform(self, data):
         data[:] = cufftp.fftn(data, axes=self.axes, plan=self._fftplan)[:]
@@ -315,6 +323,7 @@ class FFTCupy(object):
     def itransform(self, data):
         """The transform is done inplace"""
         data[:] = cufftp.ifftn(data, axes=self.axes, plan=self._fftplan)[:]
+
 
 if _enabled:
     available.append(ContextCupy)

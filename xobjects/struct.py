@@ -44,16 +44,25 @@ Field instance:
 """
 import logging
 
-from .typeutils import get_a_buffer, dispatch_arg, Info, _to_slot_size, _is_dynamic
+from .typeutils import (
+    get_a_buffer,
+    dispatch_arg,
+    Info,
+    _to_slot_size,
+    _is_dynamic,
+)
 
 from .scalar import Int64
+from .array import Array
 
 
 log = logging.getLogger(__name__)
 
 
 class Field:
-    def __init__(self, ftype, default=None, readonly=False, default_factory=None):
+    def __init__(
+        self, ftype, default=None, readonly=False, default_factory=None
+    ):
         self.ftype = ftype
         self.default = default
         if default_factory is not None:
@@ -145,7 +154,6 @@ class MetaStruct(type):
 
         else:
             size = None
-            d_offsets = {}  # offset of dynamic data (class invariant)
             for field in fields:
                 offset = 8  # first slot is instance size
                 for field in s_fields:
@@ -171,14 +179,18 @@ class MetaStruct(type):
                     if isinstance(arg, dict):
                         offsets = {}  # offset of dynamic data
                         extra = {}
-                        offset = d_fields[0].offset  # offset first dynamic data
+                        offset = d_fields[
+                            0
+                        ].offset  # offset first dynamic data
                         log.debug(f"{arg}")
                         for field in cls._d_fields:
                             farg = arg.get(field.name, field.get_default())
                             log.debug(
                                 f"get size for field `{field.name}` using `{farg}`"
                             )
-                            finfo = dispatch_arg(field.ftype._inspect_args, farg)
+                            finfo = dispatch_arg(
+                                field.ftype._inspect_args, farg
+                            )
                             if hasattr(finfo, "_offsets"):  # is dinamic
                                 extra[field.index] = finfo
                             offsets[field.index] = offset
@@ -202,6 +214,9 @@ class MetaStruct(type):
 
         return type.__new__(cls, name, bases, data)
 
+    def __getitem__(cls, shape):
+        return Array.mk_arrayclass(cls, shape)
+
 
 class Struct(metaclass=MetaStruct):
     @classmethod
@@ -223,7 +238,9 @@ class Struct(metaclass=MetaStruct):
         if isinstance(value, cls):  # binary copy
             value_size = value._size
             if value._buffer.context is buffer.context:
-                buffer.copy_from(value._buffer, value._offset, offset, value_size)
+                buffer.copy_from(
+                    value._buffer, value._offset, offset, value_size
+                )
             else:
                 data = value._buffer.read(value._offset, value_size)
                 buffer.write(offset, data)
@@ -273,7 +290,8 @@ class Struct(metaclass=MetaStruct):
 
     def __repr__(self):
         fields = (
-            (field.name, repr(getattr(self, field.name))) for field in self._fields
+            (field.name, repr(getattr(self, field.name)))
+            for field in self._fields
         )
         fields = ", ".join(f"{k}={v}" for k, v in fields)
         longform = f"{self.__class__.__name__}({fields})"

@@ -21,23 +21,19 @@ Array instance:
 """
 
 
-class MetaUnion(type):
+class MetaUnionRef(type):
     def __new__(cls, name, bases, data):
         if "_itemtypes" in data:
-            itemtypes = data["_itemtypes"]
+            itemtype = data["_itemtypes"]
             typeids = {}
             types = {}
-            isize = itemtypes[0]
-            for ii, itemtype in enumerate(itemtypes):
+            for ii, it in enumerate(itemtype):
                 name = itemtype.__name__
                 typeids[name] = ii
                 types[name] = itemtype
-                if itemtype._size != isize:
-                    isize = None
 
             data["_typeids"] = typeids
             data["_types"] = types
-            data["_size"] = isize
 
         return type.__new__(cls, name, bases, data)
 
@@ -45,7 +41,9 @@ class MetaUnion(type):
         return Array.mk_arrayclass(cls, shape)
 
 
-class Union(metaclass=MetaUnion):
+class UnionRef(metaclass=MetaUnionRef):
+    _size = 16
+
     @classmethod
     def _get_type_index(cls, value):
         return cls._typeids[type(value).__name__]
@@ -71,7 +69,7 @@ class Union(metaclass=MetaUnion):
             if type(value) in cls._itemtypes:
                 size = value._get_size() + 8
                 return Info(
-                    size=size,
+                    isize=size,
                     typeid=cls._get_type_index(value),
                     is_raw=True,
                     value=value,
@@ -82,7 +80,7 @@ class Union(metaclass=MetaUnion):
                 typeid = cls._typeids[typename]
                 iinfo = itemtype._inspect_args(value)
                 return Info(
-                    size=iinfo.size + 8,
+                    isize=iinfo.size + 8,
                     typeid=typeid,
                     extra=iinfo,
                     is_raw=False,
@@ -105,28 +103,24 @@ class Union(metaclass=MetaUnion):
         if info is None:
             info = cls._inspect_args(value)
         Int64._to_buffer(buffer, offset, info.typeid)
-        coffset = offset + 8
-        if info.is_raw:
-            info.itemtype._buffer.copy_from(
-                coffset, value._buffer, value._offset, info.size
-            )
-        else:
-            info.itemtype._to_buffer(buffer, coffset, value, info=info.extra)
+        Int64._to_buffer(buffer, offset + 8, info.offset)
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
         info = self.__class__._inspect_args(*args)
         self._buffer, self._offset = get_a_buffer(_context, _buffer, _offset)
 
-        self.__class__._to_buffer(self._buffer, self._offset, info.value, info)
+        if info.is_raw and info.value._buffer == self._buffer:
+            info.offset = value._offset
+        else:
+            value = info._itemtype(
+                info.value, _buffer=self._buffer, _info=info.extra
+            )
 
-        self._size = info._size
         self._itemtype = info._itemtype
+        self._value = value
 
     def get(self):
-        return self._itemtype._from_buffer(self._buffer, self._offset + 8)
+        return self._value
 
     def _get_size(self):
-        if self.__class__._size is None:
-            return Int64._from_buffer(self._buffer, self._offset)
-        else:
-            return self.__class__._size
+        return self._value._get_size()

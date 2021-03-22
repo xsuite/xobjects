@@ -16,6 +16,7 @@ from .array import Array
 from .string import String
 from .struct import Struct, Field
 from .union import Union
+from .unionref import UnionRef
 
 # TODO: adapt the the tests and remove these
 CLContext = ContextPyopencl

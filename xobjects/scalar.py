@@ -1,8 +1,9 @@
 import numpy as np
 
 """
-TODO:
-    - make scalars as class instead of instances
+
+
+NB: scalars cannot be classes as classes() needs to return a numpy scalar, however in union isintance could be used (try to subclass numpy scalar?)
 """
 
 from .typeutils import Info
@@ -10,6 +11,7 @@ from .typeutils import Info
 
 class NumpyScalar:
     def __init__(self, dtype):
+        self.__name__ = dtype.capitalize()
         self._dtype = np.dtype(dtype)
         self._size = self._dtype.itemsize
 
@@ -26,6 +28,14 @@ class NumpyScalar:
 
     def _inspect_args(self, arg):
         return Info(size=self._size)
+
+    def __getitem__(self, shape):
+        from .array import Array  # avoid circular import
+
+        return Array.mk_arrayclass(self, shape)
+
+    def __repr__(self):
+        return self.__name__
 
 
 Float128 = NumpyScalar("float128")

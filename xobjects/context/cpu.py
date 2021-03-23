@@ -1,5 +1,8 @@
+import os
 import weakref
 import ctypes
+import importlib
+
 import numpy as np
 
 
@@ -9,9 +12,10 @@ try:
     import cffi
     _enabled = True
 except ImportError:
-    print("WARNING:" "cppyy is not installed, this platform will not be available")
+    print("WARNING:"
+            "cffi is not installed, this platform will not be available")
     cffi = ModuleNotAvailable(
-        message=("cppyy is not installed. " "this platform is not available!")
+        message=("cffi is not installed. " "this platform is not available!")
     )
     _enabled = False
 
@@ -96,7 +100,7 @@ class ContextCpu(Context):
                 src_content += "\n\n" + fid.read()
 
 
-        ffibuilder = cffi.FFI()
+        ffi_interface = cffi.FFI()
         ker_names = kernel_descriptions.keys()
         for kk in ker_names:
             signature = f'void {kk}('
@@ -108,35 +112,25 @@ class ContextCpu(Context):
             signature = signature[:-2] # remove the last comma and space
             signature += ');'
 
-            ffibuilder.cdef(signature)
+            ffi_interface.cdef(signature)
 
-        ffibuilder.set_source("_example",src_content)
-        ffibuilder.compile(verbose=True)
-        prrrr
+        ffi_interface.set_source("_example",src_content)
+        ffi_interface.compile(verbose=True)
 
+        # Import the compiled module
+        spec = importlib.util.spec_from_file_location('_example',
+                    os.path.abspath('./_example.cpython-38-x86_64-linux-gnu.so'))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
-
-        skip_compile = False
-        for kk in ker_names:
-            if hasattr(cppyy.gbl, kk):
-                skip_compile = True
-                break
-
-        if skip_compile:
-            print(
-                "Warning! Compilation is skipped because some of"
-                " the kernels already exist! To recompile all "
-                "please restart python"
-            )
-        else:
-            cppyy.cppdef(src_content)
-
+        # Get the methods
         for nn in ker_names:
-            kk = getattr(cppyy.gbl, nn)
+            kk = getattr(module.lib, nn)
             aa = kernel_descriptions[nn]["args"]
             aa_types, aa_names = zip(*aa)
             self.kernels[nn] = KernelCpu(
-                cppyy_kernel=kk, arg_names=aa_names, arg_types=aa_types
+                kernel=kk, arg_names=aa_names, arg_types=aa_types,
+                ffi_interface = ffi_interface
             )
 
     def nparray_to_context_array(self, arr):
@@ -293,26 +287,27 @@ class NumpyArrayBuffer(Buffer):
 
 
 class KernelCpu(object):
-    def __init__(self, cppyy_kernel, arg_names, arg_types):
+    def __init__(self, kernel, arg_names, arg_types, ffi_interface):
 
         assert len(arg_names) == len(arg_types)
 
-        self.cppyy_kernel = cppyy_kernel
+        self.kernel = kernel
         self.arg_names = arg_names
         self.arg_types = arg_types
+        self.ffi_interface = ffi_interface
 
-        c_argtypes = []
-        for tt in arg_types:
-            if tt[0] == "scalar":
-                if np.issubdtype(tt[1], np.integer):
-                    c_argtypes.append(int)
-                else:
-                    c_argtypes.append(tt[1])
-            elif tt[0] == "array":
-                c_argtypes.append(None)  # Not needed for cppyy
-            else:
-                raise ValueError(f"Type {tt} not recognized")
-        self.c_arg_types = c_argtypes
+        # c_argtypes = []
+        # for tt in arg_types:
+        #     if tt[0] == "scalar":
+        #         if np.issubdtype(tt[1], np.integer):
+        #             c_argtypes.append(int)
+        #         else:
+        #             c_argtypes.append(tt[1])
+        #     elif tt[0] == "array":
+        #         c_argtypes.append(None)  # Not needed for cppyy
+        #     else:
+        #         raise ValueError(f"Type {tt} not recognized")
+        # self.c_arg_types = c_argtypes
 
     @property
     def num_args(self):
@@ -321,21 +316,19 @@ class KernelCpu(object):
     def __call__(self, **kwargs):
         assert len(kwargs.keys()) == self.num_args
         arg_list = []
-        for nn, tt, ctt in zip(self.arg_names, self.arg_types, self.c_arg_types):
+        for nn, tt in zip(self.arg_names, self.arg_types):
             vv = kwargs[nn]
             if tt[0] == "scalar":
                 assert np.isscalar(vv)
-                arg_list.append(ctt(vv))
+                arg_list.append(tt[1](vv))
             elif tt[0] == "array":
+                slice_first_elem = vv[tuple(vv.ndim*[slice(0,1)])]
                 arg_list.append(
-                    vv.ctypes.data_as(
-                        ctypes.POINTER(np.ctypeslib.as_ctypes_type(tt[1]))
-                    )
-                )
+                        self.ffi_interface.from_buffer(slice_first_elem))
             else:
                 raise ValueError(f"Type {tt} not recognized")
 
-        event = self.cppyy_kernel(*arg_list)
+        event = self.kernel(*arg_list)
 
 
 class FFTCpu(object):
@@ -353,6 +346,7 @@ class FFTCpu(object):
     def itransform(self, data):
         """The transform is done inplace"""
         data[:] = np.fft.ifftn(data, axes=self.axes)[:]
+
 
 if _enabled:
     available.append(ContextCpu)

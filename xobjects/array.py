@@ -22,13 +22,14 @@ Data layout:
 Array class:
     - _size
     - _shape: the shape in memory using C ordering
+    - _dshape_idx: index of dynamic shapes
     - _order: the ordering of the index in the API
     - _itemtype
     - _is_static_shape
     - _is_static_type
 
 Array instance:
-    _dshape: index of dynamic shapes
+    _dshape: value of dynamic dimensions
     _shape: present if dynamic
 """
 
@@ -129,10 +130,16 @@ class MetaArray(type):
             if "_order" not in data:
                 data["_order"] = "C"
             _shape = data["_shape"]
-            data["_is_static_shape"] = True
-            for d in _shape:
+            dshape = []  # find dynamic shapes
+            for ii, d in enumerate(_shape):
                 if d is None:
                     data["_is_static_shape"] = False
+                    dshape.append(ii)
+            if len(dshape) > 0:
+                data["_is_static_shape"] = False
+                data["_dshape"] = dshape
+            else:
+                data["_is_static_shape"] = True
 
             if data["_is_static_shape"]:
                 data["_order"] = mk_order(data["_order"], _shape)
@@ -153,7 +160,7 @@ class MetaArray(type):
 class Array(metaclass=MetaArray):
     @classmethod
     def mk_arrayclass(cls, itemtype, shape):
-        if type(shape) is int:
+        if type(shape) in (int, slice):
             shape = (shape,)
         order = list(range(len(shape)))
         nshape = []
@@ -165,8 +172,17 @@ class Array(metaclass=MetaArray):
             else:
                 nshape.append(dd)
 
-        suffix = "_".join(map(str, nshape))
-        suffix = suffix.replace("None", "N")
+        lst = "NMOPQRSTU"
+        sshape = []
+        ilst = 0
+        for d in nshape:
+            if d is None:
+                sshape.append(lst[ilst % len(lst)])
+                ilst += 1
+            else:
+                sshape.append(str(d))
+
+        suffix = "by".join(sshape)
         name = itemtype.__name__ + "_" + suffix
 
         data = {
@@ -197,18 +213,15 @@ class Array(metaclass=MetaArray):
                 if not isinstance(args[0], int):  # init with array
                     value = np.array(args[0])
                     shape = value.shape
-                    if hasattr(cls._shape):
-                        dshape = []
-                        for idim, ndim in enumerate(cls._shape):
-                            if ndim is None:
-                                dshape.append(idim)
-                            else:
-                                if shape[idem] != ndim:
-                                    raise ValueError(
-                                        "Array: incompatible dimensions"
-                                    )
-                    else:
-                        dshape = shape
+                    dshape = []
+                    for idim, ndim in enumerate(cls._shape):
+                        if ndim is None:
+                            dshape.append(idim)
+                        else:
+                            if shape[idem] != ndim:
+                                raise ValueError(
+                                    "Array: incompatible dimensions"
+                                )
                 else:
                     if hasattr(cls._shape):
                         shape = []
@@ -336,3 +349,18 @@ class Array(metaclass=MetaArray):
             return Int64._from_buffer(self._buffer, self._offset)
         else:
             return self.__class__._size
+
+    @classmethod
+    def _gen_method_specs(cls, base=None):
+        methods = []
+        if base is None:
+            base = []
+        spec = base + [cls]
+        methods.append(spec)
+        if hasattr(cls._itemtype, "_gen_method_specs"):
+            methods.extend(cls._itemtype._gen_method_specs(spec))
+        return methods
+
+    @classmethod
+    def _get_offset(cls):
+        return "+".join(["ii{ii}*{strides[ii]}" for ii in cls.strides])

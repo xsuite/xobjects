@@ -126,15 +126,15 @@ def test_class_mk_array():
     ArrayA = xo.Float64[3, 6]
     assert ArrayA._shape == (3, 6)
     assert ArrayA._order == (0, 1)
-    assert ArrayA.__name__ == "Float64_3_6"
+    assert ArrayA.__name__ == "Float64_3by6"
 
     ArrayA = xo.Float64[None, 6]
     assert ArrayA._shape == (None, 6)
-    assert ArrayA.__name__ == "Float64_N_6"
+    assert ArrayA.__name__ == "Float64_Nby6"
 
     ArrayA = xo.String[3:1, 4:0, 5:2]
     assert ArrayA._shape == (3, 4, 5)
-    assert ArrayA.__name__ == "String_3_4_5"
+    assert ArrayA.__name__ == "String_3by4by5"
 
     class StructA(xo.Struct):
         a = xo.Float64

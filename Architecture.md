@@ -177,7 +177,8 @@ Kernel convention:
 - debug Array, Union, UnionRef
 - write getter/setter
 - implement custom init
-- add __del__ methods for struct, array, union
+- implement SOA
+- add __del__ methods for Struct, Array, Union, Unionref, SOA
 
 ### Later
 

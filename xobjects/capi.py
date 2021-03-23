@@ -1,25 +1,4 @@
-from typing import NamedTuple, Bool
-
-
-class field(NamedTuple):
-    field_name: str
-    type_name: str
-    offset: int
-    is_deferred: bool
-
-    def get_offset(self):
-        return str(self.offset)
-
-
-class index(NamedTuple):
-    strides: list(int)
-    order: list(int)
-    offset: int
-    type_name: str
-    is_deferred: bool
-
-    def get_offset(self):
-        return "+".join(["ii{ii}*{strides[ii]}" for ii in self.strides])
+from typing import NamedTuple, List
 
 
 def get_position(specs):

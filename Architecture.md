@@ -49,7 +49,7 @@ Types can be composed of:
   - bytes
 
 ### Struct
-- example: struct  MyStruct field1 field2 ... 
+- example: struct  MyStruct field1 field2 ...
 - create: Struct(dict), Struct(**args)
 - layout:
   [ instance size ]
@@ -174,16 +174,14 @@ Kernel convention:
 
 ## TODO
 
-### Critical
-- add check shape from argument
-- implement Array
-- implement Union
-- test type creation then type access
-- review struct tests due to dynamic caching offsets
-- speed-up array creation for basic types
+- debug Array, Union, UnionRef
+- write getter/setter
+- implement custom init
+- add __del__ methods for struct, array, union
 
 ### Later
 
+- use __slots__ were possible
 - Consider return opencl array rather than bytearray
 - Consider exposing Buffer and removing CLBuffer, ByteArrayBuffers..
 - Consider creating an `api` object type factory

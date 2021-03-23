@@ -89,10 +89,14 @@ def _patch_pyopencl_array(cl, cla, ctx):
         ndim = np.int32(len(shape))
         nelem = np.int32(np.prod(src.shape))
         buffer_src = src.base_data
-        strides_src = cla.to_device(dest.queue, np.array(src.strides, dtype=np.int32))
+        strides_src = cla.to_device(
+            dest.queue, np.array(src.strides, dtype=np.int32)
+        )
         offset_src = np.int32(src.offset)
         buffer_dest = dest.base_data
-        strides_dest = cla.to_device(dest.queue, np.array(dest.strides, dtype=np.int32))
+        strides_dest = cla.to_device(
+            dest.queue, np.array(dest.strides, dtype=np.int32)
+        )
         offset_dest = np.int32(dest.offset)
 
         event = knl_copy_array_fcont(
@@ -132,7 +136,10 @@ def _patch_pyopencl_array(cl, cla, ctx):
     def myreal(self):
         assert self.dtype == np.complex128
         res = cla.zeros(
-            self.queue, shape=self.shape, dtype=np.float64, order=_infer_fccont(self)
+            self.queue,
+            shape=self.shape,
+            dtype=np.float64,
+            order=_infer_fccont(self),
         )
         copy_non_cont(self, res, custom_itemsize=8, skip_typecheck=True)
         return res
@@ -145,7 +152,10 @@ def _patch_pyopencl_array(cl, cla, ctx):
 
     def _cont_zeros_like_me(self):
         res = cla.zeros(
-            self.queue, shape=self.shape, dtype=self.dtype, order=_infer_fccont(self)
+            self.queue,
+            shape=self.shape,
+            dtype=self.dtype,
+            order=_infer_fccont(self),
         )
         return res
 

@@ -30,7 +30,9 @@ class NumpyScalar:
 
     @classmethod
     def _array_from_buffer(self, buffer, offset, count):
-        return self.frombuffer(data, dtype=self._dtype, offset=offset, count=count)
+        return self.frombuffer(
+            data, dtype=self._dtype, offset=offset, count=count
+        )
 
     @classmethod
     def _array_to_buffer(self, buffer, offset, value):

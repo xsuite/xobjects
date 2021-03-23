@@ -321,7 +321,9 @@ class KernelCpu(object):
     def __call__(self, **kwargs):
         assert len(kwargs.keys()) == self.num_args
         arg_list = []
-        for nn, tt, ctt in zip(self.arg_names, self.arg_types, self.c_arg_types):
+        for nn, tt, ctt in zip(
+            self.arg_names, self.arg_types, self.c_arg_types
+        ):
             vv = kwargs[nn]
             if tt[0] == "scalar":
                 assert np.isscalar(vv)
@@ -353,6 +355,7 @@ class FFTCpu(object):
     def itransform(self, data):
         """The transform is done inplace"""
         data[:] = np.fft.ifftn(data, axes=self.axes)[:]
+
 
 if _enabled:
     available.append(ContextCpu)

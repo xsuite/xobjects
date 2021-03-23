@@ -299,3 +299,14 @@ class Struct(metaclass=MetaStruct):
             return f"{self.__class__.__name__}(...)"
         else:
             return longform
+
+    @classmethod
+    def _generate_methods(cls, base=None):
+        methods = []
+        if base is None:
+            base = []
+        for field in cls._fields:
+            methods.append([field])
+            if hasattr(field.ftype, "_generate_methods"):
+                methods.extend(field.ftype._generate_methods([base] + [field]))
+        return methods

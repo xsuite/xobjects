@@ -13,6 +13,7 @@ class field(NamedTuple):
 
 class index(NamedTuple):
     strides: list(int)
+    order: list(int)
     offset: int
     type_name: str
     is_deferred: bool
@@ -26,7 +27,9 @@ def get_position(specs):
     offlist = []
     for spec in specs:
         if spec.is_deferred:
-            offlist.append(f"  offset+=(int64_t *) obj[offset+spec.get_offset()];")
+            offlist.append(
+                f"  offset+=(int64_t *) obj[offset+spec.get_offset()];"
+            )
         else:
             offlist.append(f"  offset+={spec.get_offset()};")
     return "\n".join(offlist)

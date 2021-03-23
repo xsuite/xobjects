@@ -110,7 +110,9 @@ def mk_getitem(itemtype, shape):
         out.append(f"  base=self._offset")
     if itemtype._size is None:  # variable size
         out.append(f"  offset=Int64._from_buffer(self._buffer,base+offset)")
-    out.append(f"  return self._itemtype._from_buffer(self._buffer,base+offset)")
+    out.append(
+        f"  return self._itemtype._from_buffer(self._buffer,base+offset)"
+    )
     return "\n".join(out)
 
 
@@ -144,11 +146,35 @@ class MetaArray(type):
 
         return type.__new__(cls, name, bases, data)
 
+    def __getitem__(cls, shape):
+        return Array.mk_arrayclass(cls, shape)
+
 
 class Array(metaclass=MetaArray):
     @classmethod
-    def mk_arrayclass(cls, itemtype, shape, order):
-        pass
+    def mk_arrayclass(cls, itemtype, shape):
+        if type(shape) is int:
+            shape = (shape,)
+        order = list(range(len(shape)))
+        nshape = []
+        for ii, dd in enumerate(shape):
+            if type(dd) is slice:
+                nshape.append(dd.start)
+                if dd.stop is not None:
+                    order[ii] = dd.stop
+            else:
+                nshape.append(dd)
+
+        suffix = "_".join(map(str, nshape))
+        suffix = suffix.replace("None", "N")
+        name = itemtype.__name__ + "_" + suffix
+
+        data = {
+            "_itemtype": itemtype,
+            "_shape": tuple(nshape),
+            "_order": tuple(order),
+        }
+        return MetaArray(name, (cls,), data)
 
     @classmethod
     def _inspect_args(cls, *args):
@@ -178,7 +204,9 @@ class Array(metaclass=MetaArray):
                                 dshape.append(idim)
                             else:
                                 if shape[idem] != ndim:
-                                    raise ValueError("Array: incompatible dimensions")
+                                    raise ValueError(
+                                        "Array: incompatible dimensions"
+                                    )
                     else:
                         dshape = shape
                 else:
@@ -263,7 +291,9 @@ class Array(metaclass=MetaArray):
                 if nd is None:
                     header.append(info.shape[ii])
         if len(header) > 0:
-            Int64.array_to_buffer(buffer, coffset, np.array(header, dtype="i8"))
+            Int64.array_to_buffer(
+                buffer, coffset, np.array(header, dtype="i8")
+            )
             coffset += 8 * len(header)
         if not cls._is_static_type:
             Int64.array_to_buffer(buffer, coffset, info.offsets)
@@ -277,7 +307,10 @@ class Array(metaclass=MetaArray):
         else:
             for idx in iter_index(info.shape, cls._order):
                 cls._itemtype._to_buffer(
-                    buffer, offset + info.offsets[idx], value[idx], info.extra.get(idx)
+                    buffer,
+                    offset + info.offsets[idx],
+                    value[idx],
+                    info.extra.get(idx),
                 )
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
@@ -287,7 +320,9 @@ class Array(metaclass=MetaArray):
         self._buffer, self._offset = get_a_buffer(_context, _buffer, _offset)
 
         if info.value is not None:
-            self.__class__._to_buffer(self._buffer, self._offset, info.value, info)
+            self.__class__._to_buffer(
+                self._buffer, self._offset, info.value, info
+            )
 
         if hasattr(info, "size"):
             self._size = info.size

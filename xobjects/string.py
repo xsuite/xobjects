@@ -9,17 +9,19 @@ TODO:
 """
 
 from .typeutils import get_a_buffer, Info, _to_slot_size
+
 from .scalar import Int64
+from .array import Array
 
 import logging
 
 log = logging.getLogger(__name__)
 
 
-class String:
-    _size = None
+class MetaString(type):
+    def __getitem__(self, shape):
+        return Array.mk_arrayclass(self, shape)
 
-    @classmethod
     def _inspect_args(cls, string_or_int):
         if isinstance(string_or_int, int):
             return Info(size=string_or_int + 8)
@@ -33,10 +35,11 @@ class String:
             f"String can accept only one integer or string and not `{string_or_int}`"
         )
 
-    @classmethod
     def _to_buffer(cls, buffer, offset, value, info=None):
         log.debug(f"{cls} to buffer {offset}  `{value}`")
-        if info is None:  # string is always dynamic therefore index is necessary
+        if (
+            info is None
+        ):  # string is always dynamic therefore index is necessary
             info = cls._inspect_args(value)
         size = info.size
         string_capacity = info.size - 8
@@ -54,27 +57,37 @@ class String:
         else:
             raise ValueError(f"{value} not a string")
 
-    @classmethod
     def _get_data(cls, buffer, offset):
         ll = Int64._from_buffer(buffer, offset)
         return buffer.read(offset + 8, ll - 8)
 
-    @classmethod
     def _from_buffer(cls, buffer, offset):
         return cls._get_data(buffer, offset).decode("utf8").rstrip("\x00")
+
+
+class String(metaclass=MetaString):
+    _size = None
 
     def _get_size(self):
         return Int64._from_buffer(self._buffer, self._offset)
 
-    def __init__(self, string_or_int, _buffer=None, _offset=None, _context=None):
-        new_object = False
+    def __init__(
+        self, string_or_int, _buffer=None, _offset=None, _context=None
+    ):
         info = self.__class__._inspect_args(string_or_int)
         size = info.size
-        self._buffer, self._offset = get_a_buffer(size, _context, _buffer, _offset)
+        self._buffer, self._offset = get_a_buffer(
+            size, _context, _buffer, _offset
+        )
 
-        self.__class__._to_buffer(self._buffer, self._offset, string_or_int, info=info)
+        self.__class__._to_buffer(
+            self._buffer, self._offset, string_or_int, info=info
+        )
 
-    def update(self, string):
+    def update(self, value):
+        buffer = self._buffer
+        offset = self._offset
+        size = self._size
         if isinstance(value, String):
             if value._size < self._size:
                 buffer.write(offset + 8, value.to_bytes())  # TODO use copy

@@ -115,26 +115,41 @@ class ContextCpu(Context):
 
             ffi_interface.cdef(signature)
 
-        tempfname = '_tempmod'#str(uuid.uuid4().hex)
+        # Generate temp fname
+        tempfname = str(uuid.uuid4().hex)
+
+        # Compile
         ffi_interface.set_source(tempfname, src_content)
         ffi_interface.compile(verbose=True)
 
-        # Import the compiled module
+        # build full so filename, something like:
+        # 0e14651ea79740119c6e6c24754f935e.cpython-38-x86_64-linux-gnu.so
         suffix = sysconfig.get_config_var('EXT_SUFFIX')
-        spec = importlib.util.spec_from_file_location('_tempmod',
-                    os.path.abspath('./' + tempfname + suffix))
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        so_fname = tempfname + suffix
 
-        # Get the methods
-        for nn in ker_names:
-            kk = getattr(module.lib, nn)
-            aa = kernel_descriptions[nn]["args"]
-            aa_types, aa_names = zip(*aa)
-            self.kernels[nn] = KernelCpu(
-                kernel=kk, arg_names=aa_names, arg_types=aa_types,
-                ffi_interface = ffi_interface
-            )
+        try:
+            # Import the compiled module
+            spec = importlib.util.spec_from_file_location(tempfname,
+                        os.path.abspath('./' + tempfname + suffix))
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            # Get the methods
+            for nn in ker_names:
+                kk = getattr(module.lib, nn)
+                aa = kernel_descriptions[nn]["args"]
+                aa_types, aa_names = zip(*aa)
+                self.kernels[nn] = KernelCpu(
+                    kernel=kk, arg_names=aa_names, arg_types=aa_types,
+                    ffi_interface = ffi_interface
+                )
+        finally:
+            # Clean temp files
+            files_to_remove = [so_fname,
+                    tempfname + '.c', tempfname + '.o']
+            for ff in files_to_remove:
+                if os.path.exists(ff):
+                    os.remove(ff)
 
     def nparray_to_context_array(self, arr):
         """

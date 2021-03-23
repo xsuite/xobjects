@@ -35,7 +35,7 @@ Field instance:
 - index
 - name
 - offset
-- deferenced
+- is_static_type
 - has_update
 - readonly
 
@@ -70,9 +70,12 @@ class Field:
         self.index = None  # filled by class creation
         self.name = None  # filled by class creation
         self.offset = None  # filled by class creation
-        self.deferenced = None  # filled by class creation
+        self.is_reference = None  # filled by class creation
         self.has_update = False  # filled by class creation
         self.readonly = readonly
+
+    def __repr__(self):
+        return f"<Field{self.index} {self.name} at {self.offset}>"
 
     def __get__(self, instance, cls=None):
         if instance is None:
@@ -101,7 +104,7 @@ class Field:
             self.ftype._to_buffer(instance._buffer, offset, value)
 
     def get_offset(self, instance):  # compatible with info
-        if self.deferenced:
+        if self.is_reference:
             return instance._offsets[self.index]
         else:
             return self.offset
@@ -142,7 +145,7 @@ class MetaStruct(type):
             offset = 0
             for field in fields:
                 field.offset = offset
-                field.deferenced = False
+                field.is_reference = False
                 offset += _to_slot_size(field.ftype._size)
             size = offset
 
@@ -158,16 +161,16 @@ class MetaStruct(type):
                 offset = 8  # first slot is instance size
                 for field in s_fields:
                     field.offset = offset
-                    field.deferenced = False
+                    field.is_reference = False
                     offset += _to_slot_size(field.ftype._size)
                 # other dynamic fields
                 for field in d_fields[1:]:
                     field.offset = offset
-                    field.deferenced = True
+                    field.is_reference = True
                     offset += _to_slot_size(8)
                 # first dynamic field
                 d_fields[0].offset = offset
-                field.deferenced = False
+                field.is_reference = False
 
             def _get_size(self):
                 return Int64._from_buffer(self._buffer, self._offset)
@@ -301,12 +304,13 @@ class Struct(metaclass=MetaStruct):
             return longform
 
     @classmethod
-    def _generate_methods(cls, base=None):
+    def _gen_method_specs(cls, base=None):
         methods = []
         if base is None:
             base = []
         for field in cls._fields:
-            methods.append([field])
-            if hasattr(field.ftype, "_generate_methods"):
-                methods.extend(field.ftype._generate_methods([base] + [field]))
+            spec = base + [field]
+            methods.append(spec)
+            if hasattr(field.ftype, "_gen_method_specs"):
+                methods.extend(field.ftype._gen_method_specs(spec))
         return methods

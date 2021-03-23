@@ -11,19 +11,18 @@ from .general import Buffer, Context, ModuleNotAvailable, available
 
 try:
     import cffi
+
     _enabled = True
 except ImportError:
-    print("WARNING:"
-            "cffi is not installed, this platform will not be available")
+    print(
+        "WARNING:" "cffi is not installed, this platform will not be available"
+    )
     cffi = ModuleNotAvailable(
         message=("cffi is not installed. " "this platform is not available!")
     )
     _enabled = False
 
-type_mapping = {
-    np.int32: 'int32_t',
-    np.int64: 'int64_y',
-    np.float64: 'double'}
+type_mapping = {np.int32: "int32_t", np.int64: "int64_y", np.float64: "double"}
 
 
 class ContextCpu(Context):
@@ -100,18 +99,17 @@ class ContextCpu(Context):
             with open(ff, "r") as fid:
                 src_content += "\n\n" + fid.read()
 
-
         ffi_interface = cffi.FFI()
         ker_names = kernel_descriptions.keys()
         for kk in ker_names:
-            signature = f'void {kk}('
+            signature = f"void {kk}("
             for aa in kernel_descriptions[kk]["args"]:
                 tt = aa[0]
                 signature += type_mapping[tt[1]]
-                signature += {'array':'*', 'scalar': ''}[tt[0]]
-                signature += ', '
-            signature = signature[:-2] # remove the last comma and space
-            signature += ');'
+                signature += {"array": "*", "scalar": ""}[tt[0]]
+                signature += ", "
+            signature = signature[:-2]  # remove the last comma and space
+            signature += ");"
 
             ffi_interface.cdef(signature)
 
@@ -124,13 +122,14 @@ class ContextCpu(Context):
 
         # build full so filename, something like:
         # 0e14651ea79740119c6e6c24754f935e.cpython-38-x86_64-linux-gnu.so
-        suffix = sysconfig.get_config_var('EXT_SUFFIX')
+        suffix = sysconfig.get_config_var("EXT_SUFFIX")
         so_fname = tempfname + suffix
 
         try:
             # Import the compiled module
-            spec = importlib.util.spec_from_file_location(tempfname,
-                        os.path.abspath('./' + tempfname + suffix))
+            spec = importlib.util.spec_from_file_location(
+                tempfname, os.path.abspath("./" + tempfname + suffix)
+            )
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
@@ -140,13 +139,14 @@ class ContextCpu(Context):
                 aa = kernel_descriptions[nn]["args"]
                 aa_types, aa_names = zip(*aa)
                 self.kernels[nn] = KernelCpu(
-                    kernel=kk, arg_names=aa_names, arg_types=aa_types,
-                    ffi_interface = ffi_interface
+                    kernel=kk,
+                    arg_names=aa_names,
+                    arg_types=aa_types,
+                    ffi_interface=ffi_interface,
                 )
         finally:
             # Clean temp files
-            files_to_remove = [so_fname,
-                    tempfname + '.c', tempfname + '.o']
+            files_to_remove = [so_fname, tempfname + ".c", tempfname + ".o"]
             for ff in files_to_remove:
                 if os.path.exists(ff):
                     os.remove(ff)
@@ -340,10 +340,13 @@ class KernelCpu(object):
                 assert np.isscalar(vv)
                 arg_list.append(tt[1](vv))
             elif tt[0] == "array":
-                slice_first_elem = vv[tuple(vv.ndim*[slice(0,1)])]
+                slice_first_elem = vv[tuple(vv.ndim * [slice(0, 1)])]
                 arg_list.append(
-                        self.ffi_interface.cast(type_mapping[tt[1]]+'*',
-                        self.ffi_interface.from_buffer(slice_first_elem)))
+                    self.ffi_interface.cast(
+                        type_mapping[tt[1]] + "*",
+                        self.ffi_interface.from_buffer(slice_first_elem),
+                    )
+                )
             else:
                 raise ValueError(f"Type {tt} not recognized")
 

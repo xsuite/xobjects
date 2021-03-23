@@ -21,7 +21,9 @@ def specialize_source(source, specialize_for):
                 )
             elif specialize_for == "opencl":
                 new_lines.append(f"int {varname}; //autovectorized\n")
-                new_lines.append(f"{varname}=get_global_id(0); //autovectorized\n")
+                new_lines.append(
+                    f"{varname}=get_global_id(0); //autovectorized\n"
+                )
             elif specialize_for == "cuda":
                 new_lines.append(f"int {varname}; //autovectorized\n")
                 new_lines.append(
@@ -50,7 +52,9 @@ def specialize_source(source, specialize_for):
     newfilecontent = "\n".join(new_lines)
     newfilecontent = newfilecontent.replace(
         "/*gpukern*/",
-        {"cpu": " ", "opencl": " __kernel ", "cuda": "__global__"}[specialize_for],
+        {"cpu": " ", "opencl": " __kernel ", "cuda": "__global__"}[
+            specialize_for
+        ],
     )
     newfilecontent = newfilecontent.replace(
         "/*gpuglmem*/",

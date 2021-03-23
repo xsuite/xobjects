@@ -1,7 +1,8 @@
 import os
 import weakref
-import ctypes
+import uuid
 import importlib
+import sysconfig
 
 import numpy as np
 
@@ -114,12 +115,14 @@ class ContextCpu(Context):
 
             ffi_interface.cdef(signature)
 
-        ffi_interface.set_source("_example",src_content)
+        tempfname = '_tempmod'#str(uuid.uuid4().hex)
+        ffi_interface.set_source(tempfname, src_content)
         ffi_interface.compile(verbose=True)
 
         # Import the compiled module
-        spec = importlib.util.spec_from_file_location('_example',
-                    os.path.abspath('./_example.cpython-38-x86_64-linux-gnu.so'))
+        suffix = sysconfig.get_config_var('EXT_SUFFIX')
+        spec = importlib.util.spec_from_file_location('_tempmod',
+                    os.path.abspath('./' + tempfname + suffix))
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 

@@ -324,7 +324,8 @@ class KernelCpu(object):
             elif tt[0] == "array":
                 slice_first_elem = vv[tuple(vv.ndim*[slice(0,1)])]
                 arg_list.append(
-                        self.ffi_interface.from_buffer(slice_first_elem))
+                        self.ffi_interface.cast(type_mapping[tt[1]]+'*',
+                        self.ffi_interface.from_buffer(slice_first_elem)))
             else:
                 raise ValueError(f"Type {tt} not recognized")
 

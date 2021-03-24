@@ -23,7 +23,7 @@ def get_last_type(specs, conf):
     return ret, size
 
 
-def gen_method_get_signature(name, specs, conf):
+def gen_method_get_declaration(name, specs, conf):
     itype = conf.get("itype", "int64_t")
     prepointer = conf.get("prepointer", "")
     postpointer = conf.get("postpointer", "")
@@ -69,7 +69,7 @@ def gen_method_get_body(name, specs, conf):
     postpointer = conf.get("postpointer", "")
     ispointer32 = conf.get("ispointer", False)
 
-    lst = [gen_method_get_signature(name, specs, conf) + "{"]
+    lst = [gen_method_get_declaration(name, specs, conf) + "{"]
     lst.append(gen_method_offset_body(specs))
     ret, size = get_last_type(specs, conf)
     if size < 64:

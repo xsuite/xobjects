@@ -317,7 +317,7 @@ class Struct(metaclass=MetaStruct):
         return methods
 
     @classmethod
-    def _gen_methods(cls, conf={}):
+    def _gen_method_declaration(cls, conf={}):
         specs_list = cls._gen_method_specs()
         out = []
         for specs in specs_list:

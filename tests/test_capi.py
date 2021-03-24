@@ -45,7 +45,7 @@ def test_gen_methods():
     assert methods[0] == "double Field_get_normal(Field* obj)"
     assert methods[1] == "double Field_get_skew(Field* obj)"
 
-    methods = Multipole._gen_methods()
+    methods = Multipole._gen_method_def()
 
     assert methods[0] == "int8_t Multipole_get_order(Multipole* obj)"
     assert methods[1] == "double Multipole_get_angle(Multipole* obj)"

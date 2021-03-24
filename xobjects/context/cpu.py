@@ -1,24 +1,28 @@
+import os
 import weakref
-import ctypes
+import uuid
+import importlib
+import sysconfig
+
 import numpy as np
 
 
 from .general import Buffer, Context, ModuleNotAvailable, available
 
 try:
-    import cppyy
+    import cffi
 
     _enabled = True
 except ImportError:
-    print(
-        "WARNING:"
-        "cppyy is not installed, this platform will not be available"
-    )
-    cppyy = ModuleNotAvailable(
-        message=("cppyy is not installed. " "this platform is not available!")
+    print("WARNING:"
+            "cffi is not installed, this platform will not be available")
+
+    cffi = ModuleNotAvailable(
+        message=("cffi is not installed. " "this platform is not available!")
     )
     _enabled = False
 
+type_mapping = {np.int32: "int32_t", np.int64: "int64_y", np.float64: "double"}
 
 class ContextCpu(Context):
 
@@ -94,30 +98,57 @@ class ContextCpu(Context):
             with open(ff, "r") as fid:
                 src_content += "\n\n" + fid.read()
 
+        ffi_interface = cffi.FFI()
         ker_names = kernel_descriptions.keys()
-
-        skip_compile = False
         for kk in ker_names:
-            if hasattr(cppyy.gbl, kk):
-                skip_compile = True
-                break
+            signature = f"void {kk}("
+            for aa in kernel_descriptions[kk]["args"]:
+                tt = aa[0]
+                signature += type_mapping[tt[1]]
+                signature += {"array": "*", "scalar": ""}[tt[0]]
+                signature += ", "
+            signature = signature[:-2]  # remove the last comma and space
+            signature += ");"
 
-        if skip_compile:
-            print(
-                "Warning! Compilation is skipped because some of"
-                " the kernels already exist! To recompile all "
-                "please restart python"
-            )
-        else:
-            cppyy.cppdef(src_content)
+            ffi_interface.cdef(signature)
 
-        for nn in ker_names:
-            kk = getattr(cppyy.gbl, nn)
-            aa = kernel_descriptions[nn]["args"]
-            aa_types, aa_names = zip(*aa)
-            self.kernels[nn] = KernelCpu(
-                cppyy_kernel=kk, arg_names=aa_names, arg_types=aa_types
+        # Generate temp fname
+        tempfname = str(uuid.uuid4().hex)
+
+        # Compile
+        ffi_interface.set_source(tempfname, src_content)
+        ffi_interface.compile(verbose=True)
+
+        # build full so filename, something like:
+        # 0e14651ea79740119c6e6c24754f935e.cpython-38-x86_64-linux-gnu.so
+        suffix = sysconfig.get_config_var("EXT_SUFFIX")
+        so_fname = tempfname + suffix
+
+        try:
+            # Import the compiled module
+            spec = importlib.util.spec_from_file_location(
+                tempfname, os.path.abspath("./" + tempfname + suffix)
             )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            # Get the methods
+            for nn in ker_names:
+                kk = getattr(module.lib, nn)
+                aa = kernel_descriptions[nn]["args"]
+                aa_types, aa_names = zip(*aa)
+                self.kernels[nn] = KernelCpu(
+                    kernel=kk,
+                    arg_names=aa_names,
+                    arg_types=aa_types,
+                    ffi_interface=ffi_interface,
+                )
+        finally:
+            # Clean temp files
+            files_to_remove = [so_fname, tempfname + ".c", tempfname + ".o"]
+            for ff in files_to_remove:
+                if os.path.exists(ff):
+                    os.remove(ff)
 
     def nparray_to_context_array(self, arr):
         """
@@ -273,26 +304,27 @@ class NumpyArrayBuffer(Buffer):
 
 
 class KernelCpu(object):
-    def __init__(self, cppyy_kernel, arg_names, arg_types):
+    def __init__(self, kernel, arg_names, arg_types, ffi_interface):
 
         assert len(arg_names) == len(arg_types)
 
-        self.cppyy_kernel = cppyy_kernel
+        self.kernel = kernel
         self.arg_names = arg_names
         self.arg_types = arg_types
+        self.ffi_interface = ffi_interface
 
-        c_argtypes = []
-        for tt in arg_types:
-            if tt[0] == "scalar":
-                if np.issubdtype(tt[1], np.integer):
-                    c_argtypes.append(int)
-                else:
-                    c_argtypes.append(tt[1])
-            elif tt[0] == "array":
-                c_argtypes.append(None)  # Not needed for cppyy
-            else:
-                raise ValueError(f"Type {tt} not recognized")
-        self.c_arg_types = c_argtypes
+        # c_argtypes = []
+        # for tt in arg_types:
+        #     if tt[0] == "scalar":
+        #         if np.issubdtype(tt[1], np.integer):
+        #             c_argtypes.append(int)
+        #         else:
+        #             c_argtypes.append(tt[1])
+        #     elif tt[0] == "array":
+        #         c_argtypes.append(None)  # Not needed for cppyy
+        #     else:
+        #         raise ValueError(f"Type {tt} not recognized")
+        # self.c_arg_types = c_argtypes
 
     @property
     def num_args(self):
@@ -301,23 +333,23 @@ class KernelCpu(object):
     def __call__(self, **kwargs):
         assert len(kwargs.keys()) == self.num_args
         arg_list = []
-        for nn, tt, ctt in zip(
-            self.arg_names, self.arg_types, self.c_arg_types
-        ):
+        for nn, tt in zip(self.arg_names, self.arg_types):
             vv = kwargs[nn]
             if tt[0] == "scalar":
                 assert np.isscalar(vv)
-                arg_list.append(ctt(vv))
+                arg_list.append(tt[1](vv))
             elif tt[0] == "array":
+                slice_first_elem = vv[tuple(vv.ndim * [slice(0, 1)])]
                 arg_list.append(
-                    vv.ctypes.data_as(
-                        ctypes.POINTER(np.ctypeslib.as_ctypes_type(tt[1]))
+                    self.ffi_interface.cast(
+                        type_mapping[tt[1]] + "*",
+                        self.ffi_interface.from_buffer(slice_first_elem),
                     )
                 )
             else:
                 raise ValueError(f"Type {tt} not recognized")
 
-        event = self.cppyy_kernel(*arg_list)
+        event = self.kernel(*arg_list)
 
 
 class FFTCpu(object):

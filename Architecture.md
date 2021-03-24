@@ -25,12 +25,33 @@ Buffer:
 
 - `buffer`: low level buffer
 - `read(offset,size)` -> bytearray
-- `write(offset,size,data)`:
+- `write(offset,size,data: python object with buffer protocol)`:
 
 - `_new_buffer`: lowlevel buffer
 - `copy_to(self, dest: bytearray)`
 - `copy_from(self,source, src_offset, dest_offset, byte_count)`: source must be of the same type
 
+Buffer review:
+
+write/copy use cases:
+1) store scalars
+2) copy xobjects bytes to another xobjects (needs looping)
+3) copy numpy/other array to xobjects (needs looping)
+
+read/expose use cases:
+1) get bytes for copy-based copy
+2) expose pointer to build arrays
+3) expose pointers for cffi
+
+
+1) write_from_array: any python object exposing the buffer protocol
+    - numpy array
+    - __array_interface__
+    - buffer_interface
+    - cupy array (similar use case for copy from samebuffer)
+    - opencl array (similar use case for
+2) copy_from_xbuffer: any Buffer
+3) copy_from_samebuffer: Buffer from the same context
 
 ## Types
 
@@ -168,17 +189,14 @@ Kernel convention:
 }
 ```
 
-
-
-
-
 ## TODO
 
-- debug Array, Union, UnionRef
+- debug Array, Union, UnionRef and review buffer interface
 - write getter/setter
 - implement custom init
 - implement SOA
 - add __del__ methods for Struct, Array, Union, Unionref, SOA
+- add Ref
 
 ### Later
 

@@ -15,7 +15,7 @@ def gen_classes():
     return Field, Multipole
 
 
-def test_struct_simple():
+def test_gen_method_spec():
 
     Field, Multipole = gen_classes()
 

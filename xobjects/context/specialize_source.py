@@ -24,6 +24,7 @@ def specialize_source(source, specialize_for):
                 new_lines.append(
                     f"{varname}=get_global_id(0); //autovectorized\n"
                 )
+
             elif specialize_for == "cuda":
                 new_lines.append(f"int {varname}; //autovectorized\n")
                 new_lines.append(

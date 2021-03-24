@@ -67,6 +67,7 @@ class MetaString(type):
 
 class String(metaclass=MetaString):
     _size = None
+    _cname = "char*"
 
     def _get_size(self):
         return Int64._from_buffer(self._buffer, self._offset)

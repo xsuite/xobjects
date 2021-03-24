@@ -15,19 +15,30 @@ def get_position(specs):
 
 
 def gen_method_get_signature(
-    name, parts, itype="int64", prepointer="", postpointer=""
+    name, parts, itype="int64_t", prepointer="", postpointer=""
 ):
     nparts = []
     iparts = 0
     for spec in parts:
         if hasattr(spec, "name"):
             nparts.append(spec.name)
-        elif hasattr(spec, "shape"):
-            iparts += len(spec.shape)
-    method = "{name}_get"
+            lasttype = spec.ftype
+        elif hasattr(spec, "_shape"):
+            iparts += len(spec._shape)
+            lasttype = spec._itemtype
+
+    if hasattr(lasttype, "_cname"):
+        ret = lasttype._cname
+    else:
+        ret = f"{lasttype.__name__}*"
+
+    if "*" in ret and prepointer != "":
+        ret = f"{prepointer} {ret}"
+
+    method = f"{ret} {name}_get"
     if len(nparts) > 0:
-        method += "_".join(nparts)
+        method += "_" + "_".join(nparts)
     args = [f"{prepointer}{name}*{postpointer} obj"]
-    if inames > 0:
-        args.extend([f"{itype} i{ii}" for ii in range(inames)])
-    return f"{name}_{fnames}({','.join(inames)})"
+    if iparts > 0:
+        args.extend([f"{itype} i{ii}" for ii in range(iparts)])
+    return f"{method}({', '.join(args)})"

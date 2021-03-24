@@ -54,6 +54,7 @@ from .typeutils import (
 
 from .scalar import Int64
 from .array import Array
+from . import capi
 
 
 log = logging.getLogger(__name__)
@@ -314,3 +315,11 @@ class Struct(metaclass=MetaStruct):
             if hasattr(field.ftype, "_gen_method_specs"):
                 methods.extend(field.ftype._gen_method_specs(spec))
         return methods
+
+    @classmethod
+    def _gen_methods(cls):
+        specs_list = cls._gen_method_specs()
+        out = []
+        for specs in specs_list:
+            out.append(capi.gen_method_get_signature(cls.__name__, specs))
+        return out

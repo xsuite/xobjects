@@ -10,10 +10,11 @@ from .typeutils import Info
 
 
 class NumpyScalar:
-    def __init__(self, dtype):
+    def __init__(self, dtype, cname):
         self.__name__ = dtype.capitalize()
         self._dtype = np.dtype(dtype)
         self._size = self._dtype.itemsize
+        self._cname = cname
 
     def _from_buffer(self, buffer, offset):
         data = buffer.read(offset, self._size)
@@ -38,17 +39,17 @@ class NumpyScalar:
         return self.__name__
 
 
-Float128 = NumpyScalar("float128")
-Float64 = NumpyScalar("float64")
-Float32 = NumpyScalar("float32")
-Int64 = NumpyScalar("int64")
-UInt64 = NumpyScalar("uint64")
-Int32 = NumpyScalar("int32")
-UInt32 = NumpyScalar("uint32")
-Int16 = NumpyScalar("int16")
-UInt16 = NumpyScalar("uint16")
-Int8 = NumpyScalar("int8")
-UInt8 = NumpyScalar("uint8")
-Complex64 = NumpyScalar("complex64")
-Complex128 = NumpyScalar("complex128")
-Complex256 = NumpyScalar("complex256")
+Float128 = NumpyScalar("float128", "double[2]")
+Float64 = NumpyScalar("float64", "double")
+Float32 = NumpyScalar("float32", "float")
+Int64 = NumpyScalar("int64", "int64_t")
+UInt64 = NumpyScalar("uint64", "uint64_t")
+Int32 = NumpyScalar("int32", "int32_t")
+UInt32 = NumpyScalar("uint32", "uint32_t")
+Int16 = NumpyScalar("int16", "int16_t")
+UInt16 = NumpyScalar("uint16", "uint16_t")
+Int8 = NumpyScalar("int8", "int8_t")
+UInt8 = NumpyScalar("uint8", "uint8_t")
+Complex64 = NumpyScalar("complex64", "float[2]")
+Complex128 = NumpyScalar("complex128", "double[2]")
+Complex256 = NumpyScalar("complex256", "double[4]")

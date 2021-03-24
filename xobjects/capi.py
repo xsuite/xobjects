@@ -14,7 +14,9 @@ def get_position(specs):
     return "\n".join(offlist)
 
 
-def gen_get_method_signature(name, parts, itype="int64"):
+def gen_method_get_signature(
+    name, parts, itype="int64", prepointer="", postpointer=""
+):
     nparts = []
     iparts = 0
     for spec in parts:
@@ -25,7 +27,7 @@ def gen_get_method_signature(name, parts, itype="int64"):
     method = "{name}_get"
     if len(nparts) > 0:
         method += "_".join(nparts)
-    args = [f"{name}* obj"]
+    args = [f"{prepointer}{name}*{postpointer} obj"]
     if inames > 0:
         args.extend([f"{itype} i{ii}" for ii in range(inames)])
     return f"{name}_{fnames}({','.join(inames)})"

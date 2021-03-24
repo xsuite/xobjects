@@ -36,16 +36,16 @@ def test_gen_method_spec():
     assert meth[6] == [Multipole.field, Field_N, Field.skew]
 
 
-def test_gen_methods():
+def test_gen_method_get_declaration():
 
     Field, Multipole = gen_classes()
 
-    methods = Field._gen_methods()
+    methods = Field._gen_method_get_declaration()
 
     assert methods[0] == "double Field_get_normal(Field* obj)"
     assert methods[1] == "double Field_get_skew(Field* obj)"
 
-    methods = Multipole._gen_method_def()
+    methods = Multipole._gen_method_get_declaration()
 
     assert methods[0] == "int8_t Multipole_get_order(Multipole* obj)"
     assert methods[1] == "double Multipole_get_angle(Multipole* obj)"
@@ -61,4 +61,20 @@ def test_gen_methods():
     assert (
         methods[6]
         == "double Multipole_get_field_skew(Multipole* obj, int64_t i0)"
+    )
+
+
+def test_gen_method_get_body():
+
+    Field, Multipole = gen_classes()
+
+    methods = Field._gen_method_get_body()
+
+    assert (
+        methods[0]
+        == """\
+double Field_get_normal(Field* obj){
+  int64_t offset=0;
+  return ((double*) obj)[offset];
+}"""
     )

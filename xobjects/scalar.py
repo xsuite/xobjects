@@ -38,6 +38,14 @@ class NumpyScalar:
     def __repr__(self):
         return self.__name__
 
+    def _array_to_buffer(self, buffer, offset, value):
+        return buffer.write(offset, value.tobytes())
+
+    def _array_from_buffer(self, buffer, offset, count):
+        return self.frombuffer(
+            data, dtype=self._dtype, offset=offset, count=count
+        )
+
 
 Float128 = NumpyScalar("float128", "double[2]")
 Float64 = NumpyScalar("float64", "double")

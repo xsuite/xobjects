@@ -113,6 +113,13 @@ class Field:
     def get_default(self):
         return dispatch_arg(self.ftype, self.default)
 
+    def get_c_offset(self, conf):
+        itype = conf.get("itype", "int64_t")
+        if self.is_reference:
+            return f" ((int64_t*) obj)[{offset + self.offset}]"
+        else:
+            return self.offset
+
 
 class MetaStruct(type):
     def __new__(cls, name, bases, data):
@@ -317,11 +324,19 @@ class Struct(metaclass=MetaStruct):
         return methods
 
     @classmethod
-    def _gen_method_declaration(cls, conf={}):
+    def _gen_method_get_declaration(cls, conf={}):
         specs_list = cls._gen_method_specs()
         out = []
         for specs in specs_list:
             out.append(
-                capi.gen_method_get_signature(cls.__name__, specs, conf)
+                capi.gen_method_get_declaration(cls.__name__, specs, conf)
             )
+        return out
+
+    @classmethod
+    def _gen_method_get_body(cls, conf={}):
+        specs_list = cls._gen_method_specs()
+        out = []
+        for specs in specs_list:
+            out.append(capi.gen_method_get_body(cls.__name__, specs, conf))
         return out

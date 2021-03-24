@@ -46,37 +46,39 @@ def gen_method_get_declaration(name, specs, conf):
     return f"{method}({', '.join(args)})"
 
 
-def gen_method_offset_body(specs, conf):
-    conf.get("itype", "int64_t")
-    lst = [f"{itype} offset=0;"]
+def gen_method_offset(specs, conf):
+    itype = conf.get("itype", "int64_t")
+    lst = [f"  {itype} offset=0;"]
     offset = 0
     for spec in specs:
-        soffset = spec.get_offsets()
-        if type(off) is int:
+        soffset = spec.get_c_offset(conf)
+        if type(soffset) is int:
             offset += soffset
         else:
             lst.append("  offset+={offset};")  # dump current offset
-            lst.append("  offset+={soffset};")
+            lst.append("  offset+={soffset};")  # update reference offset
             offset = 0
     if offset > 0:
         lst.append("  offset+={offset};")
-    return "\n".join(offlist)
+    return "\n".join(lst)
 
 
 def gen_method_get_body(name, specs, conf):
-    itype = conf.get("itype", "uint64_t")
+    itype = conf.get("itype", "int64_t")
     prepointer = conf.get("prepointer", "")
     postpointer = conf.get("postpointer", "")
     ispointer32 = conf.get("ispointer", False)
 
     lst = [gen_method_get_declaration(name, specs, conf) + "{"]
-    lst.append(gen_method_offset_body(specs))
+    lst.append(gen_method_offset(specs, conf))
     ret, size = get_last_type(specs, conf)
-    if size < 64:
-        lst.append(f"  return ((ret*) obj)[{offset*64/size}];")
+    if size <= 8:
+        nn = 8 / size
+        if nn == 1:
+            lst.append(f"  return (({ret}*) obj)[offset];")
+        else:
+            lst.append(f"  return (({ret}*) obj)[offset*8/{size}];")
     else:
-        lst.append(
-            f"  return ({ret}*)(&((double*) obj)[{offset*64/size}])[0];"
-        )
+        lst.append(f"  return ({ret}*)(&((char*) obj)[offset*size])[0];")
     lst.append("}")
     return "\n".join(lst)

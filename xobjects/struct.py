@@ -111,7 +111,10 @@ class Field:
             return self.offset
 
     def get_default(self):
-        return dispatch_arg(self.ftype, self.default)
+        if self.default is None:
+            return self.ftype()
+        else:
+            return dispatch_arg(self.ftype, self.default)
 
     def _get_c_offset(self, conf):
         itype = conf.get("itype", "int64_t")

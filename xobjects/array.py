@@ -59,8 +59,8 @@ def get_shape_from_array(value):
         return ()
 
 
-def get_strides(shape, order, itemsizse):
-    ss = itemsize
+def get_strides(shape, order):
+    ss = 1
     strides = []
     for io in order:
         strides = [ss] + strides

@@ -75,6 +75,57 @@ def test_gen_method_get_body():
         == """\
 double Field_get_normal(Field* obj){
   int64_t offset=0;
-  return ((double*) obj)[offset];
+  return *((double *)(((char*) obj)+offset));
+}"""
+    )
+    assert (
+        methods[1]
+        == """\
+double Field_get_skew(Field* obj){
+  int64_t offset=0;
+  offset+=8;
+  return *((double *)(((char*) obj)+offset));
+}"""
+    )
+
+    methods = Multipole._gen_method_get_body()
+
+    assert (
+        methods[0]
+        == """\
+int8_t Multipole_get_order(Multipole* obj){
+  int64_t offset=0;
+  offset+=8;
+  return ((int8_t*) obj)[offset];
+}"""
+    )
+
+    assert (
+        methods[1]
+        == """\
+double Multipole_get_angle(Multipole* obj){
+  int64_t offset=0;
+  offset+=16;
+  return *((double *)(((char*) obj)+offset));
+}"""
+    )
+
+    assert (
+        methods[2]
+        == """\
+double Multipole_get_vlength(Multipole* obj){
+  int64_t offset=0;
+  offset+=24;
+  return *((double *)(((char*) obj)+offset));
+}"""
+    )
+
+    assert (
+        methods[3]
+        == """\
+Field_N* Multipole_get_field(Multipole* obj){
+  int64_t offset=0;
+  offset+=32;
+  return (Field_N*)(((char*) obj)+offset);
 }"""
     )

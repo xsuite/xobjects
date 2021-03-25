@@ -90,6 +90,7 @@ Types can be composed of:
 - layout:
   - [size]
   - [dims ... ]
+  - [strides...]
   - [offsets]
   - data
 

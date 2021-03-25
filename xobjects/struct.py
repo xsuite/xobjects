@@ -113,10 +113,11 @@ class Field:
     def get_default(self):
         return dispatch_arg(self.ftype, self.default)
 
-    def get_c_offset(self, conf):
+    def _get_c_offset(self, conf):
         itype = conf.get("itype", "int64_t")
         if self.is_reference:
-            return f" ((int64_t*) obj)[{offset + self.offset}]"
+            doffset = f"offset+{self.offset}"  # starts of data
+            return f"(({itype}*) obj)[{doffset}]"
         else:
             return self.offset
 
@@ -277,7 +278,9 @@ class Struct(metaclass=MetaStruct):
         if not hasattr(info, "_offsets"):
             self._size = info.size
         # acquire buffer
-        self._buffer, self._offset = get_a_buffer(info.size)
+        self._buffer, self._offset = get_a_buffer(
+            info.size, _context, _buffer, _offset
+        )
         # if dynamic struct store dynamic offsets
         if hasattr(info, "_offsets"):
             self._offsets = info._offsets  # struct offsets

@@ -26,11 +26,13 @@ Array class:
     - _order: the ordering of the index in the API
     - _itemtype
     - _is_static_shape
+    - _strides
     - _is_static_type
 
 Array instance:
-    _dshape: value of dynamic dimensions
-    _shape: present if dynamic
+    - _dshape: value of dynamic dimensions
+    - _shape: present if dynamic
+    - _strides: shape if dynamic
 """
 
 
@@ -137,12 +139,12 @@ class MetaArray(type):
                     dshape.append(ii)
             if len(dshape) > 0:
                 data["_is_static_shape"] = False
-                data["_dshape"] = dshape
+                data["_dshape_idx"] = dshape
             else:
                 data["_is_static_shape"] = True
-
-            if data["_is_static_shape"]:
                 data["_order"] = mk_order(data["_order"], _shape)
+                data["_strides"] = get_strides(_shape, data["_order"])
+
             if data["_is_static_shape"] and data["_is_static_type"]:
                 _size = _itemtype._size
                 for d in _shape:
@@ -240,6 +242,7 @@ class Array(metaclass=MetaArray):
                 info.shape = shape
                 info.dshape = dshape
                 info.order = mk_order(shape, cls._order)
+                info.strides = mk_strides(shape, info.order)
                 items = np.prod(shape)
             if cls._is_static_itemtype:
                 offset += items * cls._itemtype  # starting of data
@@ -341,6 +344,8 @@ class Array(metaclass=MetaArray):
             self._size = info.size
         if hasattr(info, "shape"):
             self._shape = info.shape
+            self._dshape = info.dshape
+            self._strides = info.strides
         if hasattr(info, "offsets"):
             self._offsets = info.offsets
 
@@ -363,4 +368,37 @@ class Array(metaclass=MetaArray):
 
     @classmethod
     def _get_offset(cls):
-        return "+".join(["ii{ii}*{strides[ii]}" for ii in cls.strides])
+        return "+".join(["i{ii}*{strides[ii]}" for ii in cls.strides])
+
+    @classmethod
+    def _get_c_offset(cls, conf):
+        itype = conf.get("itype", "int64_t")
+        if cls._is_static_shape:
+            soffset = "+".join(
+                [
+                    "i{cls._order[ii]}*{ss}"
+                    for ii, ss in enumerate(cls._strides)
+                ]
+            )
+            if cls._size != None:
+                return f"offset+{soffset}"
+            else:  # cls._is_static_type ==False
+                doffset = f"offset+8+{soffset}"  # starts of the offset list
+                return f"(({itype}*) obj)[{doffset}]"
+        else:  # dynamic shape
+            strides = []
+            sizeoff = 8  # size offset
+            for dd in cls._shape:  # WRONG!!!
+                if type(dd) is int:
+                    strides.append(str(int))
+                else:
+                    strides.append(f"(({itype}*) obj)[offset+{sizeoff}]")
+                    sizeoff += 8
+            soffset = "+".join(
+                [f"i{cls._order[ii]}*{ss}" for ii, ss in enumerate(strides)]
+            )
+            off = 8 + len(cls._dshape_idx) * 8
+            if cls._is_static_type:
+                return f"offset+{off}+{soffset}"
+            else:  # dynamic typr:
+                return f"offset+(({itype}*) obj)[offset+{off}+{soffset}]"

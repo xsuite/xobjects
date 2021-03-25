@@ -16,14 +16,10 @@ def test_static_struct_def():
 
 
 def test_static_struct():
-    #class StructA(xo.Struct):
-    #    a = xo.Field(xo.Float64, default=3.5)
-    #    b = xo.Field(xo.Int8, default=-4)
-    #    c = xo.Field(xo.Int64, default=-1)
     class StructA(xo.Struct):
-        a = xo.Float64
+        a = xo.Field(xo.Float64, default=3.5)
         b = xo.Int8
-        c = xo.Int64
+        c = xo.Field(xo.Int64)
 
     assert StructA.a.index == 0
     assert StructA.b.index == 1
@@ -38,8 +34,8 @@ def test_static_struct():
 
         s = StructA(_context=xo.ContextCpu())
         assert s.a == 3.5
-        assert s.b == -4
-        assert s.c == -1
+        assert s.b == 0
+        assert s.c == 0.
 
         s.a = 5.2
         assert s.a == 5.2

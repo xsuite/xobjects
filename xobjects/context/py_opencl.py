@@ -112,7 +112,7 @@ class ContextPyopencl(Context):
                     (('array',  np.float64), 'x1',),
                     (('array',  np.float64), 'x2',),
                     )
-                'num_threads_from_arg': 'nparticles'
+                'num_threads_from_arg': 'n'
                 },}
 
             # Import kernel in context
@@ -248,7 +248,7 @@ class ContextPyopencl(Context):
                     (('array',  np.float64), 'x1',),
                     (('array',  np.float64), 'x2',),
                     )
-                'num_threads_from_arg': 'nparticles'
+                'num_threads_from_arg': 'n'
                 },}
 
             # Import kernel in context

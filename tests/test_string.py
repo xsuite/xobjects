@@ -19,11 +19,11 @@ def test_string_init2():
 
 def test_string_init3():
     for cls in [xoc.ContextCpu, xoc.ContextPyopencl, xoc.ContextCupy]:
-
-        if cls in xoc.available:
-            ctx = cls()
-        else:
+        if cls not in xoc.available:
             continue
+
+        ctx = cls()
+
         print(repr(cls))
         ss = xo.String("test", _context=ctx)
         assert xo.String._from_buffer(ss._buffer, ss._offset) == "test"

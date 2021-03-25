@@ -95,6 +95,8 @@ def test_dynamic_nested_struct():
         b = xo.Field(xo.String, default=10)
         c = xo.Field(xo.Int8, default=-1)
 
+    assert StructE._size is not None
+
     info = StructE._inspect_args(b="this is a test")
     assert info == Info(size=48, _offsets={1: 24}, extra={})
 

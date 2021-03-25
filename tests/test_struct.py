@@ -10,6 +10,8 @@ def test_static_struct_def():
         b = xo.Int8
         c = xo.Int64
 
+    assert StructA._size is not None
+
     assert StructA.a.index == 0
     assert StructA.b.index == 1
     assert StructA.c.index == 2
@@ -86,25 +88,6 @@ def test_dynamic_struct():
         assert d.b == "this is a test"
         assert d.c == -1
 
-# TODO Sort this out
-def notest_dynamic_struct_no_default():
-    class StructD(xo.Struct):
-        a = xo.Field(xo.Float64, default=3.5)
-        b = xo.String
-        c = xo.Field(xo.Int8, default=-1)
-
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-
-        print(f'Test {CTX}')
-        ctx = CTX()
-
-        d = StructD(b="this is a test", _context=ctx)
-        assert d.a == 3.5
-        assert d.b == "this is a test"
-        assert d.c == -1
-
 
 def test_dynamic_nested_struct():
     class StructE(xo.Struct):
@@ -139,4 +122,33 @@ def test_dynamic_nested_struct():
         assert s.e == 3.5
         assert s.f == 1.5
         assert s.g.b == "this is a test"
+
+def test_assign_full_struct():
+
+    class StructE(xo.Struct):
+        a = xo.Field(xo.Float64, default=3.5)
+        b = xo.Field(xo.String, default=10)
+        c = xo.Field(xo.Int8, default=-1)
+
+    class StructF(xo.Struct):
+        e = xo.Field(xo.Float64, default=3.5)
+        f = xo.Field(xo.Float64, default=1.5)
+        g = xo.Field(StructE)
+        h = xo.Field(xo.Int8, default=-1)
+
+
+    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
+        if CTX not in available:
+            continue
+
+        print(f'Test {CTX}')
+        ctx = CTX()
+
+        s = StructF(g={"b": "this is a test"}, _context=ctx)
+        assert s.e == 3.5
+        assert s.f == 1.5
+        assert s.g.b == "this is a test"
+
+        e = StructE(b='hello')
+        s.g = e
     # assert f.h==-1

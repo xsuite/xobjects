@@ -270,6 +270,17 @@ class Struct(metaclass=MetaStruct):
                 finfo = extra.get(field.index)
                 field.ftype._to_buffer(buffer, foffset, fvalue, finfo)
 
+    def _update(self, value):
+        # check if direct copy is possible
+        if isinstance(value, self.__class__) and value._size == self._size:
+            self._buffer.copy_from(
+                value._buffer, value._offset, self._offset, self._size
+            )
+        else:
+            for field in self._fields:
+                if field.name in value:
+                    field.__set__(self, data[field.name])
+
     def __init__(self, _context=None, _buffer=None, _offset=None, **nargs):
         """
         Create new struct in buffer from offset.
@@ -296,11 +307,6 @@ class Struct(metaclass=MetaStruct):
         for index, data_offset in loffsets.items():
             foffset = offset + cls._fields[index].offset
             Int64._to_buffer(buffer, foffset, data_offset)
-
-    def _update(self, data):
-        for field in self._fields:
-            if field.name in data:
-                field.__set__(self, data[field.name])
 
     def _to_dict(self):
         return {field.name: field.__get__(self) for field in self._fields}

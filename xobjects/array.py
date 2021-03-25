@@ -15,7 +15,8 @@ There 6 kind of arrays from the combination of
 
 Data layout:
     - [size]: if not (static,static)
-    - [d1 d2 ...]: dynamic dimensions (dynamic,*)
+    - [d0 d1 ...]: dynamic dimensions (dynamic,*)
+    - [stride1 stride2 ...] if nd>1
     - [offsets]: if itemtype is not static (*|dynamic)
     - data: array data
 
@@ -58,8 +59,8 @@ def get_shape_from_array(value):
         return ()
 
 
-def get_strides(shape, order):
-    ss = 1
+def get_strides(shape, order, itemsizse):
+    ss = itemsize
     strides = []
     for io in order:
         strides = [ss] + strides

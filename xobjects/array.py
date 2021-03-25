@@ -59,8 +59,8 @@ def get_shape_from_array(value):
         return ()
 
 
-def get_strides(shape, order):
-    ss = 1
+def get_strides(shape, order, itemsize):
+    ss = itemsize
     strides = []
     for io in order:
         strides = [ss] + strides
@@ -144,7 +144,12 @@ class MetaArray(type):
             else:
                 data["_is_static_shape"] = True
                 data["_order"] = mk_order(data["_order"], _shape)
-                data["_strides"] = get_strides(_shape, data["_order"])
+                if data["_is_static_type"]:
+                    data["_strides"] = get_strides(
+                        _shape, data["_order"], _itemtype._size
+                    )
+                else:
+                    data["_strides"] = get_strides(_shape, data["_order"], 8)
 
             if data["_is_static_shape"] and data["_is_static_type"]:
                 _size = _itemtype._size

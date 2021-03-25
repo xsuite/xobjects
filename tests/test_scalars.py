@@ -1,4 +1,5 @@
 import xobjects as xo
+from xobjects.context import available
 
 scalars = (
     xo.Float64,
@@ -24,7 +25,11 @@ def test_scalar_class():
 
 def test_scalar_buffer():
     nn = 123
-    for ctx in xo.ByteArrayContext(), xo.CLContext():
+    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
+        if CTX not in available:
+            continue
+        print(f'Test {CTX}')
+        ctx = CTX()
         buff = ctx.new_buffer()
         for sc in scalars:
             offset = buff.allocate(sc._size)
@@ -32,3 +37,4 @@ def test_scalar_buffer():
             vv = sc._from_buffer(buff, offset)
             assert nn == vv
             assert nn == sc(nn)
+

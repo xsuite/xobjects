@@ -16,10 +16,14 @@ def test_static_struct_def():
 
 
 def test_static_struct():
+    #class StructA(xo.Struct):
+    #    a = xo.Field(xo.Float64, default=3.5)
+    #    b = xo.Field(xo.Int8, default=-4)
+    #    c = xo.Field(xo.Int64, default=-1)
     class StructA(xo.Struct):
-        a = xo.Field(xo.Float64, default=3.5)
-        b = xo.Field(xo.Int8, default=-4)
-        c = xo.Field(xo.Int64, default=-1)
+        a = xo.Float64
+        b = xo.Int8
+        c = xo.Int64
 
     assert StructA.a.index == 0
     assert StructA.b.index == 1

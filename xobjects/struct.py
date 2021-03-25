@@ -311,6 +311,23 @@ class Struct(metaclass=MetaStruct):
     def _to_dict(self):
         return {field.name: field.__get__(self) for field in self._fields}
 
+    def __iter__(self):
+        for field in self._fields:
+            yield field.name
+
+    def __getitem__(self, key):
+        for field in self._fields:
+            if field.name == key:
+                return key
+        raise KeyError("{key} not found")
+
+    def __contains__(self, key):
+        for field in self._fields:
+            if field.name == key:
+                return True
+        else:
+            return False
+
     def __repr__(self):
         fields = (
             (field.name, repr(getattr(self, field.name)))

@@ -42,7 +42,7 @@ class NumpyScalar:
         return buffer.write(offset, value.tobytes())
 
     def _array_from_buffer(self, buffer, offset, count):
-        return self.frombuffer(
+        return self._frombuffer(
             data, dtype=self._dtype, offset=offset, count=count
         )
 

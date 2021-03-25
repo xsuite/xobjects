@@ -289,14 +289,14 @@ class Struct(metaclass=MetaStruct):
         cls = self.__class__
         # compute resources
         info = cls._inspect_args(**nargs)
-        if not hasattr(info, "_offsets"):
+        if not hasattr(info, "_size"):
             self._size = info.size
         # acquire buffer
         self._buffer, self._offset = get_a_buffer(
             info.size, _context, _buffer, _offset
         )
         # if dynamic struct store dynamic offsets
-        if hasattr(info, "_offsets"):
+        if hasattr(info, "_size"):
             self._offsets = info._offsets  # struct offsets
         self.__class__._to_buffer(self._buffer, self._offset, nargs, info)
         self._cache = {}

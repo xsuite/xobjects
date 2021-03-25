@@ -279,7 +279,7 @@ class Struct(metaclass=MetaStruct):
         else:
             for field in self._fields:
                 if field.name in value:
-                    field.__set__(self, data[field.name])
+                    field.__set__(self, value[field.name])
 
     def __init__(self, _context=None, _buffer=None, _offset=None, **nargs):
         """

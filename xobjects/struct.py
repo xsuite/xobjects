@@ -317,7 +317,7 @@ class Struct(metaclass=MetaStruct):
     def __getitem__(self, key):
         for field in self._fields:
             if field.name == key:
-                return key
+                return field.__get__(self)
         raise KeyError("{key} not found")
 
     def __contains__(self, key):

@@ -7,6 +7,12 @@ def test_string_class():
     assert info.size == 5 + 1 + 2 + 8
 
 
+def test_string_fixed():
+    cls = xo.String.fixed(10)
+    assert cls.__name__ == "String10"
+    assert cls._size == 10
+
+
 def test_string_init1():
     ss = xo.String(10)
     assert ss._size is not None

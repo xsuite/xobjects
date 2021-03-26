@@ -1,4 +1,22 @@
 """
+String: holds a null terminated variable length string
+
+init:
+    String(10)  create an empty string with  10 byte capacity (including termination \0)
+    String("a string") create and initialize string with the minimal capacity
+
+Layout:
+    [capacity]
+    data
+    [null] at least 1 byte
+
+
+String class data:
+    _size = None
+    _cname = "char*"
+
+String instance data:
+    _size = string type size (including capacity)
 
 
 TODO:
@@ -23,23 +41,24 @@ class MetaString(type):
         return Array.mk_arrayclass(self, shape)
 
     def _inspect_args(cls, string_or_int):
-        if isinstance(string_or_int, int):
-            return Info(size=string_or_int + 8)
-        elif isinstance(string_or_int, str):
-            data = bytes(string_or_int, "utf8")
-            size = _to_slot_size(len(data) + 1 + 8)
-            return Info(size=size, data=data)  # add zero termination
-        elif isinstance(string_or_int, cls):
-            return Info(size=string_or_int._get_size())
-        raise ValueError(
-            f"String can accept only one integer or string and not `{string_or_int}`"
-        )
+        if cls._size is None:
+            if isinstance(string_or_int, int):
+                return Info(size=string_or_int + 8)
+            elif isinstance(string_or_int, str):
+                data = bytes(string_or_int, "utf8")
+                size = _to_slot_size(len(data) + 1 + 8)
+                return Info(size=size, data=data)  # add zero termination
+            elif isinstance(string_or_int, cls):
+                return Info(size=string_or_int._get_size())
+            raise ValueError(
+                f"String can accept only one integer or string and not `{string_or_int}`"
+            )
+        else:
+            return Info(size=cls._size)
 
     def _to_buffer(cls, buffer, offset, value, info=None):
         log.debug(f"{cls} to buffer {offset}  `{value}`")
-        if (
-            info is None
-        ):  # string is always dynamic therefore index is necessary
+        if info is None:
             info = cls._inspect_args(value)
         size = info.size
         string_capacity = info.size - 8
@@ -64,6 +83,14 @@ class MetaString(type):
     def _from_buffer(cls, buffer, offset):
         return cls._get_data(buffer, offset).decode("utf8").rstrip("\x00")
 
+    def fixed(cls, size):
+        if isinstance(size, int) and size > 0:
+            name = f"String{size}"
+            data = dict(_size=size)
+            return MetaString(name, (String,), data)
+        else:
+            raise ValueError("String needs a positive integer")
+
 
 class String(metaclass=MetaString):
     _size = None
@@ -84,6 +111,8 @@ class String(metaclass=MetaString):
         self.__class__._to_buffer(
             self._buffer, self._offset, string_or_int, info=info
         )
+
+        self._size = size
 
     def update(self, value):
         buffer = self._buffer

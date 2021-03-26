@@ -9,11 +9,13 @@ def test_string_class():
 
 def test_string_init1():
     ss = xo.String(10)
+    assert ss._size is not None
     assert ss._buffer.capacity == 18
 
 
 def test_string_init2():
     ss = xo.String("test")
+    assert ss._size is not None
     assert ss.to_str() == "test"
 
 

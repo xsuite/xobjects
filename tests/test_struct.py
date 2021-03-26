@@ -10,6 +10,8 @@ def test_static_struct_def():
         b = xo.Int8
         c = xo.Int64
 
+    assert StructA._size is not None
+
     assert StructA.a.index == 0
     assert StructA.b.index == 1
     assert StructA.c.index == 2
@@ -20,6 +22,8 @@ def test_static_struct():
         a = xo.Field(xo.Float64, default=3.5)
         b = xo.Int8
         c = xo.Field(xo.Int64)
+
+    assert StructA.a.index == 0
 
     assert StructA.a.index == 0
     assert StructA.b.index == 1
@@ -33,6 +37,8 @@ def test_static_struct():
         ctx = CTX()
 
         s = StructA(_context=xo.ContextCpu())
+
+        assert s._size is not None
         assert s.a == 3.5
         assert s.b == 0
         assert s.c == 0.
@@ -55,6 +61,9 @@ def test_nested_struct():
         b = xo.Field(StructB)
         c = xo.Field(xo.Int8, default=-1)
 
+    assert StructB._size is not None
+    assert StructC._size is not None
+
     for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
         if CTX not in available:
             continue
@@ -63,6 +72,8 @@ def test_nested_struct():
         ctx = CTX()
 
         b = StructC(_context=ctx)
+
+        assert b._size is not None
         assert b.a == 3.6
         assert b.b.a == 3.5
         assert b.b.c == 0
@@ -74,24 +85,7 @@ def test_dynamic_struct():
         b = xo.Field(xo.String, default=10)
         c = xo.Field(xo.Int8, default=-1)
 
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-
-        print(f'Test {CTX}')
-        ctx = CTX()
-
-        d = StructD(b="this is a test", _context=ctx)
-        assert d.a == 3.5
-        assert d.b == "this is a test"
-        assert d.c == -1
-
-# TODO Sort this out
-def notest_dynamic_struct_no_default():
-    class StructD(xo.Struct):
-        a = xo.Field(xo.Float64, default=3.5)
-        b = xo.String
-        c = xo.Field(xo.Int8, default=-1)
+    assert StructD._size is not None
 
     for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
         if CTX not in available:
@@ -101,6 +95,7 @@ def notest_dynamic_struct_no_default():
         ctx = CTX()
 
         d = StructD(b="this is a test", _context=ctx)
+        assert d._size is not None
         assert d.a == 3.5
         assert d.b == "this is a test"
         assert d.c == -1
@@ -112,6 +107,7 @@ def test_dynamic_nested_struct():
         b = xo.Field(xo.String, default=10)
         c = xo.Field(xo.Int8, default=-1)
 
+
     info = StructE._inspect_args(b="this is a test")
     assert info == Info(size=48, _offsets={1: 24}, extra={})
 
@@ -120,6 +116,9 @@ def test_dynamic_nested_struct():
         f = xo.Field(xo.Float64, default=1.5)
         g = xo.Field(StructE)
         h = xo.Field(xo.Int8, default=-1)
+
+    assert StructE._size is not None
+    assert StructF._size is not None
 
     info = StructF._inspect_args(g={"b": "this is a test"})
     assert info == Info(
@@ -136,7 +135,40 @@ def test_dynamic_nested_struct():
         ctx = CTX()
 
         s = StructF(g={"b": "this is a test"}, _context=ctx)
+        assert s._size is not None
         assert s.e == 3.5
         assert s.f == 1.5
         assert s.g.b == "this is a test"
+
+def test_assign_full_struct():
+
+    class StructE(xo.Struct):
+        a = xo.Field(xo.Float64, default=3.5)
+        b = xo.Field(xo.String, default=10)
+        c = xo.Field(xo.Int8, default=-1)
+
+    class StructF(xo.Struct):
+        e = xo.Field(xo.Float64, default=3.5)
+        f = xo.Field(xo.Float64, default=1.5)
+        g = xo.Field(StructE)
+        h = xo.Field(xo.Int8, default=-1)
+
+    assert StructE._size is not None
+    assert StructF._size is not None
+
+    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
+        if CTX not in available:
+            continue
+
+        print(f'Test {CTX}')
+        ctx = CTX()
+
+        s = StructF(g={"b": "this is a test"}, _context=ctx)
+        assert s._size is not None
+        assert s.e == 3.5
+        assert s.f == 1.5
+        assert s.g.b == "this is a test"
+
+        e = StructE(b='hello')
+        s.g = e
     # assert f.h==-1

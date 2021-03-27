@@ -41,8 +41,9 @@ def specialize_source(source, specialize_for):
             inside_vect_block = False
         else:
             if "//only_for_context" in ll:
-                ptemp = ll.split("//only_for_context")[-1].split()[0].strip()
-                if specialize_for != ptemp:
+                temp_contexts = ll.split("//only_for_context")[-1].split()
+                temp_contexts = [ss.strip() for ss in temp_contexts]
+                if specialize_for not in temp_contexts:
                     ll = "//" + ll
             if indent and inside_vect_block:
                 new_lines.append("    " + ll)

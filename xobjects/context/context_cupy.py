@@ -1,5 +1,3 @@
-import weakref
-
 import numpy as np
 
 from .general import Buffer, Context, ModuleNotAvailable, available

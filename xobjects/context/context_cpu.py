@@ -1,5 +1,4 @@
 import os
-import weakref
 import uuid
 import importlib
 import sysconfig

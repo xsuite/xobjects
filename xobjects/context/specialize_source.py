@@ -1,4 +1,6 @@
-def specialize_source(source, specialize_for):
+import os
+
+def specialize_source(source, specialize_for, search_in_folders=[]):
 
     assert specialize_for in ["cpu_serial", "cpu_openmp", "opencl", "cuda"]
 
@@ -12,7 +14,13 @@ def specialize_source(source, specialize_for):
             temp_contexts = ll.split("for_context")[-1].split()
             temp_contexts = [ss.strip() for ss in temp_contexts]
             if specialize_for in temp_contexts:
-                with open(fname, 'r') as fid:
+                for fold in ['./'] + search_in_folders:
+                    fpath = fold + '/' + fname
+                    if os.path.isfile(fpath):
+                        break
+                else:
+                    raise IOError(f'File {fname} not found')
+                with open(fpath, 'r') as fid:
                     flines = fid.readlines()
                 lines.append('\n//from file: ' + fname + '\n')
                 for fll in flines:

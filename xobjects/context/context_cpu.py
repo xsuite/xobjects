@@ -5,8 +5,8 @@ import sysconfig
 
 import numpy as np
 
-
 from .general import Buffer, Context, ModuleNotAvailable, available
+from .specialize_source import specialize_source
 
 try:
     import cffi
@@ -43,7 +43,8 @@ class ContextCpu(Context):
     def _make_buffer(self, capacity):
         return BufferByteArray(capacity=capacity, context=self)
 
-    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
+    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={},
+            specialize_code=True):
 
         """
         Adds user-defined kernels to to the context. The kernel source
@@ -60,6 +61,8 @@ class ContextCpu(Context):
                 define the kernel names, the type and name of the arguments
                 and identifies one input argument that defines the number of
                 threads to be launched.
+            specialize_code (bool): If True, the code is specialized using
+                annotations in the source code. Default is ``True``
 
         Example:
 
@@ -92,9 +95,17 @@ class ContextCpu(Context):
         """
 
         src_content = src_code
+        fold_list = []
         for ff in src_files:
+            fold_list.append(os.path.dirname(ff))
             with open(ff, "r") as fid:
                 src_content += "\n\n" + fid.read()
+
+        if specialize_code:
+            # included files are searched in the same folders od the src_filed
+            src_content = specialize_source(src_content,
+                    specialize_for='cpu_serial', search_in_folders=fold_list)
+
 
         ffi_interface = cffi.FFI()
         ker_names = kernel_descriptions.keys()

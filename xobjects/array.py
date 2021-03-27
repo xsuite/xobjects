@@ -118,43 +118,6 @@ def get_offset(idx, strides):
     return sum(ii * ss for ii, ss in zip(idx, strides))
 
 
-def mk_getitem(itemtype, shape):
-    is_static = not (itemtype._size is None or None in shape)
-    if itemtype._size is None:
-        itemsize = 8
-    else:
-        itemsize = itemtype._size
-    # calculate strides
-    ssv = itemsize
-    sss = ()
-    strides = [f"s{len(shape)-1}={ssv}"]
-    for ii in range(len(shape) - 1, 0, -1):
-        dd = shape[ii]
-        if dd is None:
-            sss += (f"d{ii}",)
-        else:
-            ssv *= dd
-        strides.append(f'  s{ii-1}={ssv}*{"*".join(sss)}')
-
-    indexes = ", ".join(f"i{ii}" for ii in range(len(shape)))
-    out = [f"def __getitem__(self, {indexes}):"]
-    if len(sss) > 0:
-        out.append(f'  {",".join(sss)}=self._getshape()')
-    out.extend(strides)
-    offset = "+".join(f"i{ii}*s{ii}" for ii in range(len(shape)))
-    out.append(f"  offset={offset}")
-    if is_static is None:  # flexible size
-        out.append(f"  base=self._offset+8+{len(sss)*8}")
-    else:
-        out.append(f"  base=self._offset")
-    if itemtype._size is None:  # variable size
-        out.append(f"  offset=Int64._from_buffer(self._buffer,base+offset)")
-    out.append(
-        f"  return self._itemtype._from_buffer(self._buffer,base+offset)"
-    )
-    return "\n".join(out)
-
-
 class MetaArray(type):
     def __new__(cls, name, bases, data):
         if "_itemtype" in data:  # specialized class

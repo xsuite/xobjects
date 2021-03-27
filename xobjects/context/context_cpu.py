@@ -14,8 +14,9 @@ try:
 
     _enabled = True
 except ImportError:
-    print("WARNING:"
-            "cffi is not installed, this platform will not be available")
+    print(
+        "WARNING:" "cffi is not installed, this platform will not be available"
+    )
 
     cffi = ModuleNotAvailable(
         message=("cffi is not installed. " "this platform is not available!")
@@ -24,8 +25,8 @@ except ImportError:
 
 type_mapping = {np.int32: "int32_t", np.int64: "int64_y", np.float64: "double"}
 
-class ContextCpu(Context):
 
+class ContextCpu(Context):
     """
 
     Creates a CPU Platform object, that allows performing the computations
@@ -40,10 +41,8 @@ class ContextCpu(Context):
         # but I keep it for symmetry with other contexts
         super().__init__()
 
-    def new_buffer(self, capacity=1048576):
-        buf = BufferByteArray(capacity=capacity, context=self)
-        self.buffers.append(weakref.finalize(buf, print, "free", repr(buf)))
-        return buf
+    def _make_buffer(self, capacity):
+        return BufferByteArray(capacity=capacity, context=self)
 
     def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
 
@@ -275,8 +274,8 @@ class ContextCpu(Context):
 
 
 class BufferByteArray(Buffer):
-
-    _DefaultContext = ContextCpu
+    def _make_context(self):
+        return ContextCpu()
 
     def _new_buffer(self, capacity):
         return bytearray(capacity)

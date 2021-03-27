@@ -1,12 +1,16 @@
-import numpy as np
-
 """
+Scalars: Types olding numbers
 
 
 NB: scalars cannot be classes as classes() needs to return a numpy scalar, however in union isintance could be used (try to subclass numpy scalar?)
 """
 
+import numpy as np
+import logging
 from .typeutils import Info
+
+
+log = logging.getLogger(__name__)
 
 
 class NumpyScalar:

@@ -1,6 +1,7 @@
 from typing import NamedTuple
 from abc import ABC, abstractmethod
-
+import logging
+import weakref
 
 """
 
@@ -9,6 +10,9 @@ TODO:
     - Consider exposing Buffer and removing CLBuffer, ByteArrayBuffers..
     - Consider Buffer[offset] to create View and avoid _offset in type API
 """
+
+
+log = logging.getLogger(__name__)
 
 
 class MinimalDotDict(dict):
@@ -29,6 +33,11 @@ class Context(ABC):
         self._kernels = MinimalDotDict()
         self._buffers = []
 
+    def new_buffer(self, capacity=1048576):
+        buf = self._make_buffer(capacity=capacity)
+        self.buffers.append(weakref.finalize(buf, log.debug, f"free buf"))
+        return buf
+
     @property
     def buffers(self):
         return self._buffers
@@ -36,10 +45,6 @@ class Context(ABC):
     @property
     def kernels(self):
         return self._kernels
-
-    @abstractmethod
-    def new_buffer(self, capacity):
-        pass
 
     @abstractmethod
     def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
@@ -75,7 +80,7 @@ class Buffer(ABC):
     def __init__(self, capacity=1048576, context=None):
 
         if context is None:
-            self.context = self._DefaultContext()
+            self.context = self._make_context()
         else:
             self.context = context
         self.buffer = self._new_buffer(capacity)

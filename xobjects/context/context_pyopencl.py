@@ -1,4 +1,3 @@
-import weakref
 import logging
 
 import numpy as np
@@ -69,10 +68,8 @@ class ContextPyopencl(Context):
         if patch_pyopencl_array:
             _patch_pyopencl_array(cl, cla, self.context)
 
-    def new_buffer(self, capacity=1048576):
-        buf = BufferPyopencl(capacity=capacity, context=self)
-        self.buffers.append(weakref.finalize(buf, print, "free", repr(buf)))
-        return buf
+    def _make_buffer(self, capacity):
+        return BufferPyopencl(capacity=capacity, context=self)
 
     def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
 
@@ -266,8 +263,8 @@ class ContextPyopencl(Context):
 
 
 class BufferPyopencl(Buffer):
-
-    _DefaultContext = ContextPyopencl
+    def _make_context(self):
+        return ContextPyopencl()
 
     def _new_buffer(self, capacity):
         return cl.Buffer(
@@ -292,14 +289,14 @@ class BufferPyopencl(Buffer):
         )
 
     def write(self, offset, data):
-        # From python object on cpu
+        # From python object with buffer interface on cpu
         log.debug(f"write {self} {offset} {data}")
         cl.enqueue_copy(
             self.context.queue, self.buffer, data, device_offset=offset
         )
 
     def read(self, offset, size):
-        # To python object on cpu
+        # To bytearray on cpu
         data = bytearray(size)
         cl.enqueue_copy(
             self.context.queue, data, self.buffer, device_offset=offset

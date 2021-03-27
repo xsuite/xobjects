@@ -39,10 +39,8 @@ class ContextCupy(Context):
         super().__init__()
         self.default_block_size = default_block_size
 
-    def new_buffer(self, capacity=1048576):
-        buf = CupyBuffer(capacity=capacity, context=self)
-        self.buffers.append(weakref.finalize(buf, print, "free", repr(buf)))
-        return buf
+    def _make_buffer(self, capacity):
+        return BufferCupy(capacity=capacity, context=self)
 
     def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
 
@@ -236,9 +234,9 @@ class ContextCupy(Context):
         return self._kernels
 
 
-class CupyBuffer(Buffer):
-
-    _DefaultContext = ContextCupy
+class BufferCupy(Buffer):
+    def _make_context(self):
+        return ContextCupy()
 
     def _new_buffer(self, capacity):
         return cupy.zeros(shape=(capacity,), dtype=cupy.uint8)

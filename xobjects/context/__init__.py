@@ -1,6 +1,6 @@
-from .cpu import ContextCpu
-from .py_opencl import ContextPyopencl
-from .cu_py import ContextCupy
+from .context_cpu import ContextCpu
+from .context_pyopencl import ContextPyopencl
+from .context_cupy import ContextCupy
 
 from .general import available
 

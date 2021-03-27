@@ -1,6 +1,6 @@
 def specialize_source(source, specialize_for):
 
-    assert specialize_for in ["cpu", "opencl", "cuda"]
+    assert specialize_for in ["cpu_serial", "cpu_openmp", "opencl", "cuda"]
 
     lines = source.splitlines()
 
@@ -13,10 +13,9 @@ def specialize_source(source, specialize_for):
                 raise ValueError(f"Line {ii}: Previous vect block not closed!")
             inside_vect_block = True
             varname, limname = ll.split("//vectorize_over")[-1].split()
-            if specialize_for == "cpu":
-                new_lines.append(f"int {varname}; //autovectorized\n")
+            if specialize_for.startswith("cpu"):
                 new_lines.append(
-                    f"for ({varname}=0; {varname}<{limname}; {varname}++)"
+                    f"for (int {varname}=0; {varname}<{limname}; {varname}++)"
                     + "{ //autovectorized\n"
                 )
             elif specialize_for == "opencl":
@@ -32,7 +31,7 @@ def specialize_source(source, specialize_for):
                     "//autovectorized\n"
                 )
         elif "//end_vectorize" in ll:
-            if specialize_for == "cpu":
+            if specialize_for.startswith("cpu"):
                 new_lines.append("}//end autovectorized\n")
             elif specialize_for == "opencl":
                 new_lines.append("//end autovectorized\n")
@@ -53,13 +52,15 @@ def specialize_source(source, specialize_for):
     newfilecontent = "\n".join(new_lines)
     newfilecontent = newfilecontent.replace(
         "/*gpukern*/",
-        {"cpu": " ", "opencl": " __kernel ", "cuda": "__global__"}[
+        {"cpu_serial": " ", "cpu_openmp": " ",
+            "opencl": " __kernel ", "cuda": "__global__"}[
             specialize_for
         ],
     )
     newfilecontent = newfilecontent.replace(
         "/*gpuglmem*/",
-        {"cpu": " ", "opencl": " __global ", "cuda": " "}[specialize_for],
+        {"cpu_serial": " ", "cpu_openmp": " ",
+         "opencl": " __global ", "cuda": " "}[specialize_for],
     )
 
     return newfilecontent

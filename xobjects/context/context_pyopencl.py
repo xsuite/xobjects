@@ -1,8 +1,10 @@
+import os
 import logging
 
 import numpy as np
 
 from .general import Buffer, Context, ModuleNotAvailable, available
+from .specialize_source import specialize_source
 
 try:
     import pyopencl as cl
@@ -46,6 +48,8 @@ class ContextPyopencl(Context):
                 automatically imported.
             patch_pyopencl_array (bool): If ``True``, the PyOpecCL class is patched to
                 allow some operations with non-contiguous arrays.
+            specialize_code (bool): If True, the code is specialized using
+                annotations in the source code. Default is ``True``
 
         Returns:
             ContextPyopencl: context object.
@@ -71,7 +75,8 @@ class ContextPyopencl(Context):
     def _make_buffer(self, capacity):
         return BufferPyopencl(capacity=capacity, context=self)
 
-    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
+    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={},
+            specialize_code=True, save_src_as='_compiled.cl'):
 
         """
         Adds user-defined kernels to to the context. The kernel source
@@ -121,9 +126,20 @@ class ContextPyopencl(Context):
         """
 
         src_content = src_code
+        fold_list = []
         for ff in src_files:
+            fold_list.append(os.path.dirname(ff))
             with open(ff, "r") as fid:
                 src_content += "\n\n" + fid.read()
+
+        if specialize_code:
+            # included files are searched in the same folders od the src_filed
+            src_content = specialize_source(src_content,
+                    specialize_for='opencl', search_in_folders=fold_list)
+
+        if save_src_as is not None:
+            with open(save_src_as, 'w') as fid:
+                fid.write(src_content)
 
         prg = cl.Program(self.context, src_content).build()
 

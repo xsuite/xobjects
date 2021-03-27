@@ -44,7 +44,7 @@ class ContextCpu(Context):
         return BufferByteArray(capacity=capacity, context=self)
 
     def add_kernels(self, src_code="", src_files=[], kernel_descriptions={},
-            specialize_code=True):
+            specialize_code=True, save_src_as='_compiled.c'):
 
         """
         Adds user-defined kernels to to the context. The kernel source
@@ -106,6 +106,9 @@ class ContextCpu(Context):
             src_content = specialize_source(src_content,
                     specialize_for='cpu_serial', search_in_folders=fold_list)
 
+        if save_src_as is not None:
+            with open(save_src_as, 'w') as fid:
+                fid.write(src_content)
 
         ffi_interface = cffi.FFI()
         ker_names = kernel_descriptions.keys()

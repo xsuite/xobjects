@@ -1,6 +1,9 @@
+import os
+
 import numpy as np
 
 from .general import Buffer, Context, ModuleNotAvailable, available
+from .specialize_source import specialize_source
 
 
 try:
@@ -40,7 +43,8 @@ class ContextCupy(Context):
     def _make_buffer(self, capacity):
         return BufferCupy(capacity=capacity, context=self)
 
-    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
+    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={},
+            specialize_code=True, save_src_as='_compiled.cu'):
 
         """
         Adds user-defined kernels to to the context. The kernel source
@@ -57,6 +61,8 @@ class ContextCupy(Context):
                 define the kernel names, the type and name of the arguments
                 and identifies one input argument that defines the number of
                 threads to be launched.
+            specialize_code (bool): If True, the code is specialized using
+                annotations in the source code. Default is ``True``
 
         Example:
 
@@ -89,11 +95,23 @@ class ContextCupy(Context):
             context.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
         """
 
-        src_content = 'extern "C"{'
+        src_content = 'extern "C"{\n' + src_code
+        fold_list = []
         for ff in src_files:
+            fold_list.append(os.path.dirname(ff))
             with open(ff, "r") as fid:
                 src_content += "\n\n" + fid.read()
         src_content += "}"
+
+
+        if specialize_code:
+            # included files are searched in the same folders od the src_filed
+            src_content = specialize_source(src_content,
+                    specialize_for='cuda', search_in_folders=fold_list)
+
+        if save_src_as is not None:
+            with open(save_src_as, 'w') as fid:
+                fid.write(src_content)
 
         module = cupy.RawModule(code=src_content)
 

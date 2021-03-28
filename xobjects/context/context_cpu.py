@@ -36,9 +36,9 @@ class ContextCpu(Context):
 
     """
 
-    def __init__(self, omp_threads=0):
+    def __init__(self, omp_num_threads=0):
         super().__init__()
-        self.omp_threads = omp_threads
+        self.omp_num_threads = omp_num_threads
 
     def _make_buffer(self, capacity):
         return BufferByteArray(capacity=capacity, context=self)
@@ -95,6 +95,8 @@ class ContextCpu(Context):
         """
 
         src_content = src_code
+        if self.omp_num_threads>0:
+            src_content += '#include <omp.h>\n\n'
         fold_list = []
         for ff in src_files:
             fold_list.append(os.path.dirname(ff))
@@ -102,9 +104,13 @@ class ContextCpu(Context):
                 src_content += "\n\n" + fid.read()
 
         if specialize_code:
+            if self.omp_num_threads>0:
+                specialize_for = 'cpu_openmp'
+            else:
+                specialize_for = 'cpu_serial'
             # included files are searched in the same folders od the src_filed
             src_content = specialize_source(src_content,
-                    specialize_for='cpu_serial', search_in_folders=fold_list)
+                    specialize_for=specialize_for, search_in_folders=fold_list)
 
         if save_src_as is not None:
             with open(save_src_as, 'w') as fid:
@@ -125,13 +131,16 @@ class ContextCpu(Context):
 
             ffi_interface.cdef(signature)
 
+        if self.omp_num_threads>0:
+            ffi_interface.cdef("void omp_set_num_threads(int);")
+
         # Generate temp fname
         tempfname = str(uuid.uuid4().hex)
 
         # Compile
         extra_compile_args = []
         extra_link_args = []
-        if self.omp_threads>0:
+        if self.omp_num_threads>0:
             extra_compile_args.append('-fopenmp')
             extra_link_args.append('-fopenmp')
 
@@ -154,6 +163,10 @@ class ContextCpu(Context):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
+            if self.omp_num_threads > 0:
+                ffi_interface.omp_set_num_threads = (
+                                module.lib.omp_set_num_threads)
+
             # Get the methods
             for nn in ker_names:
                 kk = getattr(module.lib, nn)
@@ -164,6 +177,7 @@ class ContextCpu(Context):
                     arg_names=aa_names,
                     arg_types=aa_types,
                     ffi_interface=ffi_interface,
+                    context=self
                 )
         finally:
             # Clean temp files
@@ -326,7 +340,8 @@ class NumpyArrayBuffer(Buffer):
 
 
 class KernelCpu(object):
-    def __init__(self, kernel, arg_names, arg_types, ffi_interface):
+    def __init__(self, kernel, arg_names, arg_types, ffi_interface,
+                 context=None):
 
         assert len(arg_names) == len(arg_types)
 
@@ -334,6 +349,7 @@ class KernelCpu(object):
         self.arg_names = arg_names
         self.arg_types = arg_types
         self.ffi_interface = ffi_interface
+        self.context = context
 
         # c_argtypes = []
         # for tt in arg_types:
@@ -370,6 +386,10 @@ class KernelCpu(object):
                 )
             else:
                 raise ValueError(f"Type {tt} not recognized")
+
+        if self.context.omp_num_threads > 0:
+            self.ffi_interface.omp_set_num_threads(
+                    self.context.omp_num_threads)
 
         event = self.kernel(*arg_list)
 

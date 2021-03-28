@@ -38,7 +38,6 @@ class ContextCpu(Context):
 
     def __init__(self, omp_threads=0):
         super().__init__()
-        self.ffi_interface = cffi.FFI()
         self.omp_threads = omp_threads
 
     def _make_buffer(self, capacity):
@@ -111,6 +110,8 @@ class ContextCpu(Context):
             with open(save_src_as, 'w') as fid:
                 fid.write(src_content)
 
+        ffi_interface = cffi.FFI()
+
         ker_names = kernel_descriptions.keys()
         for kk in ker_names:
             signature = f"void {kk}("
@@ -122,7 +123,7 @@ class ContextCpu(Context):
             signature = signature[:-2]  # remove the last comma and space
             signature += ");"
 
-            self.ffi_interface.cdef(signature)
+            ffi_interface.cdef(signature)
 
         # Generate temp fname
         tempfname = str(uuid.uuid4().hex)
@@ -133,10 +134,12 @@ class ContextCpu(Context):
         if self.omp_threads>0:
             extra_compile_args.append('-fopenmp')
             extra_link_args.append('-fopenmp')
-        self.ffi_interface.set_source(tempfname, src_content,
+
+        ffi_interface.set_source(tempfname, src_content,
                 extra_compile_args=extra_compile_args,
                 extra_link_args=extra_link_args)
-        self.ffi_interface.compile(verbose=True)
+
+        ffi_interface.compile(verbose=True)
 
         # build full so filename, something like:
         # 0e14651ea79740119c6e6c24754f935e.cpython-38-x86_64-linux-gnu.so
@@ -160,7 +163,7 @@ class ContextCpu(Context):
                     kernel=kk,
                     arg_names=aa_names,
                     arg_types=aa_types,
-                    ffi_interface=self.ffi_interface,
+                    ffi_interface=ffi_interface,
                 )
         finally:
             # Clean temp files

@@ -422,7 +422,6 @@ class FFTCpu(object):
     def transform(self, data):
         """The transform is done inplace"""
         if self.use_pyfftw:
-            import pdb; pdb.set_trace()
             assert data is self.data
             self.fftw.execute()
             data[:] = self.data_temp[:]
@@ -432,10 +431,9 @@ class FFTCpu(object):
     def itransform(self, data):
         """The transform is done inplace"""
         if self.use_pyfftw:
-            import pdb; pdb.set_trace()
             assert data is self.data
             self.ifftw.execute()
-            data[:] = self.data_temp[:]
+            data[:] = self.data_temp[:]/self.ifftw.N
         else:
             data[:] = np.fft.ifftn(data, axes=self.axes)[:]
 

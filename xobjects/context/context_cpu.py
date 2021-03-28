@@ -22,6 +22,12 @@ except ImportError:
     )
     _enabled = False
 
+try:
+    import pyfftw
+except ImportError:
+    print("WARNING: pyfftw not available, will use numpy")
+    pyfftw = ModuleNotAvailable(message="pyfftw not available")
+
 type_mapping = {np.int32: "int32_t", np.int64: "int64_y", np.float64: "double"}
 
 
@@ -265,7 +271,7 @@ class ContextCpu(Context):
             # Inverse tranform (in place)
             plan.itransform(data2)
         """
-        return FFTCpu(data, axes)
+        return FFTCpu(data, axes, threads=self.omp_num_threads)
 
     @property
     def kernels(self):
@@ -395,20 +401,33 @@ class KernelCpu(object):
 
 
 class FFTCpu(object):
-    def __init__(self, data, axes):
+    def __init__(self, data, axes, threads=0):
 
         self.axes = axes
+        self.threads = threads
 
-        # I perform one fft to have numpy cache the plan
-        _ = np.fft.ifftn(np.fft.fftn(data, axes=axes), axes=axes)
+        self.use_pyfftw = False
+        if threads>0 and hasattr(pyfftw, 'builders'):
+            self.use_pyfftw = True
+            self.fftw = pyfftw.builders.fftn(data, axes=axes, threads=threads)
+            self.ifftw = pyfftw.builders.ifftn(data, axes=axes, threads=threads)
+        else:
+            # I perform one fft to have numpy cache the plan
+            _ = np.fft.ifftn(np.fft.fftn(data, axes=axes), axes=axes)
 
     def transform(self, data):
         """The transform is done inplace"""
-        data[:] = np.fft.fftn(data, axes=self.axes)[:]
+        if self.use_pyfftw:
+            data[:] = self.fftw(data)[:]
+        else:
+            data[:] = np.fft.fftn(data, axes=self.axes)[:]
 
     def itransform(self, data):
         """The transform is done inplace"""
-        data[:] = np.fft.ifftn(data, axes=self.axes)[:]
+        if self.use_pyfftw:
+            data[:] = self.ifftw(data)[:]
+        else:
+            data[:] = np.fft.ifftn(data, axes=self.axes)[:]
 
 
 if _enabled:

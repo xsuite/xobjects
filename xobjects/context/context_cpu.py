@@ -357,19 +357,6 @@ class KernelCpu(object):
         self.ffi_interface = ffi_interface
         self.context = context
 
-        # c_argtypes = []
-        # for tt in arg_types:
-        #     if tt[0] == "scalar":
-        #         if np.issubdtype(tt[1], np.integer):
-        #             c_argtypes.append(int)
-        #         else:
-        #             c_argtypes.append(tt[1])
-        #     elif tt[0] == "array":
-        #         c_argtypes.append(None)  # Not needed for cppyy
-        #     else:
-        #         raise ValueError(f"Type {tt} not recognized")
-        # self.c_arg_types = c_argtypes
-
     @property
     def num_args(self):
         return len(self.arg_names)
@@ -409,8 +396,14 @@ class FFTCpu(object):
         self.use_pyfftw = False
         if threads>0 and hasattr(pyfftw, 'builders'):
             self.use_pyfftw = True
-            self.fftw = pyfftw.builders.fftn(data, axes=axes, threads=threads)
-            self.ifftw = pyfftw.builders.ifftn(data, axes=axes, threads=threads)
+            self.data = data
+            self.data_temp =  pyfftw.byte_align(0* data)
+            self.fftw = pyfftw.FFTW(data, self.data_temp, axes=axes, threads=threads,
+                    direction='FFTW_FORWARD', flags=('FFTW_MEASURE',))
+            self.ifftw = pyfftw.FFTW(data, self.data_temp, axes=axes, threads=threads,
+                    direction='FFTW_BACKWARD', flags=('FFTW_MEASURE',))
+            print(f'fftw simd_aligned={self.fftw.simd_aligned}')
+            print(f'ifftw simd_aligned={self.fftw.simd_aligned}')
         else:
             # I perform one fft to have numpy cache the plan
             _ = np.fft.ifftn(np.fft.fftn(data, axes=axes), axes=axes)
@@ -418,14 +411,18 @@ class FFTCpu(object):
     def transform(self, data):
         """The transform is done inplace"""
         if self.use_pyfftw:
-            data[:] = self.fftw(data)[:]
+            assert data is self.data
+            self.fftw.execute()
+            data[:] = self.data_temp[:]
         else:
             data[:] = np.fft.fftn(data, axes=self.axes)[:]
 
     def itransform(self, data):
         """The transform is done inplace"""
         if self.use_pyfftw:
-            data[:] = self.ifftw(data)[:]
+            assert data is self.data
+            self.ifftw.execute()
+            data[:] = self.data_temp[:]/self.ifftw.N
         else:
             data[:] = np.fft.ifftn(data, axes=self.axes)[:]
 

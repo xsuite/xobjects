@@ -6,7 +6,7 @@ The librarties is based on:
 - Buffers: manage dynamic unstructured data on CPU and GPU memory using different backends
 - Contexts: keep track of buffers, launch functions operating on buffers
 - Basic types: a set of basic types that allow to describe structured data. Basic types are scalars, strings, structs, arrays and unions. User defined classes, composed by basic types, allow to interact with data on buffers and generate C functions to operate with data.
-- Api: type system describing structured data. Types are composed using scalars, string, struct, array, union primitives.
+- Api: type system describing structured data. Types are composed using scalars, string, struct, array, union primitives. Recursive types are forbidden.
 - Types generate python objects that can create and modify objects on buffers and generate C operate with data.
 
 
@@ -88,9 +88,9 @@ Types can be composed of:
 - create: Array(d1,d2,...) or Array([...]) or Array(nparray)
 - example: array d1 d2 d3 'C' ; array d1 : d3 'F' ;
 - layout:
-  - [size]
-  - [dims ... ]
-  - [strides...] if nd>1
+  - [size] if not _is_static_shape or not _is_static_type
+  - [dims ... ] len(_dynamic_shape)
+  - [strides...] if nd>1 and dynamic shapes
   - [offsets]
   - data
 

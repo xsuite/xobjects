@@ -56,7 +56,7 @@ def gen_method_offset(specs, conf):
             offset += soffset
         else:
             lst.append(f"  offset+={offset};")  # dump current offset
-            lst.append(f"  offset+={soffset};")  # update reference offset
+            lst.extend(soffset)  # update reference offset
             offset = 0
     if offset > 0:
         lst.append(f"  offset+={offset};")
@@ -73,11 +73,11 @@ def gen_method_get_body(name, specs, conf):
     lst.append(gen_method_offset(specs, conf))
     ret, size = get_last_type(specs, conf)
     if "*" in ret:  # return type is a pointer
-        lst.append(f"  return ({ret})(((char*) obj)+offset);")
+        lst.append(f"  return ({ret})((char*) obj+offset);")
     else:  # return type is a scalar
         if size == 1:
-            lst.append(f"  return (({ret}*) obj)[offset];")
+            lst.append(f"  return *(({ret}*) obj+offset);")
         else:
-            lst.append(f"  return *(({ret} *)(((char*) obj)+offset));")
+            lst.append(f"  return *({ret}*)((char*) obj+offset);")
     lst.append("}")
     return "\n".join(lst)

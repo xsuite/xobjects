@@ -64,6 +64,19 @@ def test_gen_method_get_declaration():
     )
 
 
+def test_get_method_offset():
+    Field, Multipole = gen_classes()
+
+    assert Field.normal._get_c_offset({}) == 0
+    assert Field.skew._get_c_offset({}) == 8
+
+    assert Multipole.order._get_c_offset({}) == 8
+
+    Field_N = Multipole.field.ftype
+
+    assert Field_N._get_c_offset({}) == ["  offset+=16+i0*16;"]
+
+
 def test_gen_method_get_body():
 
     Field, Multipole = gen_classes()
@@ -75,7 +88,7 @@ def test_gen_method_get_body():
         == """\
 double Field_get_normal(Field* obj){
   int64_t offset=0;
-  return *((double *)(((char*) obj)+offset));
+  return *(double*)((char*) obj+offset);
 }"""
     )
     assert (
@@ -84,7 +97,7 @@ double Field_get_normal(Field* obj){
 double Field_get_skew(Field* obj){
   int64_t offset=0;
   offset+=8;
-  return *((double *)(((char*) obj)+offset));
+  return *(double*)((char*) obj+offset);
 }"""
     )
 
@@ -96,7 +109,7 @@ double Field_get_skew(Field* obj){
 int8_t Multipole_get_order(Multipole* obj){
   int64_t offset=0;
   offset+=8;
-  return ((int8_t*) obj)[offset];
+  return *((int8_t*) obj+offset);
 }"""
     )
 
@@ -106,7 +119,7 @@ int8_t Multipole_get_order(Multipole* obj){
 double Multipole_get_angle(Multipole* obj){
   int64_t offset=0;
   offset+=16;
-  return *((double *)(((char*) obj)+offset));
+  return *(double*)((char*) obj+offset);
 }"""
     )
 
@@ -116,7 +129,7 @@ double Multipole_get_angle(Multipole* obj){
 double Multipole_get_vlength(Multipole* obj){
   int64_t offset=0;
   offset+=24;
-  return *((double *)(((char*) obj)+offset));
+  return *(double*)((char*) obj+offset);
 }"""
     )
 
@@ -126,6 +139,28 @@ double Multipole_get_vlength(Multipole* obj){
 Field_N* Multipole_get_field(Multipole* obj){
   int64_t offset=0;
   offset+=32;
-  return (Field_N*)(((char*) obj)+offset);
+  return (Field_N*)((char*) obj+offset);
+}"""
+    )
+
+    assert (
+        methods[4]
+        == """\
+Field* Multipole_get_field(Multipole* obj, int64_t i0){
+  int64_t offset=0;
+  offset+=32;
+  offset+=16+i0*16;
+  return (Field*)((char*) obj+offset);
+}"""
+    )
+
+    assert (
+        methods[5]
+        == """\
+double Multipole_get_field_normal(Multipole* obj, int64_t i0){
+  int64_t offset=0;
+  offset+=32;
+  offset+=16+i0*16;
+  return *(double*)((char*) obj+offset);
 }"""
     )

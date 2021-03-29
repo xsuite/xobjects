@@ -56,6 +56,12 @@ def test_class_creation():
     for arr in ArrayB, ArrayC, ArrayD, ArrayE:
         assert arr._is_static_shape == False
 
+    assert ArrayA._data_offset == 0
+    assert ArrayB._data_offset == 32
+    assert ArrayC._data_offset == 16
+    assert ArrayD._data_offset == 16
+    assert ArrayE._data_offset == 16
+
 
 def test_class_mk_array():
     ArrayA = xo.Float64[3, 6]

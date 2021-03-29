@@ -121,13 +121,16 @@ def get_offset(idx, strides):
 class MetaArray(type):
     def __new__(cls, name, bases, data):
         if "_itemtype" in data:  # specialized class
+            _data_offset = 0
             _itemtype = data["_itemtype"]
             if _itemtype._size is None:
+                static_size = 8
                 data["_is_static_type"] = False
             else:
                 data["_is_static_type"] = True
+                static_size = _itemtype._size
             if "_shape" not in data:
-                raise ValueError("No shape defined for the Array")
+                raise ValueError(f"No shape defined for {cls}")
             if "_order" not in data:
                 data["_order"] = "C"
             _shape = data["_shape"]
@@ -139,24 +142,28 @@ class MetaArray(type):
             if len(dshape) > 0:
                 data["_is_static_shape"] = False
                 data["_dshape_idx"] = dshape
+                _data_offset += len(dshape) * 8  # space for dynamic shapes
+                if len(_shape) > 1:
+                    _data_offset += len(_shape) * 8  # space for strides
+                else:
+                    data["_strides"] = [static_size]
             else:
                 data["_is_static_shape"] = True
                 data["_order"] = mk_order(data["_order"], _shape)
-                if data["_is_static_type"]:
-                    data["_strides"] = get_strides(
-                        _shape, data["_order"], _itemtype._size
-                    )
-                else:
-                    data["_strides"] = get_strides(_shape, data["_order"], 8)
+                data["_strides"] = get_strides(
+                    _shape, data["_order"], static_size
+                )
 
             if data["_is_static_shape"] and data["_is_static_type"]:
                 _size = _itemtype._size
                 for d in _shape:
                     _size *= d
-
             else:
                 _size = None
+                _data_offset += 8  # space for dynamic size
+
             data["_size"] = _size
+            data["_data_offset"] = _data_offset
 
         return type.__new__(cls, name, bases, data)
 
@@ -421,37 +428,33 @@ class Array(metaclass=MetaArray):
 
     @classmethod
     def _get_offset(cls):
-        return "+".join(["i{ii}*{strides[ii]}" for ii in cls.strides])
+        return "+".join([f"i{ii}*{strides[ii]}" for ii in cls.strides])
 
     @classmethod
     def _get_c_offset(cls, conf):
+        ctype = conf.get("ctype", "char")
         itype = conf.get("itype", "int64_t")
-        if cls._is_static_shape:
-            soffset = "+".join(
-                [
-                    "i{cls._order[ii]}*{ss}"
-                    for ii, ss in enumerate(cls._strides)
-                ]
-            )
-            if cls._size != None:
-                return f"offset+{soffset}"
-            else:  # cls._is_static_type ==False
-                doffset = f"offset+8+{soffset}"  # starts of the offset list
-                return f"(({itype}*) obj)[{doffset}]"
-        else:  # dynamic shape
+
+        out = []
+        if hasattr(cls, "_strides"):  # static shape or 1d dynamic shape
+            strides = cls._strides
+        else:
+            nd = len(cls._shape)
             strides = []
-            sizeoff = 8  # size offset
-            for dd in cls._shape:  # WRONG!!!
-                if type(dd) is int:
-                    strides.append(str(int))
-                else:
-                    strides.append(f"(({itype}*) obj)[offset+{sizeoff}]")
-                    sizeoff += 8
-            soffset = "+".join(
-                [f"i{cls._order[ii]}*{ss}" for ii, ss in enumerate(strides)]
+            stride_offset = 8 + nd * 8
+            for ii in range(nd):
+                sname = f"{itype} {cls.__name__}_s{ii}"
+                svalue = f"*({itype}*) (({ctype}*) obj+offset+{stride_offset})"
+                out.append(f"{sname}={svalue};")
+                strides.append(sname)
+
+        soffset = "+".join([f"i{ii}*{ss}" for ii, ss in enumerate(strides)])
+        if cls._data_offset > 0:
+            soffset = f"{cls._data_offset}+{soffset}"
+        if cls._is_static_type:
+            out.append(f"  offset+={soffset};")
+        else:
+            out.append(
+                f"  offset+=*({itype}*) (({ctype}*) obj+offset+{soffset});"
             )
-            off = 8 + len(cls._dshape_idx) * 8
-            if cls._is_static_type:
-                return f"offset+{off}+{soffset}"
-            else:  # dynamic typr:
-                return f"offset+(({itype}*) obj)[offset+{off}+{soffset}]"
+        return out

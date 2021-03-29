@@ -2,11 +2,15 @@ import os
 import uuid
 import importlib
 import sysconfig
+import logging
 
 import numpy as np
 
 from .general import Buffer, Context, ModuleNotAvailable, available
 from .specialize_source import specialize_source
+
+
+log = logging.getLogger(__name__)
 
 try:
     import cffi
@@ -49,8 +53,14 @@ class ContextCpu(Context):
     def _make_buffer(self, capacity):
         return BufferByteArray(capacity=capacity, context=self)
 
-    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={},
-            specialize_code=True, save_src_as='_compiled.c'):
+    def add_kernels(
+        self,
+        src_code="",
+        src_files=[],
+        kernel_descriptions={},
+        specialize_code=True,
+        save_src_as="_compiled.c",
+    ):
 
         """
         Adds user-defined kernels to to the context. The kernel source
@@ -75,8 +85,8 @@ class ContextCpu(Context):
         .. code-block:: python
 
             src_code = r'''
-            void my_mul(const int n, const float* x1,
-                        const float* x2, float* y) {
+            void my_mul(const int n, const double* x1,
+                        const double* x2, double* y) {
                 int tid;
                 for (tid=0; tid<n; tid++){
                     y[tid] = x1[tid] * x2[tid];
@@ -84,25 +94,26 @@ class ContextCpu(Context):
                 }
             '''
             kernel_descriptions = {'my_mul':{
-                args':(
+                'args':(
                     (('scalar', np.int32),   'n',),
                     (('array',  np.float64), 'x1',),
                     (('array',  np.float64), 'x2',),
-                    )
+                    (('array',  np.float64), 'y',),
+                    ),
                 'num_threads_from_arg': 'n'
                 },}
 
             # Import kernel in context
             context.add_kernels(src_code, kernel_descriptions)
 
-            # With a1 and a2 being arrays on the context, the kernel
+            # With a1,a2,b being arrays on the context, the kernel
             # can be called as follows:
-            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
+            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
         """
 
         src_content = src_code
-        if self.omp_num_threads>0:
-            src_content += '#include <omp.h>\n\n'
+        if self.omp_num_threads > 0:
+            src_content += "#include <omp.h>\n\n"
         fold_list = []
         for ff in src_files:
             fold_list.append(os.path.dirname(ff))
@@ -110,23 +121,32 @@ class ContextCpu(Context):
                 src_content += "\n\n" + fid.read()
 
         if specialize_code:
-            if self.omp_num_threads>0:
-                specialize_for = 'cpu_openmp'
+            if self.omp_num_threads > 0:
+                specialize_for = "cpu_openmp"
             else:
-                specialize_for = 'cpu_serial'
+                specialize_for = "cpu_serial"
             # included files are searched in the same folders od the src_filed
-            src_content = specialize_source(src_content,
-                    specialize_for=specialize_for, search_in_folders=fold_list)
+            src_content = specialize_source(
+                src_content,
+                specialize_for=specialize_for,
+                search_in_folders=fold_list,
+            )
 
         if save_src_as is not None:
-            with open(save_src_as, 'w') as fid:
+            with open(save_src_as, "w") as fid:
                 fid.write(src_content)
 
         ffi_interface = cffi.FFI()
 
         ker_names = kernel_descriptions.keys()
         for kk in ker_names:
-            signature = f"void {kk}("
+            if "return" in kernel_descriptions[kk]:
+                tt = kernel_descriptions[kk]["return"]
+                rettype = type_mapping[tt[1]]
+                rettype += {"array": "*", "scalar": ""}[tt[0]]
+            else:
+                rettype = "void"
+            signature = f"{rettype} {kk}("
             for aa in kernel_descriptions[kk]["args"]:
                 tt = aa[0]
                 signature += type_mapping[tt[1]]
@@ -136,8 +156,9 @@ class ContextCpu(Context):
             signature += ");"
 
             ffi_interface.cdef(signature)
+            log.debug(f"cffi def {kk} {signature}")
 
-        if self.omp_num_threads>0:
+        if self.omp_num_threads > 0:
             ffi_interface.cdef("void omp_set_num_threads(int);")
 
         # Generate temp fname
@@ -146,13 +167,16 @@ class ContextCpu(Context):
         # Compile
         extra_compile_args = []
         extra_link_args = []
-        if self.omp_num_threads>0:
-            extra_compile_args.append('-fopenmp')
-            extra_link_args.append('-fopenmp')
+        if self.omp_num_threads > 0:
+            extra_compile_args.append("-fopenmp")
+            extra_link_args.append("-fopenmp")
 
-        ffi_interface.set_source(tempfname, src_content,
-                extra_compile_args=extra_compile_args,
-                extra_link_args=extra_link_args)
+        ffi_interface.set_source(
+            tempfname,
+            src_content,
+            extra_compile_args=extra_compile_args,
+            extra_link_args=extra_link_args,
+        )
 
         ffi_interface.compile(verbose=True)
 
@@ -171,7 +195,8 @@ class ContextCpu(Context):
 
             if self.omp_num_threads > 0:
                 ffi_interface.omp_set_num_threads = (
-                                module.lib.omp_set_num_threads)
+                    module.lib.omp_set_num_threads
+                )
 
             # Get the methods
             for nn in ker_names:
@@ -182,8 +207,9 @@ class ContextCpu(Context):
                     kernel=kk,
                     arg_names=aa_names,
                     arg_types=aa_types,
+                    return_type=kernel_descriptions[nn].get("return"),
                     ffi_interface=ffi_interface,
-                    context=self
+                    context=self,
                 )
         finally:
             # Clean temp files
@@ -346,8 +372,15 @@ class NumpyArrayBuffer(Buffer):
 
 
 class KernelCpu(object):
-    def __init__(self, kernel, arg_names, arg_types, ffi_interface,
-                 context=None):
+    def __init__(
+        self,
+        kernel,
+        arg_names,
+        arg_types,
+        ffi_interface,
+        return_type=None,
+        context=None,
+    ):
 
         assert len(arg_names) == len(arg_types)
 
@@ -355,6 +388,7 @@ class KernelCpu(object):
         self.arg_names = arg_names
         self.arg_types = arg_types
         self.ffi_interface = ffi_interface
+        self.return_type = return_type
         self.context = context
 
     @property
@@ -382,9 +416,23 @@ class KernelCpu(object):
 
         if self.context.omp_num_threads > 0:
             self.ffi_interface.omp_set_num_threads(
-                    self.context.omp_num_threads)
+                self.context.omp_num_threads
+            )
 
-        event = self.kernel(*arg_list)
+        ret = self.kernel(*arg_list)
+
+        if self.return_type is not None:
+            tt = self.return_type
+            log.debug(f"return {tt}")
+            if tt[0] == "scalar":
+                return ret
+            elif self.return_type[0] == "array":
+                dtype = tt[1]
+                shape = tt[2]
+                count = np.prod(shape)
+                return np.from_buffer(ret, dtype="S1", count=count).reshape(
+                    *shape
+                )
 
 
 class FFTCpu(object):
@@ -394,16 +442,28 @@ class FFTCpu(object):
         self.threads = threads
 
         self.use_pyfftw = False
-        if threads>0 and hasattr(pyfftw, 'builders'):
+        if threads > 0 and hasattr(pyfftw, "builders"):
             self.use_pyfftw = True
             self.data = data
-            self.data_temp =  pyfftw.byte_align(0* data)
-            self.fftw = pyfftw.FFTW(data, self.data_temp, axes=axes, threads=threads,
-                    direction='FFTW_FORWARD', flags=('FFTW_MEASURE',))
-            self.ifftw = pyfftw.FFTW(data, self.data_temp, axes=axes, threads=threads,
-                    direction='FFTW_BACKWARD', flags=('FFTW_MEASURE',))
-            print(f'fftw simd_aligned={self.fftw.simd_aligned}')
-            print(f'ifftw simd_aligned={self.fftw.simd_aligned}')
+            self.data_temp = pyfftw.byte_align(0 * data)
+            self.fftw = pyfftw.FFTW(
+                data,
+                self.data_temp,
+                axes=axes,
+                threads=threads,
+                direction="FFTW_FORWARD",
+                flags=("FFTW_MEASURE",),
+            )
+            self.ifftw = pyfftw.FFTW(
+                data,
+                self.data_temp,
+                axes=axes,
+                threads=threads,
+                direction="FFTW_BACKWARD",
+                flags=("FFTW_MEASURE",),
+            )
+            print(f"fftw simd_aligned={self.fftw.simd_aligned}")
+            print(f"ifftw simd_aligned={self.fftw.simd_aligned}")
         else:
             # I perform one fft to have numpy cache the plan
             _ = np.fft.ifftn(np.fft.fftn(data, axes=axes), axes=axes)
@@ -422,7 +482,7 @@ class FFTCpu(object):
         if self.use_pyfftw:
             assert data is self.data
             self.ifftw.execute()
-            data[:] = self.data_temp[:]/self.ifftw.N
+            data[:] = self.data_temp[:] / self.ifftw.N
         else:
             data[:] = np.fft.ifftn(data, axes=self.axes)[:]
 

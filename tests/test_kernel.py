@@ -47,12 +47,15 @@ double my_mul(const int n, const double* x1,
 
 
 def test_kernels():
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
+    for (CTX, kwargs) in zip(
+            (xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy),
+            ({'omp_num_threads': 2}, {}, {})):
+
         if CTX not in available:
             continue
 
         print(f"Test {CTX}")
-        ctx = CTX()
+        ctx = CTX(**kwargs)
 
         src_code='''
         /*gpukern*/
@@ -80,7 +83,7 @@ def test_kernels():
         # Import kernel in context
         ctx.add_kernels(src_code=src_code,
                 kernel_descriptions=kernel_descriptions,
-                save_src_as='test.c')
+                save_src_as=None)
 
         x1_host = np.array([1.,2.,3.], dtype=np.float64)
         x2_host = np.array([7.,8.,9.], dtype=np.float64)

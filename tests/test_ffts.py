@@ -25,6 +25,9 @@ def test_ffts():
         myfft.itransform(x_dev)
         x_itrans = ctx.nparray_from_context_array(x_dev).copy()
 
+        # this works in std python but not in pytest
+        # x_itrans = ctx.nparray_from_context_array(x_dev.real).copy()
+
         assert np.allclose(x_trans, np.fft.fft(x_host))
         assert np.allclose(x_itrans, x_host)
 

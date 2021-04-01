@@ -98,3 +98,10 @@ def test_inspect_args():
     info = ArrayA._inspect_args(np.zeros((6, 6)))
 
     assert info == Info(size=36 * 8)
+
+def test_array_allocation():
+    class StructA(xo.Struct):
+        a = xo.Float64[10]
+        b = xo.Int64
+
+    ss = StructA()

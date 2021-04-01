@@ -44,7 +44,7 @@ class ContextCupy(Context):
         return BufferCupy(capacity=capacity, context=self)
 
     def add_kernels(self, src_code="", src_files=[], kernel_descriptions={},
-            specialize_code=True, save_src_as='_compiled.cu'):
+            specialize_code=True, save_src_as=None):
 
         """
         Adds user-defined kernels to to the context. The kernel source

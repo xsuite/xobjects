@@ -57,6 +57,8 @@ class ContextCpu(Context):
         self,
         src_code="",
         src_files=[],
+        extra_compile_args=['-O3'],
+        extra_link_args=['-O3'],
         kernel_descriptions={},
         specialize_code=True,
         save_src_as=None,
@@ -165,17 +167,19 @@ class ContextCpu(Context):
         tempfname = str(uuid.uuid4().hex)
 
         # Compile
-        extra_compile_args = []
-        extra_link_args = []
+        xtr_compile_args =[]
+        xtr_link_args = []
+        xtr_compile_args += extra_compile_args
+        xtr_link_args += extra_link_args
         if self.omp_num_threads > 0:
-            extra_compile_args.append("-fopenmp")
-            extra_link_args.append("-fopenmp")
+            xtr_compile_args.append("-fopenmp")
+            xtr_link_args.append("-fopenmp")
 
         ffi_interface.set_source(
             tempfname,
             src_content,
-            extra_compile_args=extra_compile_args,
-            extra_link_args=extra_link_args,
+            extra_compile_args=xtr_compile_args,
+            extra_link_args=xtr_link_args,
         )
 
         ffi_interface.compile(verbose=True)

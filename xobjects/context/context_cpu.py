@@ -108,9 +108,10 @@ class ContextCpu(Context):
             # Import kernel in context
             context.add_kernels(src_code, kernel_descriptions)
 
-            # With a1,a2,b being arrays on the context, the kernel
+            # With a1, a2, b being arrays on the context, the kernel
             # can be called as follows:
             context.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
+
         """
 
         src_content = src_code

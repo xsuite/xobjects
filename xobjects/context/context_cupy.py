@@ -70,8 +70,8 @@ class ContextCupy(Context):
 
             src_code = r'''
             __global__
-            void my_mul(const int n, const float* x1,
-                        const float* x2, float* y) {
+            void my_mul(const int n, const double* x1,
+                        const double* x2, double* y) {
                 int tid = blockDim.x * blockIdx.x + threadIdx.x;
                 if (tid < n){
                     y[tid] = x1[tid] * x2[tid];
@@ -83,6 +83,7 @@ class ContextCupy(Context):
                     (('scalar', np.int32),   'n',),
                     (('array',  np.float64), 'x1',),
                     (('array',  np.float64), 'x2',),
+                    (('array',  np.float64), 'y',),
                     )
                 'num_threads_from_arg': 'n'
                 },}
@@ -90,9 +91,10 @@ class ContextCupy(Context):
             # Import kernel in context
             context.add_kernels(src_code, kernel_descriptions)
 
-            # With a1 and a2 being arrays on the context, the kernel
+            # With a1, a2, b being arrays on the context, the kernel
             # can be called as follows:
-            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
+            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
+
         """
 
         src_content = 'extern "C"{\n' + src_code
@@ -220,8 +222,8 @@ class ContextCupy(Context):
 
             src_code = r'''
             __global__
-            void my_mul(const int n, const float* x1,
-                        const float* x2, float* y) {
+            void my_mul(const int n, const double* x1,
+                        const double* x2, double* y) {
                 int tid = blockDim.x * blockIdx.x + threadIdx.x;
                 if (tid < n){
                     y[tid] = x1[tid] * x2[tid];
@@ -233,6 +235,7 @@ class ContextCupy(Context):
                     (('scalar', np.int32),   'n',),
                     (('array',  np.float64), 'x1',),
                     (('array',  np.float64), 'x2',),
+                    (('array',  np.float64), 'y',),
                     )
                 'num_threads_from_arg': 'n'
                 },}
@@ -240,13 +243,12 @@ class ContextCupy(Context):
             # Import kernel in context
             context.add_kernels(src_code, kernel_descriptions)
 
-            # With a1 and a2 being arrays on the context, the kernel
+            # With a1, a2, b being arrays on the context, the kernel
             # can be called as follows:
-            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
-            # or as follows:
-            context.kernels['my_mul'](n=len(a1), x1=a1, x2=a2)
+            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
 
         """
+
         return self._kernels
 
 

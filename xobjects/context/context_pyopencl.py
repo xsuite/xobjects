@@ -100,8 +100,8 @@ class ContextPyopencl(Context):
 
             src_code = r'''
             __kernel
-            void my_mul(const int n, __global const float* x1,
-                        __global const float* x2, __global float* y) {
+            void my_mul(const int n, __global const double* x1,
+                        __global const double* x2, __global double* y) {
                 int tid = get_global_id(0);
                 if (tid < n){
                     y[tid] = x1[tid] * x2[tid];
@@ -113,6 +113,7 @@ class ContextPyopencl(Context):
                     (('scalar', np.int32),   'n',),
                     (('array',  np.float64), 'x1',),
                     (('array',  np.float64), 'x2',),
+                    (('array',  np.float64), 'y',),
                     )
                 'num_threads_from_arg': 'n'
                 },}
@@ -122,7 +123,7 @@ class ContextPyopencl(Context):
 
             # With a1 and a2 being arrays on the context, the kernel
             # can be called as follows:
-            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
+            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
         """
 
         src_content = src_code
@@ -247,8 +248,8 @@ class ContextPyopencl(Context):
 
             src_code = r'''
             __kernel
-            void my_mul(const int n, __global const float* x1,
-                        __global const float* x2, __global float* y) {
+            void my_mul(const int n, __global const double* x1,
+                        __global const double* x2, __global double* y) {
                 int tid = get_global_id(0);
                 if (tid < n){
                     y[tid] = x1[tid] * x2[tid];
@@ -260,6 +261,7 @@ class ContextPyopencl(Context):
                     (('scalar', np.int32),   'n',),
                     (('array',  np.float64), 'x1',),
                     (('array',  np.float64), 'x2',),
+                    (('array',  np.float64), 'y',),
                     )
                 'num_threads_from_arg': 'n'
                 },}
@@ -269,9 +271,7 @@ class ContextPyopencl(Context):
 
             # With a1 and a2 being arrays on the context, the kernel
             # can be called as follows:
-            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
-            # or as follows:
-            context.kernels['my_mul'](n=len(a1), x1=a1, x2=a2)
+            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
 
         """
 

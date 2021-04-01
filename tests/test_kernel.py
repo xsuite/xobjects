@@ -58,18 +58,27 @@ def test_kernels():
         ctx = CTX(**kwargs)
 
         src_code='''
+        /*gpufun*/
+        void myfun(double x, double y,
+            double* z){
+            z[0] = x * y;
+            }
+
         /*gpukern*/
         void my_mul(const int n,
             /*gpuglmem*/ const double* x1,
             /*gpuglmem*/ const double* x2,
             /*gpuglmem*/       double* y) {
             int tid = 0 //vectorize_over tid n
+            double z;
             if (tid < n){
-                y[tid] = x1[tid] * x2[tid];
+                myfun(x1[tid], x2[tid], &z);
+                y[tid] = z;
                 }
             //end_vectorize
             }
         '''
+
         kernel_descriptions = {'my_mul':{
             'args':(
                 (('scalar', np.int32),   'n',),

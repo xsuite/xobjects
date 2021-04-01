@@ -119,6 +119,8 @@ class ContextCupy(Context):
 
         ker_names = kernel_descriptions.keys()
         for nn in ker_names:
+            if "return" in kernel_descriptions[nn]:
+                raise ValueError('Kernel return not supported!')
             kk = module.get_function(nn)
             aa = kernel_descriptions[nn]["args"]
             nt_from = kernel_descriptions[nn]["num_threads_from_arg"]

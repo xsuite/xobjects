@@ -159,13 +159,18 @@ def _patch_pyopencl_array(cl, cla, ctx):
         )
         return res
 
-    if not hasattr(cla.Array, "_old_setitem"):
-        cla.Array._old_copy = cla.Array.copy
-        cla.Array._old_setitem = cla.Array.__setitem__
-        cla.Array._old_setitem = cla.Array.__setitem__
-        cla.Array._old_get = cla.Array.get
-
     cla.Array._cont_zeros_like_me = _cont_zeros_like_me
+
+    if not hasattr(cla.Array, "_old_copy"):
+        cla.Array._old_copy = cla.Array.copy
     cla.Array.copy = mycopy
+
+    if not hasattr(cla.Array, "_old_setitem"):
+        cla.Array._old_setitem = cla.Array.__setitem__
+    cla.Array.__setitem__ = mysetitem
+
+    if not hasattr(cla.Array, "_old_get"):
+        cla.Array._old_get = cla.Array.get
     cla.Array.get = myget
+
     cla.Array.real = property(myreal)

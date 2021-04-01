@@ -207,7 +207,7 @@ class ContextPyopencl(Context):
         """
         Allocates an array of zeros on the device. The function has the same
         interface of numpy.zeros"""
-        return self.nplike_lib.zeros(queue=self.queue, *args, **kwargs)
+        return self.nplike_lib.zeros(self.queue, *args, **kwargs)
 
     def plan_FFT(self, data, axes, wait_on_call=True):
         """

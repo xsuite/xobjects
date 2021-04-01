@@ -27,3 +27,4 @@ def test_ffts():
 
         assert np.allclose(x_trans, np.fft.fft(x_host))
         assert np.allclose(x_itrans, x_host)
+

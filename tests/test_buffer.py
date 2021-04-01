@@ -48,13 +48,11 @@ def test_cl_init():
     ctx = xo.ContextPyopencl(device="0.0")
 
 
-
-
 def test_new_buffer():
     for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
         if CTX not in available:
             continue
-        print(f'Test {CTX}')
+        print(f"Test {CTX}")
         ctx = CTX()
         buff1 = ctx.new_buffer()
         buff2 = ctx.new_buffer(capacity=200)
@@ -64,7 +62,7 @@ def test_read_write():
     for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
         if CTX not in available:
             continue
-        print(f'Test {CTX}')
+        print(f"Test {CTX}")
         ctx = CTX()
         buff = ctx.new_buffer()
         bb = b"asdfasdfafsdf"
@@ -72,12 +70,11 @@ def test_read_write():
         assert buff.read(23, len(bb)) == bb
 
 
-
 def test_allocate_simple():
     for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
         if CTX not in available:
             continue
-        print(f'Test {CTX}')
+        print(f"Test {CTX}")
         ctx = CTX()
         ch = Check(ctx, 200)
         ch.new_string(30)
@@ -88,7 +85,7 @@ def test_free_simple():
     for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
         if CTX not in available:
             continue
-        print(f'Test {CTX}')
+        print(f"Test {CTX}")
         ctx = CTX()
         ch = Check(ctx, 200)
         offsets = [ch.new_string(ii * 2 + 1) for ii in range(10)]
@@ -103,7 +100,7 @@ def test_grow():
     for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
         if CTX not in available:
             continue
-        print(f'Test {CTX}')
+        print(f"Test {CTX}")
         ctx = CTX()
         ch = Check(ctx, 200)
         ch.new_string(150)
@@ -122,7 +119,7 @@ def test_random_string():
     for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
         if CTX not in available:
             continue
-        print(f'Test {CTX}')
+        print(f"Test {CTX}")
         ctx = CTX()
         ch = Check(ctx, 200)
 

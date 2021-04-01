@@ -59,7 +59,7 @@ class ContextCpu(Context):
         src_files=[],
         kernel_descriptions={},
         specialize_code=True,
-        save_src_as="_compiled.c",
+        save_src_as=None,
     ):
 
         """

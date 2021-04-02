@@ -47,9 +47,10 @@ double my_mul(const int n, const double* x1,
 
 
 def test_kernels():
-    for (CTX, kwargs) in zip(
+    for (CTX, kwargs, name) in zip(
             (xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy),
-            ({'omp_num_threads': 2}, {}, {})):
+            ({'omp_num_threads': 2}, {}, {}),
+            ('cpu', 'pyopencl', 'cupy')):
 
         if CTX not in available:
             continue
@@ -71,10 +72,8 @@ def test_kernels():
             /*gpuglmem*/       double* y) {
             int tid = 0 //vectorize_over tid n
             double z;
-            if (tid < n){
-                myfun(x1[tid], x2[tid], &z);
-                y[tid] = z;
-                }
+            myfun(x1[tid], x2[tid], &z);
+            y[tid] = z;
             //end_vectorize
             }
         '''
@@ -92,6 +91,7 @@ def test_kernels():
         # Import kernel in context
         ctx.add_kernels(src_code=src_code,
                 kernel_descriptions=kernel_descriptions,
+                #save_src_as=f'_test_{name}.c')
                 save_src_as=None)
 
         x1_host = np.array([1.,2.,3.], dtype=np.float64)

@@ -55,6 +55,7 @@ def specialize_source(source, specialize_for, search_in_folders=[]):
                 new_lines.append(
                     f"{varname}=blockDim.x * blockIdx.x + threadIdx.x;"
                     "//autovectorized\n"
+                    f"if ({varname}<{limname})"+"{"
                 )
         elif "//end_vectorize" in ll:
             if specialize_for.startswith("cpu"):
@@ -62,7 +63,7 @@ def specialize_source(source, specialize_for, search_in_folders=[]):
             elif specialize_for == "opencl":
                 new_lines.append("//end autovectorized\n")
             elif specialize_for == "cuda":
-                new_lines.append("//end autovectorized\n")
+                new_lines.append("}//end autovectorized\n")
 
             inside_vect_block = False
         else:

@@ -69,15 +69,18 @@ class ContextCupy(Context):
         .. code-block:: python
 
             src_code = r'''
-            __global__
-            void my_mul(const int n, const double* x1,
-                        const double* x2, double* y) {
-                int tid = blockDim.x * blockIdx.x + threadIdx.x;
-                if (tid < n){
+            /*gpukern*/
+            void my_mul(const int n,
+                /*gpuglmem*/ const double* x1,
+                /*gpuglmem*/ const double* x2,
+                /*gpuglmem*/       double* y) {
+
+                for (int tid=0; tid<n; tid++){ //vectorize_over tid n
                     y[tid] = x1[tid] * x2[tid];
-                    }
-                }
+                }//end_vectorize
+            }
             '''
+
             kernel_descriptions = {'my_mul':{
                 args':(
                     (('scalar', np.int32),   'n',),

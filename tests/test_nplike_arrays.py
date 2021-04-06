@@ -32,8 +32,7 @@ def test_ffts():
         assert np.allclose(x_itrans, x_host)
 
 
-#def test_slicing():
-if True:
+def test_slicing():
     for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
         if CTX not in available:
             continue
@@ -59,5 +58,11 @@ if True:
             c_host[:n_x//2//2, :n_x//3//2] = b_host[:n_x//2//2, :n_x//3//2].copy()*3
 
             assert np.allclose(c_host, ctx.nparray_from_context_array(c_dev))
+
+            # Check sum
+            assert np.isclose(a_dev.sum(), a_host.sum())
+            assert np.isclose(a_dev[:].sum(), a_host[:].sum())
+            assert np.isclose(c_dev.sum(), c_host.sum())
+            assert np.isclose(c_dev[:].sum(), c_host[:].sum())
 
 

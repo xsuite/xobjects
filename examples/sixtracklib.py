@@ -30,12 +30,6 @@ class Particle(xo.Struct):
     py = xo.Float64
 
 
-class Particles(xo.Array):
-    _itemtype = Particle
-    _shape = [None]
-
-
-# or
 class Particles(Particle[:]):
     pass
 

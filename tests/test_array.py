@@ -62,6 +62,10 @@ def test_class_creation():
     assert ArrayD._data_offset == 16
     assert ArrayE._data_offset == 16
 
+    assert ArrayA._strides == (48, 8)
+    assert ArrayC._strides == (8,)
+    assert ArrayD._strides == (ArrayA._size,)
+
 
 def test_class_mk_array():
     ArrayA = xo.Float64[3, 6]
@@ -93,15 +97,49 @@ def test_class_mk_array():
 def test_inspect_args():
     import numpy as np
 
-    ArrayA, ArrayB, ArrayC, ArrayD, ArrayE = mk_classes()
+    arrays = mk_classes()
+
+    for AnArray in arrays:
+        if AnArray._size is not None:
+            info = AnArray._inspect_args()
+            assert info.value == None
+
+    ArrayA, ArrayB, ArrayC, ArrayD, ArrayE = arrays
 
     info = ArrayA._inspect_args(np.zeros((6, 6)))
 
-    assert info == Info(size=36 * 8)
+    assert info.size == 36 * 8
+
 
 def test_array_allocation():
-    class StructA(xo.Struct):
-        a = xo.Float64[10]
-        b = xo.Int64
+    MyArray = xo.Float64[10]
+    ss = MyArray()
 
-    ss = StructA()
+
+def test_array_getset_float():
+    Array1D = xo.Float64[3]
+    Array2D = xo.Float64[2, 3]
+    Array3D = xo.Float64[2, 3, 4]
+
+    for cls in Array1D, Array2D, Array3D:
+        ss = cls()
+        for ii in ss._iter_index():
+            assert ss[0] == 0
+            ss[ii] = sum(ii)
+        for ii in ss._iter_index():
+            assert ss[ii] == sum(ii)
+
+
+def test_array_getset_dynamic_float():
+    Array1 = xo.Float64[:]
+    Array2 = xo.Float64[:, 3, 4]
+    Array3 = xo.Float64[2, :, 4]
+    Array4 = xo.Float64[2, 3, :]
+
+    for cls in Array1, Array2, Array3, Array4:
+        ss = cls(3)
+        for ii in ss._iter_index():
+            assert ss[0] == 0
+            ss[ii] = sum(ii)
+        for ii in ss._iter_index():
+            assert ss[ii] == sum(ii)

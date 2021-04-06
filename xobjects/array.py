@@ -22,9 +22,9 @@ Data layout:
 
 Array class:
     - _size
-    - _shape: the shape in memory using C ordering
+    - _shape: the shape in the index space
     - _dshape_idx: index of dynamic shapes
-    - _order: the ordering of the index in the API
+    - _order: the hierarchical order of the indeces
     - _itemtype
     - _is_static_shape
     - _strides
@@ -34,6 +34,7 @@ Array instance:
     - _dshape: value of dynamic dimensions
     - _shape: present if dynamic
     - _strides: shape if dynamic
+
 """
 
 
@@ -146,7 +147,7 @@ class MetaArray(type):
                 if len(_shape) > 1:
                     _data_offset += len(_shape) * 8  # space for strides
                 else:
-                    data["_strides"] = [static_size]
+                    data["_strides"] = (static_size,)
             else:
                 data["_is_static_shape"] = True
                 data["_order"] = mk_order(data["_order"], _shape)
@@ -213,13 +214,17 @@ class Array(metaclass=MetaArray):
     def _inspect_args(cls, *args):
         if cls._size is not None:
             # static,static array
-            if len(args) == 1:
+            info = Info(size=cls._size)
+            if len(args) == 0:
+                info.value = None
+            elif len(args) == 1:
                 shape = get_shape_from_array(args[0])
                 if shape != cls._shape:
                     raise ValueError(f"shape not valid for {args[0]} ")
+                info.value = args[0]
             elif len(args) > 1:
                 raise ValueError(f"too many arguments")
-            return Info(size=cls._size)
+            return info
         else:
             info = Info()
             offset = 8  # space for size data
@@ -238,7 +243,9 @@ class Array(metaclass=MetaArray):
                                 raise ValueError(
                                     "Array: incompatible dimensions"
                                 )
-                else:
+                    info.value = value
+                else:  # init with shapes
+                    info.value = None
                     shape = []
                     dshape = []  # index of dynamic shapes
                     for ndim in cls._shape:
@@ -253,16 +260,16 @@ class Array(metaclass=MetaArray):
                 offset += len(dshape) * 8  # space for dynamic shapes
                 if len(shape) > 1:
                     offset += len(shape) * 8  # space for strides
-                info.order = mk_order(shape, cls._order)
-                if cls._is_static_itemtype:
-                    info.strides = mk_strides(
+                info.order = mk_order(cls._order, shape)
+                if cls._is_static_type:
+                    info.strides = get_strides(
                         shape, info.order, cls._itemtype._size
                     )
                 else:
-                    info.strides = mk_strides(shape, info.order, 8)
+                    info.strides = get_strides(shape, info.order, 8)
                 items = np.prod(shape)
 
-            if cls._is_static_itemtype:
+            if cls._is_static_type:
                 offset += items * cls._itemtype._size  # starting of data
                 info.size = offset
             else:
@@ -307,7 +314,7 @@ class Array(metaclass=MetaArray):
                     strides = (cls._itemtype._size,)
                 else:
                     strides = (8,)
-            self._strides = strides
+            self._strides = tuple(strides)
         else:
             shape = cls._shape
         if not is_static_type:
@@ -344,19 +351,32 @@ class Array(metaclass=MetaArray):
             else:
                 buffer.write(value.astype(cls._itemtype._dtype).tobytes())
         else:
-            for idx in iter_index(info.shape, cls._order):
-                cls._itemtype._to_buffer(
-                    buffer,
-                    offset + info.offsets[idx],
-                    value[idx],
-                    info.extra.get(idx),
-                )
+            if value is not None:
+                for idx in iter_index(info.shape, cls._order):
+                    cls._itemtype._to_buffer(
+                        buffer,
+                        offset + info.offsets[idx],
+                        value[idx],
+                        info.extra.get(idx),
+                    )
+            else:
+                # TODO shortcuts for simple arrays
+                value = cls._itemtype()
+                for idx in iter_index(info.shape, cls._order):
+                    cls._itemtype._to_buffer(
+                        buffer,
+                        offset + info.offsets[idx],
+                        value,
+                        info.extra.get(idx),
+                    )
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
         # determin resources
         info = self.__class__._inspect_args(*args)
 
-        self._buffer, self._offset = get_a_buffer(_context, _buffer, _offset)
+        self._buffer, self._offset = get_a_buffer(
+            info.size, _context, _buffer, _offset
+        )
 
         if info.value is not None:
             self.__class__._to_buffer(
@@ -397,8 +417,12 @@ class Array(metaclass=MetaArray):
         if hasattr(self, "_offsets"):
             offset = self._offset + self._offsets[index]
         else:
-            offset = self._offset + cls._data_offset + cls.get_offset(index)
-        return cls._itemtype._frombuffer(self._buffer, self._offset)
+            offset = (
+                self._offset
+                + cls._data_offset
+                + get_offset(index, self._strides)
+            )
+        return cls._itemtype._from_buffer(self._buffer, offset)
 
     def __setitem__(self, index, value):
         if isinstance(index, (int, np.integer)):
@@ -408,12 +432,14 @@ class Array(metaclass=MetaArray):
             self[index]._update(value)
         else:
             if hasattr(self, "_offsets"):
-                offset = self._offset + self._offsets[cls.get_position(index)]
+                offset = self._offset + self._offsets[index]
             else:
                 offset = (
-                    self._offset + cls._data_offset + cls.get_offset(index)
+                    self._offset
+                    + cls._data_offset
+                    + get_offset(index, self._strides)
                 )
-            cls._itemtype._to_buffer(instance._buffer, offset, value)
+            cls._itemtype._to_buffer(self._buffer, offset, value)
 
     @classmethod
     def _gen_method_specs(cls, base=None):
@@ -426,9 +452,8 @@ class Array(metaclass=MetaArray):
             methods.extend(cls._itemtype._gen_method_specs(spec))
         return methods
 
-    @classmethod
-    def _get_offset(cls):
-        return "+".join([f"i{ii}*{strides[ii]}" for ii in cls.strides])
+    def _get_offset(self, index):
+        return sum(ii * ss for ii, ss in zip(index, self._strides))
 
     @classmethod
     def _get_c_offset(cls, conf):
@@ -458,3 +483,6 @@ class Array(metaclass=MetaArray):
                 f"  offset+=*({itype}*) (({ctype}*) obj+offset+{soffset});"
             )
         return out
+
+    def _iter_index(self):
+        return iter_index(self._shape, self._order)

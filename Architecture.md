@@ -116,23 +116,26 @@ Operation:
 
 - _inspect_args(*args, **args) -> info: Info
   - check value and calculate size, offsets and dimensions from arguments, recursively
+  - returns at least `size` for `_get_a_buffer` and `value` for `_to_buffer`
 
 - _get_a_buffer(size, _context, _buffer, _offset):
   - make sure a valid buffer and offset is created
-
-- _from_buffer(buffer, offset) -> value:
-  - create python object from data on buffer. Can be a native type (scalar or string) or another XObject (struct, array)
 
 - _to_buffer(buffer, offset, value, info, size?):
   - set data on buffer with offset from pyhon value, using info and implicitely respecting size
   - if value same class -> binary copy (passing from context if needed)
 
-- __init__(self,_context, _buffer, _offset, ...)
-  - initialize object data on buffer from args and create python object
-  - check value and calculate size using _inspect_args
-  - get resources using _get_a_buffer
-  - write data using _to_buffer
-  - set python object
+- _from_buffer(buffer, offset) -> value:
+  - create python object from data on buffer. Can be a native type (scalar or string) or another XObject (struct, array)
+
+
+- __init__(self,*args,_context=None, _buffer=None, _offset=None,*nargs)
+  - initialize object data on buffer from args and create python object:
+    - use _pre_init(*args,**nargs) -> return standard initialization value
+    - check value and calculate size using _inspect_args
+    - get resources using _get_a_buffer
+    - write data using _to_buffer
+    - set python object cached data
 
 - _update(self, value, size=None):
   - Optional update object using value, in case respecting size for string
@@ -201,7 +204,6 @@ Kernel convention:
 
 ### Later
 
-- use __slots__ were possible
 - Consider return opencl array rather than bytearray
 - Consider exposing Buffer and removing CLBuffer, ByteArrayBuffers..
 - Consider creating an `api` object type factory
@@ -209,4 +211,6 @@ Kernel convention:
 - Consider mutable string class
 - Add String.to_buffer to use same context copy
 - Make types read-only instances to avoid messing
+- Consider scalars to allows subclassing default and init for data validation this would avoid using field in structs
 - Evaluate round-trips versus caching
+- use __slots__ where possible

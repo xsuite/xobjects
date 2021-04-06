@@ -115,7 +115,9 @@ class Union(metaclass=MetaUnion):
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
         info = self.__class__._inspect_args(*args)
-        self._buffer, self._offset = get_a_buffer(_context, _buffer, _offset)
+        self._buffer, self._offset = get_a_buffer(
+            info.size, _context, _buffer, _offset
+        )
 
         self.__class__._to_buffer(self._buffer, self._offset, info.value, info)
 

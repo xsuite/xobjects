@@ -159,6 +159,11 @@ def _patch_pyopencl_array(cl, cla, ctx):
         )
         return res
 
+    # sum not implemented by pyopencl, I add it
+    def mysum(self):
+        dtype = getattr(np, self.dtype.name)
+        return dtype(cla.sum(self).get())
+
     cla.Array._cont_zeros_like_me = _cont_zeros_like_me
 
     if not hasattr(cla.Array, "_old_copy"):
@@ -174,3 +179,4 @@ def _patch_pyopencl_array(cl, cla, ctx):
     cla.Array.get = myget
 
     cla.Array.real = property(myreal)
+    cla.Array.sum = mysum

@@ -162,7 +162,12 @@ def _patch_pyopencl_array(cl, cla, ctx):
     # sum not implemented by pyopencl, I add it
     def mysum(self):
         dtype = getattr(np, self.dtype.name)
-        return dtype(cla.sum(self).get())
+        try:
+            res = dtype(cla.sum(self).get())
+        except RuntimeError:
+            res = dtype(cla.sum(self.copy()).get())
+
+        return res
 
     cla.Array._cont_zeros_like_me = _cont_zeros_like_me
 

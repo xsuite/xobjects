@@ -99,15 +99,18 @@ class ContextPyopencl(Context):
         .. code-block:: python
 
             src_code = r'''
-            __kernel
-            void my_mul(const int n, __global const double* x1,
-                        __global const double* x2, __global double* y) {
-                int tid = get_global_id(0);
-                if (tid < n){
+            /*gpukern*/
+            void my_mul(const int n,
+                /*gpuglmem*/ const double* x1,
+                /*gpuglmem*/ const double* x2,
+                /*gpuglmem*/       double* y) {
+
+                for (int tid=0; tid<n; tid++){ //vectorize_over tid n
                     y[tid] = x1[tid] * x2[tid];
-                    }
-                }
+                }//end_vectorize
+            }
             '''
+
             kernel_descriptions = {'my_mul':{
                 args':(
                     (('scalar', np.int32),   'n',),
@@ -249,15 +252,18 @@ class ContextPyopencl(Context):
         .. code-block:: python
 
             src_code = r'''
-            __kernel
-            void my_mul(const int n, __global const double* x1,
-                        __global const double* x2, __global double* y) {
-                int tid = get_global_id(0);
-                if (tid < n){
+            /*gpukern*/
+            void my_mul(const int n,
+                /*gpuglmem*/ const double* x1,
+                /*gpuglmem*/ const double* x2,
+                /*gpuglmem*/       double* y) {
+
+                for (int tid=0; tid<n; tid++){ //vectorize_over tid n
                     y[tid] = x1[tid] * x2[tid];
-                    }
-                }
+                }//end_vectorize
+            }
             '''
+
             kernel_descriptions = {'my_mul':{
                 args':(
                     (('scalar', np.int32),   'n',),

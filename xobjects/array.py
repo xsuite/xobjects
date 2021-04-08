@@ -394,6 +394,13 @@ class Array(metaclass=MetaArray):
                 buffer.write(
                     coffset, value.astype(cls._itemtype._dtype).tobytes()
                 )
+        elif isinstance(value, cls):
+            if value._size == info.size:
+                buffer.copy_from(
+                    value._buffer, value._offset, coffset, value.size
+                )
+            else:
+                raise ValueError("Value {value} not compatible size")
         else:
             if value is not None:
                 for idx in iter_index(info.shape, cls._order):

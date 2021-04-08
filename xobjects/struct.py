@@ -116,6 +116,12 @@ class Field:
         else:
             return dispatch_arg(self.ftype, self.default)
 
+    def value_from_args(self, arg):
+        if self.name in arg:
+            return arg[self.name]
+        else:
+            return self.get_default()
+
     def _get_c_offset(self, conf):
         itype = conf.get("itype", "int64_t")
         if self.is_reference:
@@ -199,7 +205,7 @@ class MetaStruct(type):
                         ].offset  # offset first dynamic data
                         log.debug(f"{arg}")
                         for field in cls._d_fields:
-                            farg = arg.get(field.name, field.get_default())
+                            farg = field.value_from_args(arg)
                             log.debug(
                                 f"get size for field `{field.name}` using `{farg}`"
                             )
@@ -265,7 +271,7 @@ class Struct(metaclass=MetaStruct):
                     cls._set_offsets(buffer, offset, info._offsets)
                 extra = getattr(info, "extra", {})
             for field in cls._fields:
-                fvalue = value.get(field.name, field.get_default())
+                fvalue = field.value_from_args(value)
                 foffset = offset + field.get_offset(info)
                 finfo = extra.get(field.index)
                 field.ftype._to_buffer(buffer, foffset, fvalue, finfo)

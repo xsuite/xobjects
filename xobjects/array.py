@@ -384,13 +384,16 @@ class Array(metaclass=MetaArray):
             coffset += 8 * len(header)
         if not cls._is_static_type:
             Int64._array_to_buffer(buffer, coffset, info.offsets)
+            coffset += 8 * len(info.offsets)
         if isinstance(value, np.ndarray) and hasattr(
             cls._itemtype, "_dtype"
         ):  # not robust try scalar classes
             if cls._itemtype._dtype == value.dtype:
-                buffer.write(value.tobytes())
+                buffer.write(coffset, value.tobytes())
             else:
-                buffer.write(value.astype(cls._itemtype._dtype).tobytes())
+                buffer.write(
+                    coffset, value.astype(cls._itemtype._dtype).tobytes()
+                )
         else:
             if value is not None:
                 for idx in iter_index(info.shape, cls._order):

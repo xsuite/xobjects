@@ -145,9 +145,22 @@ def test_array_dshape_stype():
             assert ss[ii] == (sum(ii) if len(ss._shape) > 1 else ii)
 
 
-def test_array_shape_dtype():
+def test_array_sshape_dtype():
     Array1 = xo.Float64[:]
     Array2 = Array1[3]
+    ss = Array2([2, 3, 4])
+    ss[0][1] = 3.2
+    assert ss[0][1] == 3.2
+
+    ss0 = Array1(2)
+    ss1 = Array1(3)
+    ss2 = Array1(4)
+    assert ss0._shape == ss[0]._shape
+
+
+def test_array_sshape_stype():
+    Array1 = xo.Float64[:]
+    Array2 = Array1[:]
     ss = Array2([2, 3, 4])
     ss[0][1] = 3.2
     assert ss[0][1] == 3.2

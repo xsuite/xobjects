@@ -159,7 +159,6 @@ Operation:
 
 
 
-
 Class content:
 
 - _inspect_args(cls, *args, **nargs) -> size, offsets
@@ -206,22 +205,25 @@ Kernel convention:
 
 ## TODO
 
-- debug Array, Union, UnionRef and review buffer interface
-- write getter/setter
-- implement custom init
+- setup sphinx
+- debug Array
+- debug C getter and setter
+- debug Union
+- debug UnionRef
+- review buffer interface
+- rename XBuffer, XContext
+- implement nplike
 - implement SOA
+- implement custom init
 - add __del__ methods for Struct, Array, Union, Unionref, SOA
 - add Ref
+- add zero-copy implementation in setter and _to_buffer
+- Make types read-only instances to avoid unsafe run-time operations
 
 ### Later
 
-- Consider return opencl array rather than bytearray
-- Consider exposing Buffer and removing CLBuffer, ByteArrayBuffers..
-- Consider creating an `api` object type factory
-- Consider Buffer[offset] to create View and avoid _offset in type API
+- Consider exposing XBuffer and moving specialization to XContext
+- Consider Buffer[offset] to creating XView and avoid _offset in type API
 - Consider mutable string class
-- Add String.to_buffer to use same context copy
-- Make types read-only instances to avoid messing
 - Consider scalars to allows subclassing default and init for data validation this would avoid using field in structs
-- Evaluate round-trips versus caching
-- use __slots__ where possible
+- Use __slots__ where possible

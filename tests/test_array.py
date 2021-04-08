@@ -116,7 +116,7 @@ def test_array_allocation():
     ss = MyArray()
 
 
-def test_array_getset_float():
+def test_array_sshape_stype():
     Array1D = xo.Float64[3]
     Array2D = xo.Float64[2, 3]
     Array3D = xo.Float64[2, 3, 4]
@@ -130,7 +130,7 @@ def test_array_getset_float():
             assert ss[ii] == sum(ii)
 
 
-def test_array_getset_dynamic_float():
+def test_array_dshape_stype():
     Array1 = xo.Float64[:]
     Array2 = xo.Float64[:, 3, 4]
     Array3 = xo.Float64[2, :, 4]
@@ -143,3 +143,9 @@ def test_array_getset_dynamic_float():
             ss[ii] = sum(ii)
         for ii in ss._iter_index():
             assert ss[ii] == sum(ii)
+
+
+# def test_array_shape_dtype():
+#    Array1 = xo.Float64[:]
+#    Array2 = Array1[3]
+#    ss = Array2([2,3,4])

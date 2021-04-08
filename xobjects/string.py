@@ -26,7 +26,7 @@ TODO:
 - consider adding size in the class
 """
 
-from .typeutils import get_a_buffer, Info, _to_slot_size
+from .typeutils import get_a_buffer, Info, _to_slot_size, is_integer
 
 from .scalar import Int64
 from .array import Array
@@ -71,7 +71,7 @@ class MetaString(type):
             data += b"\x00" * off
             log.debug(f"to_buffer {offset+8} {len(data)} {string_capacity}")
             buffer.write(offset + 8, data)
-        elif isinstance(value, int):
+        elif is_integer(value):
             pass
         else:
             raise ValueError(f"{value} not a string")
@@ -84,7 +84,7 @@ class MetaString(type):
         return cls._get_data(buffer, offset).decode("utf8").rstrip("\x00")
 
     def fixed(cls, size):
-        if isinstance(size, int) and size > 0:
+        if is_integer(size) and size > 0:
             name = f"String{size}"
             data = dict(_size=size)
             return MetaString(name, (String,), data)

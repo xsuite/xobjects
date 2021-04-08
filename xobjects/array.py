@@ -1,6 +1,6 @@
 import numpy as np
 
-from .typeutils import get_a_buffer, Info
+from .typeutils import get_a_buffer, Info, is_integer, _to_slot_size
 from .scalar import Int64
 
 """
@@ -159,6 +159,7 @@ class MetaArray(type):
                 _size = _itemtype._size
                 for d in _shape:
                     _size *= d
+                _size = _to_slot_size(_size)
             else:
                 _size = None
                 _data_offset += 8  # space for dynamic size
@@ -212,28 +213,50 @@ class Array(metaclass=MetaArray):
 
     @classmethod
     def _inspect_args(cls, *args):
+        """
+        Determine:
+        - size:
+        - shape, order, strides
+        - offsets
+        - value: None if args contains dimensions else args[0]
+
+        """
+        info = Info()
+        extra = {}
         if cls._size is not None:
             # static,static array
-            info = Info(size=cls._size)
             if len(args) == 0:
-                info.value = None
+                value = None
             elif len(args) == 1:
                 shape = get_shape_from_array(args[0])
                 if shape != cls._shape:
                     raise ValueError(f"shape not valid for {args[0]} ")
-                info.value = args[0]
+                value = args[0]
             elif len(args) > 1:
                 raise ValueError(f"too many arguments")
-            return info
-        else:
-            info = Info()
+            size = cls._size
+            shape = cls._shape
+            order = cls._order
+            strides = cls._strides
+            offsets = np.empty(shape, dtype="int64")
+            offset = 0
+            for idx in iter_index(shape, order):
+                offsets[idx] = offset
+                offset += cls._itemtype._size
+            assert size == _to_slot_size(offset)
+        else:  # handling other cases
             offset = 8  # space for size data
+            # determine shape and order
             if cls._is_static_shape:
-                items = np.prod(cls._shape)
+                shape = cls._shape
+                order = cls._order
+                strides = cls._strides
+                items = np.prod(shape)
+                value = args[0]
             else:  # complete dimensions
-                if not isinstance(args[0], int):  # init with array
-                    value = np.array(args[0])
-                    shape = value.shape
+                if not is_integer(args[0]):  # init with array
+                    value = args[0]
+                    shape = get_shape_from_array(value)
                     dshape = []
                     for idim, ndim in enumerate(cls._shape):
                         if ndim is None:
@@ -243,9 +266,9 @@ class Array(metaclass=MetaArray):
                                 raise ValueError(
                                     "Array: incompatible dimensions"
                                 )
-                    info.value = value
+                    value = value
                 else:  # init with shapes
-                    info.value = None
+                    value = None
                     shape = []
                     dshape = []  # index of dynamic shapes
                     for ndim in cls._shape:
@@ -255,35 +278,43 @@ class Array(metaclass=MetaArray):
                         else:
                             shape.append(ndim)
                 # now we have shape, dshape
-                info.shape = shape
+                shape = shape
                 info.dshape = dshape
                 offset += len(dshape) * 8  # space for dynamic shapes
                 if len(shape) > 1:
                     offset += len(shape) * 8  # space for strides
-                info.order = mk_order(cls._order, shape)
+                order = mk_order(cls._order, shape)
                 if cls._is_static_type:
-                    info.strides = get_strides(
-                        shape, info.order, cls._itemtype._size
-                    )
+                    strides = get_strides(shape, order, cls._itemtype._size)
                 else:
-                    info.strides = get_strides(shape, info.order, 8)
+                    strides = get_strides(shape, order, 8)
                 items = np.prod(shape)
 
+            # needs items, order, shape, value
             if cls._is_static_type:
-                offset += items * cls._itemtype._size  # starting of data
-                info.size = offset
+                offsets = np.empty(shape, dtype="int64")
+                for idx in iter_index(shape, order):
+                    offsets[idx] = offset
+                    offset += cls._itemtype._size
+                size = _to_slot_size(offset)
             else:
                 # args must be an array of correct dimensions
-                extra = {}
                 offsets = np.empty(shape, dtype="int64")
                 offset += items * 8
                 for idx in iter_index(shape, order):
                     extra[idx] = cls._itemtype._inspect_args(value[idx])
                     offsets[idx] = offset
                     offset += extra[idx].size
-                info.extra = extra
-                info.size = offset
-            return info
+                size = _to_slot_size(offset)
+
+        info.extra = extra
+        info.offsets = offsets
+        info.shape = shape
+        info.strides = strides
+        info.size = size
+        info.order = order
+        info.value = value
+        return info
 
     @classmethod
     def _from_buffer(cls, buffer, offset):
@@ -372,24 +403,22 @@ class Array(metaclass=MetaArray):
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
         # determin resources
-        info = self.__class__._inspect_args(*args)
+        cls = self.__class__
+        info = cls._inspect_args(*args)
 
         self._buffer, self._offset = get_a_buffer(
             info.size, _context, _buffer, _offset
         )
 
-        if info.value is not None:
-            self.__class__._to_buffer(
-                self._buffer, self._offset, info.value, info
-            )
+        cls._to_buffer(self._buffer, self._offset, info.value, info)
 
-        if hasattr(info, "size"):
+        if cls._size is None:
             self._size = info.size
-        if hasattr(info, "shape"):
+        if not cls._is_static_shape:
             self._shape = info.shape
             self._dshape = info.dshape
             self._strides = info.strides
-        if hasattr(info, "offsets"):
+        if not cls._is_static_type:
             self._offsets = info.offsets
 
     def _get_size(self):

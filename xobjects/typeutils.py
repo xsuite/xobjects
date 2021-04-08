@@ -1,3 +1,5 @@
+import numpy as np
+
 from .context import ContextDefault
 
 
@@ -41,3 +43,7 @@ def _to_slot_size(size):
 
 def _is_dynamic(cls):
     return cls._size is None
+
+
+def is_integer(i):
+    return isinstance(i, (int, np.integer))

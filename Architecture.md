@@ -112,6 +112,9 @@ Assumptions:
 - Python object caches the structure information to avoid round trips to access data
 - C user API does not manipulate structures
 
+
+
+
 Operation:
 
 - _inspect_args(*args, **args) -> info: Info
@@ -131,14 +134,14 @@ Operation:
 
 - __init__(self,*args,_context=None, _buffer=None, _offset=None,*nargs)
   - initialize object data on buffer from args and create python object:
-    - use _pre_init(*args,**nargs) -> return standard initialization value
+    - use _pre_init(*args,**nargs) -> return args, nargs tandard initialization value
     - check value and calculate size using _inspect_args
     - get resources using _get_a_buffer
     - write data using _to_buffer
     - set python object cached data
 
 - _update(self, value, size=None):
-  - Optional update object using value, in case respecting size for string
+  - Optional update object content using value, in case respecting size for string
 
 - __get__(field,instance) or __getitem__(self,index...)
   - if return instance._cache[field.index] else  #should implement item caching for struct and array
@@ -147,6 +150,14 @@ Operation:
 - __set__(..., value) or __setitem__(...,value)
   - if hasattr(self.ftype._update) get object and update in place
     else call _to_buffer
+
+- json enconding
+  nested object can be initialized using a json enconding
+  d:dict -> type(**d)
+  t:tuple -> type(*t)
+  a:other -> type(a)
+
+
 
 
 Class content:

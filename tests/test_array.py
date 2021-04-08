@@ -1,3 +1,5 @@
+import numpy as np
+
 import xobjects as xo
 
 from xobjects.typeutils import Info
@@ -169,3 +171,14 @@ def test_array_sshape_stype():
     ss1 = Array1(3)
     ss2 = Array1(4)
     assert ss0._shape == ss[0]._shape
+
+def test_array_in_struct():
+
+    class Multipole(xo.Struct):
+        order = xo.Int64
+        length = xo.Float64
+        hxl = xo.Float64
+        hyl = xo.Float64
+        bal = xo.Float64[:]
+
+    m = Multipole(order = 2, bal=np.array([1., 2., 3., 4.]))

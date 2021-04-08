@@ -125,9 +125,9 @@ def test_array_sshape_stype():
         ss = cls()
         for ii in ss._iter_index():
             assert ss[0] == 0
-            ss[ii] = sum(ii)
+            ss[ii] = sum(ii) if len(ss._shape) > 1 else ii
         for ii in ss._iter_index():
-            assert ss[ii] == sum(ii)
+            assert ss[ii] == (sum(ii) if len(ss._shape) > 1 else ii)
 
 
 def test_array_dshape_stype():
@@ -140,12 +140,19 @@ def test_array_dshape_stype():
         ss = cls(3)
         for ii in ss._iter_index():
             assert ss[0] == 0
-            ss[ii] = sum(ii)
+            ss[ii] = sum(ii) if len(ss._shape) > 1 else ii
         for ii in ss._iter_index():
-            assert ss[ii] == sum(ii)
+            assert ss[ii] == (sum(ii) if len(ss._shape) > 1 else ii)
 
 
-# def test_array_shape_dtype():
-#    Array1 = xo.Float64[:]
-#    Array2 = Array1[3]
-#    ss = Array2([2,3,4])
+def test_array_shape_dtype():
+    Array1 = xo.Float64[:]
+    Array2 = Array1[3]
+    ss = Array2([2, 3, 4])
+    ss[0][1] = 3.2
+    assert ss[0][1] == 3.2
+
+    ss0 = Array1(2)
+    ss1 = Array1(3)
+    ss2 = Array1(4)
+    assert ss0._shape == ss[0]._shape

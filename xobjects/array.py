@@ -101,9 +101,13 @@ def get_c_strides(shape, itemsize):
 
 def iter_index(shape, order):
     """return index in order of data layout"""
-    aorder = [order.index(ii) for ii in range(len(order))]
-    for ii in np.ndindex(*[shape[io] for io in order]):
-        yield tuple((ii[io] for io in aorder))
+    if len(shape) == 1:
+        for ii in range(shape[0]):
+            yield ii
+    else:
+        aorder = [order.index(ii) for ii in range(len(order))]
+        for ii in np.ndindex(*[shape[io] for io in order]):
+            yield tuple(ii[io] for io in aorder)
 
 
 def mk_order(order, shape):
@@ -117,6 +121,12 @@ def mk_order(order, shape):
 
 def get_offset(idx, strides):
     return sum(ii * ss for ii, ss in zip(idx, strides))
+
+
+def bound_check(index, shape):
+    for ii, ss in zip(index, shape):
+        if ii < 0 or ii >= ss:
+            raise IndexError(f"index {index} outside shape {shape}")
 
 
 class MetaArray(type):
@@ -219,7 +229,6 @@ class Array(metaclass=MetaArray):
         - shape, order, strides
         - offsets
         - value: None if args contains dimensions else args[0]
-
         """
         info = Info()
         extra = {}
@@ -325,7 +334,7 @@ class Array(metaclass=MetaArray):
         if cls._size is None:
             self._size = Int64._from_buffer(self._buffer, coffset)
             coffset += 8
-        if not is_static_shape:
+        if not cls._is_static_shape:
             shape = []
             for dd in cls._shape:
                 if dd is None:
@@ -341,14 +350,14 @@ class Array(metaclass=MetaArray):
                     strides.append(Int64._from_buffer(self._buffer, coffset))
                     coffset += 8
             else:
-                if is_static_type:
+                if cls._is_static_type:
                     strides = (cls._itemtype._size,)
                 else:
                     strides = (8,)
             self._strides = tuple(strides)
         else:
             shape = cls._shape
-        if not is_static_type:
+        if not cls._is_static_type:
             items = prod(shape)
             self._offsets = Int64._array_from_buffer(buffer, coffset, items)
         return self
@@ -357,6 +366,7 @@ class Array(metaclass=MetaArray):
     def _to_buffer(cls, buffer, offset, value, info=None):
         if info is None:
             info = cls._inspect_args(value)
+        value = info.value  # can be None if value contained shape info
         header = []
         coffset = offset
         if cls._size is None:
@@ -446,6 +456,7 @@ class Array(metaclass=MetaArray):
         if hasattr(self, "_offsets"):
             offset = self._offset + self._offsets[index]
         else:
+            bound_check(index, self._shape)
             offset = (
                 self._offset
                 + cls._data_offset
@@ -463,6 +474,7 @@ class Array(metaclass=MetaArray):
             if hasattr(self, "_offsets"):
                 offset = self._offset + self._offsets[index]
             else:
+                bound_check(index, self._shape)
                 offset = (
                     self._offset
                     + cls._data_offset

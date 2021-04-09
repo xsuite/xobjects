@@ -29,16 +29,19 @@ Example::
    mesh = Mesh(points=10,edges=10, _context=ctx)
 
 Content
-############
+-----------
 
-* `Quickstart`_
-* `Reference`_
-* `Architecture`_
+.. toctree::
+   :maxdepth: 3
+
+   quickstart
+   reference
+   architecture
 
 
 
 Indices and tables
-###################
+--------------------
 
 
 * :ref:`genindex`

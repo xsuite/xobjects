@@ -55,8 +55,8 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = "Xsuite"
-copyright = "2014, Read the Docs"
+project = "XObjects"
+copyright = "2021, CERN"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

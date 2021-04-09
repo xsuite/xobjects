@@ -205,7 +205,6 @@ Kernel convention:
 
 ## TODO
 
-- setup sphinx
 - debug Array
 - debug C getter and setter
 - debug Union

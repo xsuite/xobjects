@@ -47,6 +47,10 @@ class Context(ABC):
         return self._kernels
 
     @abstractmethod
+    def _make_buffer(self, capacity):
+        "return buffer"
+
+    @abstractmethod
     def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
         pass
 
@@ -61,7 +65,7 @@ class Context(ABC):
     @property
     @abstractmethod
     def nplike_lib(self):
-        return lib
+        "return lib"
 
     @abstractmethod
     def synchronize(self):
@@ -69,11 +73,11 @@ class Context(ABC):
 
     @abstractmethod
     def zeros(self, *args, **kwargs):
-        return arr
+        "return arr"
 
     @abstractmethod
     def plan_FFT(self, data, axes):
-        return fft
+        "return fft"
 
 
 class Buffer(ABC):
@@ -86,6 +90,10 @@ class Buffer(ABC):
         self.buffer = self._new_buffer(capacity)
         self.capacity = capacity
         self.chunks = [Chunk(0, capacity)]
+
+    @abstractmethod
+    def _make_context(self):
+        "return a default context"
 
     def allocate(self, size):
         # find available free slot
@@ -142,7 +150,7 @@ class Buffer(ABC):
 
     @abstractmethod
     def _new_buffer(self, capacity):
-        return newbuffer
+        "return newbuffer"
 
     @abstractmethod
     def copy_to(self, dest):
@@ -158,7 +166,7 @@ class Buffer(ABC):
 
     @abstractmethod
     def read(self, offset, size):
-        return data
+        "return data"
 
     def get_free(self):
         return sum([ch.size for ch in self.chunks])
@@ -196,22 +204,9 @@ class Chunk:
 
 
 class View(NamedTuple):
-    context: None
     buffer: Buffer
     offset: int
     size: int
-
-    @classmethod
-    def _from_size(cls, size, context=None, buffer=None, offset=None):
-        if buffer is None:
-            if offset is not None:
-                raise ValueError("Cannot set `offset` without buffer")
-            if context is None:
-                context = ContextDefault()
-            buffer = context.new_buffer(size)
-        if offset is None:
-            offset = buffer.allocate(size)
-        return cls(context, buffer, offset, size)
 
 
 available = []

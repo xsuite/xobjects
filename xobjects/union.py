@@ -2,6 +2,7 @@ import numpy as np
 
 from .typeutils import get_a_buffer, Info
 from .scalar import Int64
+from .array import Array
 
 """
 union typ1 typ2 ...
@@ -46,6 +47,12 @@ class MetaUnion(type):
 
 
 class Union(metaclass=MetaUnion):
+    _types: list
+    _size: None
+    _typeids: dict
+    _typenames: dict
+    _itemtypes: list
+
     @classmethod
     def _get_type_index(cls, value):
         return cls._typeids[type(value).__name__]
@@ -60,7 +67,7 @@ class Union(metaclass=MetaUnion):
         if name not in cls._typenames:
             cls._itemtypes.append(itemtype)
             cls._types[itemtype.__name__] = itemtype
-            cls._typesids[itemtype.__name__] = cls._itemtypes.index(itemtype)
+            cls._typeids[itemtype.__name__] = cls._itemtypes.index(itemtype)
         else:
             raise ValueError(f"{itemtype} already in union")
 

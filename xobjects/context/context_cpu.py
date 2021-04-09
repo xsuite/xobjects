@@ -57,8 +57,8 @@ class ContextCpu(Context):
         self,
         src_code="",
         src_files=[],
-        extra_compile_args=['-O3'],
-        extra_link_args=['-O3'],
+        extra_compile_args=["-O3"],
+        extra_link_args=["-O3"],
         kernel_descriptions={},
         specialize_code=True,
         save_src_as=None,
@@ -172,7 +172,7 @@ class ContextCpu(Context):
         tempfname = str(uuid.uuid4().hex)
 
         # Compile
-        xtr_compile_args =[]
+        xtr_compile_args = []
         xtr_link_args = []
         xtr_compile_args += extra_compile_args
         xtr_link_args += extra_link_args
@@ -443,7 +443,7 @@ class KernelCpu(object):
                 dtype = tt[1]
                 shape = tt[2]
                 count = np.prod(shape)
-                return np.from_buffer(ret, dtype="S1", count=count).reshape(
+                return np.from_buffer(ret, dtype=dtype, count=count).reshape(
                     *shape
                 )
 

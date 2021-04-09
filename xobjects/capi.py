@@ -64,14 +64,13 @@ def gen_method_offset(specs, conf):
 
 
 def gen_method_get_body(name, specs, conf):
-    itype = conf.get("itype", "int64_t")
     prepointer = conf.get("prepointer", "")
-    postpointer = conf.get("postpointer", "")
-    ispointer32 = conf.get("ispointer", False)
 
     lst = [gen_method_get_declaration(name, specs, conf) + "{"]
     lst.append(gen_method_offset(specs, conf))
     ret, size = get_last_type(specs, conf)
+    if prepointer != "":
+        ret = prepointer + " " + ret
     if "*" in ret:  # return type is a pointer
         lst.append(f"  return ({ret})((char*) obj+offset);")
     else:  # return type is a scalar

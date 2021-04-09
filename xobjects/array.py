@@ -184,6 +184,16 @@ class MetaArray(type):
 
 
 class Array(metaclass=MetaArray):
+    _shape: tuple
+    _order: tuple
+    _strides: tuple
+    _itemtype: type
+    _size: int
+    _dshape: tuple
+    _is_static_shape: bool
+    _is_static_type: bool
+    _data_offset: int
+
     @classmethod
     def mk_arrayclass(cls, itemtype, shape):
         if type(shape) in (int, slice):
@@ -271,7 +281,7 @@ class Array(metaclass=MetaArray):
                         if ndim is None:
                             dshape.append(idim)
                         else:
-                            if shape[idem] != ndim:
+                            if shape[idim] != ndim:
                                 raise ValueError(
                                     "Array: incompatible dimensions"
                                 )
@@ -346,7 +356,7 @@ class Array(metaclass=MetaArray):
             if len(self._shape) > 1:  # getting strides
                 # could be computed from shape and order but offset needs to taken
                 strides = []
-                for i in range(shape):
+                for _ in range(shape):
                     strides.append(Int64._from_buffer(self._buffer, coffset))
                     coffset += 8
             else:
@@ -358,7 +368,7 @@ class Array(metaclass=MetaArray):
         else:
             shape = cls._shape
         if not cls._is_static_type:
-            items = prod(shape)
+            items = np.prod(shape)
             self._offsets = Int64._array_from_buffer(buffer, coffset, items)
         return self
 

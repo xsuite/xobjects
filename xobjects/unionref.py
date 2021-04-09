@@ -2,6 +2,8 @@ import numpy as np
 
 from .typeutils import get_a_buffer, Info
 from .scalar import Int64
+from .array import Array
+
 
 """
 union typ1 typ2 ...
@@ -27,7 +29,7 @@ class MetaUnionRef(type):
             itemtype = data["_itemtypes"]
             typeids = {}
             types = {}
-            for ii, it in enumerate(itemtype):
+            for ii, itemtype in enumerate(itemtype):
                 name = itemtype.__name__
                 typeids[name] = ii
                 types[name] = itemtype
@@ -43,6 +45,10 @@ class MetaUnionRef(type):
 
 class UnionRef(metaclass=MetaUnionRef):
     _size = 16
+    _types: list
+    _typeids: dict
+    _typenames: dict
+    _itemtypes: list
 
     @classmethod
     def _get_type_index(cls, value):
@@ -58,7 +64,7 @@ class UnionRef(metaclass=MetaUnionRef):
         if name not in cls._typenames:
             cls._itemtypes.append(itemtype)
             cls._types[itemtype.__name__] = itemtype
-            cls._typesids[itemtype.__name__] = cls._itemtypes.index(itemtype)
+            cls._typeids[itemtype.__name__] = cls._itemtypes.index(itemtype)
         else:
             raise ValueError(f"{itemtype} already in union")
 
@@ -112,7 +118,7 @@ class UnionRef(metaclass=MetaUnionRef):
         )
 
         if info.is_raw and info.value._buffer == self._buffer:
-            info.offset = value._offset
+            info.offset = info.value._offset
         else:
             value = info._itemtype(
                 info.value, _buffer=self._buffer, _info=info.extra

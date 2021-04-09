@@ -66,8 +66,7 @@ class Field:
     ):
         self.ftype = ftype
         self.default = default
-        if default_factory is not None:
-            self.get_default = default_factory
+        self.default_factory = default_factory
         self.index = None  # filled by class creation
         self.name = None  # filled by class creation
         self.offset = None  # filled by class creation
@@ -111,10 +110,13 @@ class Field:
             return self.offset
 
     def get_default(self):
-        if self.default is None:
-            return self.ftype()
+        if self.default_factory is None:
+            if self.default is None:
+                return self.ftype()
+            else:
+                return dispatch_arg(self.ftype, self.default)
         else:
-            return dispatch_arg(self.ftype, self.default)
+            return self.default_factory()
 
     def value_from_args(self, arg):
         if self.name in arg:
@@ -240,6 +242,10 @@ class MetaStruct(type):
 
 
 class Struct(metaclass=MetaStruct):
+    _fields: list
+    _d_fields: list
+    _inspect_args: callable
+
     @classmethod
     def _from_buffer(cls, buffer, offset):
         self = object.__new__(cls)

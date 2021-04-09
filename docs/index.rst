@@ -13,17 +13,33 @@ Welcome to XObjects's documentation!
 
 XObjects is a library to create and manipulate serialized object in CPU and GPU memory efficiently in Python and C.
 
-The library defines:
-*  Contexts: create buffers and manage computations e.g. BytearrayContext, CLContext, ...
-*  Buffers: reference to internal memory buffer with an allocator e.g.
-*  BytearrayContext, CLBuffer, ...
-*  Data types: define users define types to create and manipulate objects on
-buffers and generate C api, e.g. Float64, Int64, String, Struct, Array, Union
+Example::
+
+    import xobjects as xo
+    class Point(xo.Struct):
+         x=xo.Float64
+         y=xo.Float64
+         z=xo.Float64
+
+    class Mesh(xo.Struct):
+         points = Point[:]
+         edges = xo.int64[:]
+
+   ctx= xo.OpenclContext(device="0.0")
+   mesh = Mesh(points=10,edges=10, _context=ctx)
+
+Content
+############
+
+* `Quickstart`_
+* `Reference`_
+* `Architecture`_
 
 
 
 Indices and tables
-==================
+###################
+
 
 * :ref:`genindex`
 * :ref:`modindex`

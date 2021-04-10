@@ -9,8 +9,8 @@ The architucture is based on
 * Type system to specify data layout and user API
 
 
+.. toctree::
+    :maxdepth: 2
 
-.. autoclass:: xobjects.ContextCpu
-    :members:
-    :undoc-members:
-    :member-order: bysource
+    contexts
+    types

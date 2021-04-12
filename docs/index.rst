@@ -22,6 +22,9 @@ Example (tentative)::
          x=xo.Float64
          y=xo.Float64
          z=xo.Float64
+         hello = xo.CFunction(
+         _include=["<stdio.h>"],
+         _src ='void hello(){ printf("Hello!\n" );}' )
          dist = xo.CMethod(
             a=Point, b=Point,
             _include=["<math.h>"],
@@ -29,23 +32,21 @@ Example (tentative)::
             double dx=Point_get_x(b)- Point_get_x(a);
             double dy=Point_get_y(b)- Point_get_y(a);
             double dz=Point_get_z(b)- Point_get_z(a);
-            return sqrt(dx*dx+dy*dy+dz*dz);
-         """)
+            return sqrt(dx*dx+dy*dy+dz*dz);""")
 
     class Polygon(xo.Struct):
          point = Point[:]
          edge = xo.Int64[:,2]
-         path_length = xo.CProperty(
+         path_length = xo.CMethod(
              poly=Polygon,
-             _get_body="""
+             _body="""
              double length=0;
              for (int ii; ii<Polygon_len_edge(poly); ii++){
                 aa=Polygon_get_edge(ii,0);
                 bb=Polygon_get_edge(ii,1);
                 length+=dist(Polygon_get_point(aa),Polygon_get_point(bb));
-            };
-            return length;
-         """)
+             };
+             return length;""")
 
    ctx= xo.OpenclContext(device="0.0")
    mesh = Mesh(points=10,edges=10, _context=ctx)
@@ -53,8 +54,8 @@ Example (tentative)::
    mesh.points.y=np.random.rand(10);
    mesh.points.z=np.random.rand(10);
    mesh.points.edges=np.c_[np.arange(10),np.roll(np.arange(10),1)]
-   print(mesh.path_length)
-
+   mesh.points[0].hello()
+   print(mesh.path_length())
 
 Content
 -----------

@@ -114,14 +114,14 @@ def test_inspect_args():
 
 
 def test_array_allocation():
-    MyArray = xo.Float64[10]
+    MyArray = xo.Int64[10]
     ss = MyArray()
 
 
 def test_array_sshape_stype():
-    Array1D = xo.Float64[3]
-    Array2D = xo.Float64[2, 3]
-    Array3D = xo.Float64[2, 3, 4]
+    Array1D = xo.Int64[3]
+    Array2D = xo.Int64[2, 3]
+    Array3D = xo.Int64[2, 3, 4]
 
     for cls in Array1D, Array2D, Array3D:
         ss = cls()
@@ -133,10 +133,10 @@ def test_array_sshape_stype():
 
 
 def test_array_dshape_stype():
-    Array1 = xo.Float64[:]
-    Array2 = xo.Float64[:, 3, 4]
-    Array3 = xo.Float64[2, :, 4]
-    Array4 = xo.Float64[2, 3, :]
+    Array1 = xo.Int64[:]
+    Array2 = xo.Int64[:, 3, 4]
+    Array3 = xo.Int64[2, :, 4]
+    Array4 = xo.Int64[2, 3, :]
 
     for cls in Array1, Array2, Array3, Array4:
         ss = cls(3)
@@ -148,11 +148,11 @@ def test_array_dshape_stype():
 
 
 def test_array_sshape_dtype():
-    Array1 = xo.Float64[:]
+    Array1 = xo.Int64[:]
     Array2 = Array1[3]
     ss = Array2([2, 3, 4])
-    ss[0][1] = 3.2
-    assert ss[0][1] == 3.2
+    ss[0][1] = 3
+    assert ss[0][1] == 3
 
     ss0 = Array1(2)
     ss1 = Array1(3)
@@ -161,19 +161,19 @@ def test_array_sshape_dtype():
 
 
 def test_array_sshape_stype():
-    Array1 = xo.Float64[:]
+    Array1 = xo.Int64[:]
     Array2 = Array1[:]
     ss = Array2([2, 3, 4])
-    ss[0][1] = 3.2
-    assert ss[0][1] == 3.2
+    ss[0][1] = 3
+    assert ss[0][1] == 3
 
     ss0 = Array1(2)
     ss1 = Array1(3)
     ss2 = Array1(4)
     assert ss0._shape == ss[0]._shape
 
-def test_array_in_struct():
 
+def test_array_in_struct():
     class Multipole(xo.Struct):
         order = xo.Int64
         length = xo.Float64
@@ -181,4 +181,4 @@ def test_array_in_struct():
         hyl = xo.Float64
         bal = xo.Float64[:]
 
-    m = Multipole(order = 2, bal=np.array([1., 2., 3., 4.]))
+    m = Multipole(order=2, bal=np.array([1.0, 2.0, 3.0, 4.0]))

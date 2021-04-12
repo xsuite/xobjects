@@ -12,5 +12,5 @@ The architucture is based on
 .. toctree::
     :maxdepth: 2
 
-    contexts
-    types
+    architecture/contexts
+    architecture/types

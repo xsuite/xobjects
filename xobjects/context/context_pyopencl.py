@@ -3,7 +3,7 @@ import logging
 
 import numpy as np
 
-from .general import Buffer, Context, ModuleNotAvailable, available
+from .general import XBuffer, XContext, ModuleNotAvailable, available
 from .specialize_source import specialize_source
 
 try:
@@ -28,7 +28,7 @@ from ._patch_pyopencl_array import _patch_pyopencl_array
 log = logging.getLogger(__name__)
 
 
-class ContextPyopencl(Context):
+class ContextPyopencl(XContext):
     @classmethod
     def print_devices(cls):
         for ip, platform in enumerate(cl.get_platforms()):
@@ -75,8 +75,14 @@ class ContextPyopencl(Context):
     def _make_buffer(self, capacity):
         return BufferPyopencl(capacity=capacity, context=self)
 
-    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={},
-            specialize_code=True, save_src_as=None):
+    def add_kernels(
+        self,
+        src_code="",
+        src_files=[],
+        kernel_descriptions={},
+        specialize_code=True,
+        save_src_as=None,
+    ):
 
         """
         Adds user-defined kernels to to the context. The kernel source
@@ -138,11 +144,14 @@ class ContextPyopencl(Context):
 
         if specialize_code:
             # included files are searched in the same folders od the src_filed
-            src_content = specialize_source(src_content,
-                    specialize_for='opencl', search_in_folders=fold_list)
+            src_content = specialize_source(
+                src_content,
+                specialize_for="opencl",
+                search_in_folders=fold_list,
+            )
 
         if save_src_as is not None:
-            with open(save_src_as, 'w') as fid:
+            with open(save_src_as, "w") as fid:
                 fid.write(src_content)
 
         prg = cl.Program(self.context, src_content).build()
@@ -150,7 +159,7 @@ class ContextPyopencl(Context):
         ker_names = kernel_descriptions.keys()
         for nn in ker_names:
             if "return" in kernel_descriptions[nn]:
-                raise ValueError('Kernel return not supported!')
+                raise ValueError("Kernel return not supported!")
             kk = getattr(prg, nn)
             aa = kernel_descriptions[nn]["args"]
             nt_from = kernel_descriptions[nn]["num_threads_from_arg"]
@@ -286,7 +295,7 @@ class ContextPyopencl(Context):
         return self._kernels
 
 
-class BufferPyopencl(Buffer):
+class BufferPyopencl(XBuffer):
     def _make_context(self):
         return ContextPyopencl()
 

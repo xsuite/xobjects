@@ -28,7 +28,7 @@ class ModuleNotAvailable(object):
         raise NameError(self.message)
 
 
-class Context(ABC):
+class XContext(ABC):
     def __init__(self):
         self._kernels = MinimalDotDict()
         self._buffers = []
@@ -80,7 +80,7 @@ class Context(ABC):
         "return fft"
 
 
-class Buffer(ABC):
+class XBuffer(ABC):
     def __init__(self, capacity=1048576, context=None):
 
         if context is None:
@@ -204,7 +204,7 @@ class Chunk:
 
 
 class View(NamedTuple):
-    buffer: Buffer
+    buffer: XBuffer
     offset: int
     size: int
 

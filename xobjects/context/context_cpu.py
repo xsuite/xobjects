@@ -6,7 +6,7 @@ import logging
 
 import numpy as np
 
-from .general import Buffer, Context, ModuleNotAvailable, available
+from .general import XBuffer, XContext, ModuleNotAvailable, available
 from .specialize_source import specialize_source
 
 
@@ -35,7 +35,7 @@ except ImportError:
 type_mapping = {np.int32: "int32_t", np.int64: "int64_y", np.float64: "double"}
 
 
-class ContextCpu(Context):
+class ContextCpu(XContext):
     """
 
     Creates a CPU Platform object, that allows performing the computations
@@ -355,7 +355,7 @@ class ContextCpu(Context):
         return self._kernels
 
 
-class BufferByteArray(Buffer):
+class BufferByteArray(XBuffer):
     def _make_context(self):
         return ContextCpu()
 
@@ -379,7 +379,7 @@ class BufferByteArray(Buffer):
 
 # One could implement something like this and chose between Numpy and ByteArr
 # when building the context
-class NumpyArrayBuffer(Buffer):
+class NumpyArrayBuffer(XBuffer):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError
 

@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 
-from .general import Buffer, Context, ModuleNotAvailable, available
+from .general import XBuffer, XContext, ModuleNotAvailable, available
 from .specialize_source import specialize_source
 
 
@@ -20,7 +20,7 @@ except ImportError:
     _enabled = False
 
 
-class ContextCupy(Context):
+class ContextCupy(XContext):
 
     """
     Creates a Cupy Context object, that allows performing the computations
@@ -43,8 +43,14 @@ class ContextCupy(Context):
     def _make_buffer(self, capacity):
         return BufferCupy(capacity=capacity, context=self)
 
-    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={},
-            specialize_code=True, save_src_as=None):
+    def add_kernels(
+        self,
+        src_code="",
+        src_files=[],
+        kernel_descriptions={},
+        specialize_code=True,
+        save_src_as=None,
+    ):
 
         """
         Adds user-defined kernels to to the context. The kernel source
@@ -108,14 +114,14 @@ class ContextCupy(Context):
                 src_content += "\n\n" + fid.read()
         src_content += "}"
 
-
         if specialize_code:
             # included files are searched in the same folders od the src_filed
-            src_content = specialize_source(src_content,
-                    specialize_for='cuda', search_in_folders=fold_list)
+            src_content = specialize_source(
+                src_content, specialize_for="cuda", search_in_folders=fold_list
+            )
 
         if save_src_as is not None:
-            with open(save_src_as, 'w') as fid:
+            with open(save_src_as, "w") as fid:
                 fid.write(src_content)
 
         module = cupy.RawModule(code=src_content)
@@ -123,7 +129,7 @@ class ContextCupy(Context):
         ker_names = kernel_descriptions.keys()
         for nn in ker_names:
             if "return" in kernel_descriptions[nn]:
-                raise ValueError('Kernel return not supported!')
+                raise ValueError("Kernel return not supported!")
             kk = module.get_function(nn)
             aa = kernel_descriptions[nn]["args"]
             nt_from = kernel_descriptions[nn]["num_threads_from_arg"]
@@ -260,7 +266,7 @@ class ContextCupy(Context):
         return self._kernels
 
 
-class BufferCupy(Buffer):
+class BufferCupy(XBuffer):
     def _make_context(self):
         return ContextCupy()
 

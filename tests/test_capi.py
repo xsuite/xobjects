@@ -169,6 +169,6 @@ double Multipole_get_field_normal(Multipole* obj, int64_t i0){
 def test_struct_getter():
     class AStruct(xo.Struct):
         fa = xo.Int64
-        fb = xo.Double64
+        fb = xo.Float64
 
     s = AStruct()

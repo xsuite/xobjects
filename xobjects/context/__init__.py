@@ -6,4 +6,4 @@ from .general import available
 
 from .specialize_source import specialize_source
 
-ContextDefault = ContextCpu
+context_default = ContextCpu()

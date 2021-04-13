@@ -146,21 +146,33 @@ def test_array_dshape_stype():
         for ii in ss._iter_index():
             assert ss[ii] == (sum(ii) if len(ss._shape) > 1 else ii)
 
+    arr = Array1(10)
+    arr[3] = 42
+    data = arr._buffer.to_nplike("int64", (12,), arr._offset)
+    assert data[0] == 8 + 8 + 10 * 8
+    assert data[1] == 10
+    data[6] = 43
+    assert arr[4] == 43
+
+    arr = Array2(2)
+    arr[1, 2, 3] = 42
+    data = arr._buffer.to_nplike("int64", (29,), arr._offset)
+
+    assert data[0] == 8 + 8 + 3 * 8 + 24 * 8
+
 
 def test_array_sshape_dtype():
     Array1 = xo.Int64[:]
     Array2 = Array1[3]
-    ss = Array2([2, 3, 4])
-    ss[0][1] = 3
-    assert ss[0][1] == 3
+    arr = Array2([2, 3, 4])
+    arr[0][1] = 3
+    assert arr[0][1] == 3
 
-    ss0 = Array1(2)
-    ss1 = Array1(3)
-    ss2 = Array1(4)
-    assert ss0._shape == ss[0]._shape
+    arr1 = Array1(2)
+    assert arr1._shape == arr[0]._shape
 
 
-def test_array_sshape_stype():
+def test_array_dshape_dtype():
     Array1 = xo.Int64[:]
     Array2 = Array1[:]
     ss = Array2([2, 3, 4])

@@ -1,6 +1,6 @@
 import numpy as np
 
-from .context import ContextDefault
+from .context import context_default
 
 
 def get_a_buffer(size, context=None, buffer=None, offset=None):
@@ -8,7 +8,7 @@ def get_a_buffer(size, context=None, buffer=None, offset=None):
         if offset is not None:
             raise ValueError("Cannot set `offset` without buffer")
         if context is None:
-            context = ContextDefault()
+            context = context_default
         buffer = context.new_buffer(size)
     if offset is None:
         offset = buffer.allocate(size)

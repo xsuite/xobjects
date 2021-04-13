@@ -376,6 +376,12 @@ class BufferByteArray(XBuffer):
     def read(self, offset, size):
         return self.buffer[offset : offset + size]
 
+    def to_nplike(self, dtype, shape, offset):
+        count = np.prod(shape)
+        return np.frombuffer(
+            self.buffer, dtype=dtype, count=count, offset=offset
+        ).reshape(shape)
+
 
 # One could implement something like this and chose between Numpy and ByteArr
 # when building the context
@@ -444,7 +450,7 @@ class KernelCpu(object):
                 shape = tt[2]
                 count = np.prod(shape)
                 return np.from_buffer(ret, dtype=dtype, count=count).reshape(
-                    *shape
+                    shape
                 )
 
 

@@ -23,6 +23,19 @@ def get_last_type(specs, conf):
     return ret, size
 
 
+def get_last_type2(specs):
+    spec = specs[-1]
+    if hasattr(spec, "name"):  # is a field
+        lasttype = spec.ftype
+    elif hasattr(spec, "_shape"):  # is an array
+        lasttype = spec._itemtype
+    if hasattr(lasttype, "_cname"):
+        ret = ("scalar", lasttype._cname)
+    else:
+        ret = ("pointer", lasttype._cname)
+    return ret
+
+
 def gen_method_get_declaration(name, specs, conf):
     itype = conf.get("itype", "int64_t")
     prepointer = conf.get("prepointer", "")
@@ -46,6 +59,26 @@ def gen_method_get_declaration(name, specs, conf):
     return f"{method}({', '.join(args)})"
 
 
+def gen_method_get_description(name, specs, conf):
+    nparts = []
+    iparts = 0
+    for spec in specs:
+        if hasattr(spec, "name"):
+            nparts.append(spec.name)
+        elif hasattr(spec, "_shape"):
+            iparts += len(spec._shape)
+
+    ret = get_last_type2(specs)
+
+    fun_name = f"{name}_get"
+    if len(nparts) > 0:
+        fun_name += "_" + "_".join(nparts)
+    args = [(("pointer", name), "obj")]
+    if iparts > 0:
+        args.extend([(("scalar", name), f"i{ii}") for ii in range(iparts)])
+    return (fun_name, {"args": args, "return": ret})
+
+
 def gen_method_offset(specs, conf):
     itype = conf.get("itype", "int64_t")
     lst = [f"  {itype} offset=0;"]
@@ -63,7 +96,7 @@ def gen_method_offset(specs, conf):
     return "\n".join(lst)
 
 
-def gen_method_get_body(name, specs, conf):
+def gen_method_get_definition(name, specs, conf):
     prepointer = conf.get("prepointer", "")
 
     lst = [gen_method_get_declaration(name, specs, conf) + "{"]

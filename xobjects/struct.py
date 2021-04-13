@@ -374,9 +374,11 @@ class Struct(metaclass=MetaStruct):
         return out
 
     @classmethod
-    def _gen_method_get_body(cls, conf={}):
+    def _gen_method_get_definition(cls, conf={}):
         specs_list = cls._gen_method_specs()
         out = []
         for specs in specs_list:
-            out.append(capi.gen_method_get_body(cls.__name__, specs, conf))
+            out.append(
+                capi.gen_method_get_definition(cls.__name__, specs, conf)
+            )
         return out

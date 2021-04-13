@@ -132,3 +132,13 @@ def test_random_string():
             ch.check()
             ch.random_free()
             ch.check()
+
+
+def test_nplike():
+    ctx = xo.ContextCpu()
+    buff = ctx.new_buffer(capacity=80)
+    arr = np.arange(6.0).reshape((2, 3))
+    offset = 3
+    buff.copy_from(arr.tobytes(), 0, offset, arr.nbytes)
+    arr2 = buff.to_nplike("float64", (2, 3), offset)
+    assert np.all(arr == arr2)

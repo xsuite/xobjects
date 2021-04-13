@@ -1,4 +1,4 @@
-from .context import ContextCpu, ContextCupy, ContextPyopencl, ContextDefault
+from .context import ContextCpu, ContextCupy, ContextPyopencl
 
 from .scalar import (
     Float64,

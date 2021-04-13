@@ -81,7 +81,7 @@ def test_gen_method_get_body():
 
     Field, Multipole = gen_classes()
 
-    methods = Field._gen_method_get_body()
+    methods = Field._gen_method_get_definition()
 
     assert (
         methods[0]
@@ -101,7 +101,7 @@ double Field_get_skew(Field* obj){
 }"""
     )
 
-    methods = Multipole._gen_method_get_body()
+    methods = Multipole._gen_method_get_definition()
 
     assert (
         methods[0]
@@ -164,3 +164,11 @@ double Multipole_get_field_normal(Multipole* obj, int64_t i0){
   return *(double*)((char*) obj+offset);
 }"""
     )
+
+
+def test_struct_getter():
+    class AStruct(xo.Struct):
+        fa = xo.Int64
+        fb = xo.Double64
+
+    s = AStruct()

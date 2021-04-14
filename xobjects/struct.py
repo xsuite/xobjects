@@ -382,3 +382,7 @@ class Struct(metaclass=MetaStruct):
                 capi.gen_method_get_definition(cls.__name__, specs, conf)
             )
         return out
+
+    @classmethod
+    def _gen_api(cls, conf={}):
+        pass

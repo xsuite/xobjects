@@ -113,3 +113,128 @@ def gen_method_get_definition(name, specs, conf):
             lst.append(f"  return *({ret}*)((char*) obj+offset);")
     lst.append("}")
     return "\n".join(lst)
+
+
+class Function:
+    def __init__(
+        self,
+        args=None,
+        ret=None,
+        includes=None,
+        source=None,
+        body=None,
+        name=None,
+        sourcename=None,
+        contextname=None,
+    ):
+        self.name = None
+        self.sourcename = sourcename
+        self.args = args
+        self.ret = ret
+        self.includes = includes
+        self.source = source
+        self.body = body
+        self.contextname = contextname
+
+    def __get__(self, instance, cls=None):
+        return instance._buffer._context.kernels[self.contextname]
+
+    def register(self, instance):
+        if self.contextname not in instance._buffer._context.kernels:
+            source = instance.__class__._get_c_source()
+            descriptions = instance.__class__._get_description()
+
+
+class Method:
+    def __init__(
+        self,
+        args=None,
+        ret=None,
+        includes=None,
+        source=None,
+        body=None,
+        name=None,
+        sourcename=None,
+        contextname=None,
+    ):
+        self.name = Name
+        self.sourcename = sourcename
+        self.args = args
+        self.ret = ret
+        self.includes = includes
+        self.source = source
+        self.body = body
+        self.contextname = contextname
+
+    def __get__(self, instance, cls=None):
+        return instance._buffer._context.kernels[self.contextname]
+
+    def register(self, instance):
+        if self.contextname not in instance._buffer._context.kernels:
+            source = instance.__class__._get_c_source()
+            descriptions = instance.__class__._get_description()
+
+
+class Property:
+    def __init__(
+        self,
+        ret=None,
+        includes=None,
+        source=None,
+        body=None,
+        name=None,
+        sourcename=None,
+        contextname=None,
+    ):
+        self.sourcename = sourcename
+        self.args = args
+        self.ret = ret
+        self.includes = includes
+        self.source = source
+        self.body = body
+        self.contextname = contextname
+
+    def __get__(self, instance, cls=None):
+        return instance._buffer._context.methods[self.contextname](instance)()
+
+    def register(self, instance):
+        if self.contextname not in instance._buffer._context.kernels:
+            source = instance.__class__._get_c_source()
+            descriptions = instance.__class__._get_description()
+
+
+class Kernel:
+    def __init__(
+        self,
+        args=None,
+        ret=None,
+        grid=None,
+        includes=None,
+        source=None,
+        body=None,
+        name=None,
+        sourcename=None,
+        contextname=None,
+    ):
+        self.sourcename = sourcename
+        self.args = args
+        self.ret = ret
+        self.includes = includes
+        self.source = source
+        self.body = body
+        self.contextname = contextname
+
+    def __get__(self, instance, cls=None):
+        return instance._buffer._context.methods[self.contextname](instance)
+
+    def register(self, instance):
+        if self.contextname not in instance._buffer._context.kernels:
+            source = instance.__class__._get_c_source()
+            descriptions = instance.__class__._get_description()
+
+
+class Arg:
+    def __init__(self, name, dtype, qualifier="value"):
+        self.name = name
+        self.dtype = dtype
+        self.qualifier = qualifier

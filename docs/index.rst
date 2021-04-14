@@ -15,47 +15,52 @@ XObjects is a library to create and manipulate serialized object in CPU and GPU 
 
 Example (tentative)::
 
-    import xobjects as xo
-    import numpy as np
+  import xobjects as xo
+  import numpy as np
 
-    class Point(xo.Struct):
+  class Point(xo.Struct):
          x=xo.Float64
          y=xo.Float64
          z=xo.Float64
-         hello = xo.CFunction(
-         _include=["<stdio.h>"],
-         _src ='void hello(){ printf("Hello!\n" );}' )
-         dist = xo.CMethod(
-            a=Point, b=Point,
-            _include=["<math.h>"],
-            _body="""
-            double dx=Point_get_x(b)- Point_get_x(a);
-            double dy=Point_get_y(b)- Point_get_y(a);
-            double dz=Point_get_z(b)- Point_get_z(a);
-            return sqrt(dx*dx+dy*dy+dz*dz);""")
 
-    class Polygon(xo.Struct):
+  class Polygon(xo.Struct):
          point = Point[:]
          edge = xo.Int64[:,2]
-         path_length = xo.CMethod(
-             poly=Polygon,
-             _body="""
-             double length=0;
-             for (int ii; ii<Polygon_len_edge(poly); ii++){
-                aa=Polygon_get_edge(ii,0);
-                bb=Polygon_get_edge(ii,1);
-                length+=dist(Polygon_get_point(aa),Polygon_get_point(bb));
-             };
-             return length;""")
 
-   ctx= xo.OpenclContext(device="0.0")
-   mesh = Mesh(points=10,edges=10, _context=ctx)
-   mesh.points.x=np.random.rand(10);
-   mesh.points.y=np.random.rand(10);
-   mesh.points.z=np.random.rand(10);
-   mesh.points.edges=np.c_[np.arange(10),np.roll(np.arange(10),1)]
-   mesh.points[0].hello()
-   print(mesh.path_length())
+  ctx= xo.ContextCPU()
+
+
+  source="""
+  #include <math.h>
+
+  double dist(Point a, Point b){
+    double dx=Point_get_x(b)- Point_get_x(a);
+    double dy=Point_get_y(b)- Point_get_y(a);
+    double dz=Point_get_z(b)- Point_get_z(a);
+    return sqrt(dx*dx+dy*dy+dz*dz);
+  }
+
+  double length(Polygon poly){
+    double length=0;
+    for (int ii; ii<Polygon_len_edge(self); ii++){
+      aa=Polygon_get_edge(ii,0);
+      bb=Polygon_get_edge(ii,1);
+      length+=dist(Polygon_get_point(self,aa),Polygon_get_point(self,bb));
+  };
+  return length;"""
+
+
+
+  ctx.add_functions(source,
+                    [xo.Function( sourcename="length", args=[Arg("poly",Polygon)]) ] )
+
+  poly = Polygon(points=10,edges=10, _context=ctx)
+  poly.points.x=np.random.rand(10);
+  poly.points.y=np.random.rand(10);
+  poly.points.z=np.random.rand(10);
+  poly.points.edges=np.c_[np.arange(10),np.roll(np.arange(10),1)]
+  print(poly.path_length())
+
 
 Content
 -----------

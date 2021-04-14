@@ -165,10 +165,31 @@ double Multipole_get_field_normal(Multipole* obj, int64_t i0){
 }"""
     )
 
+    assert (
+        methods[6]
+        == """\
+double Multipole_get_field_skew(Multipole* obj, int64_t i0){
+  int64_t offset=0;
+  offset+=32;
+  offset+=16+i0*16;
+  offset+=8;
+  return *(double*)((char*) obj+offset);
+}"""
+    )
+
 
 def test_struct_getter():
     class AStruct(xo.Struct):
         fa = xo.Int64
         fb = xo.Float64
+        afun = xo.Function(
+            sourcename="hello",
+            args=[xo.Arg("n", xo.Int32)],
+            ret=None,
+            includes=["<stdio.h>"],
+            source='void hello(int n){ printf("Hello %d!",n);',
+        )
 
     s = AStruct()
+
+    assert s == s

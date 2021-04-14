@@ -81,6 +81,7 @@ class MetaString(type):
         return buffer.read(offset + 8, ll - 8)
 
     def _from_buffer(cls, buffer, offset):
+        # TODO keep in mind that in windows many funcitons returns wchar encoded in utf16
         return cls._get_data(buffer, offset).decode("utf8").rstrip("\x00")
 
     def fixed(cls, size):

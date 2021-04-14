@@ -17,3 +17,6 @@ from .string import String
 from .struct import Struct, Field
 from .union import Union
 from .unionref import UnionRef
+
+
+from .capi import Function, Method, Property, Arg, Kernel

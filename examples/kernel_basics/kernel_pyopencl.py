@@ -15,7 +15,7 @@ void mymul(int n,
 
 }"""
 
-ctx = cl.create_some_context()
+ctx = cl.create_some_context(interactive=False)
 queue = cl.CommandQueue(ctx)
 
 prg = cl.Program(ctx, source_str).build()

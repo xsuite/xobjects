@@ -37,13 +37,14 @@ class ContextCupy(XContext):
 
     """
 
-    def __init__(self, default_block_size=256, device=0):
+    def __init__(self, default_block_size=256, device=None):
 
-        cupy.Device(device).use()
+        if device is not None:
+            cupy.Device(device).use()
+
         super().__init__()
 
         self.default_block_size = default_block_size
-        self.device = device
 
     def _make_buffer(self, capacity):
         return BufferCupy(capacity=capacity, context=self)

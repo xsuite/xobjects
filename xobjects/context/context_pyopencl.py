@@ -36,7 +36,7 @@ class ContextPyopencl(XContext):
             for id, device in enumerate(platform.get_devices()):
                 print(f"Device {ip}.{id}: {device.name}")
 
-    def __init__(self, device="0.0", patch_pyopencl_array=True):
+    def __init__(self, device=None, patch_pyopencl_array=True):
 
         """
         Creates a Pyopencl Context object, that allows performing the computations
@@ -58,8 +58,11 @@ class ContextPyopencl(XContext):
 
         super().__init__()
 
+        # TODO assume one device only
         if device is None:
-            self.context = cl.create_some_context()
+            self.context = cl.create_some_context(interactive=False)
+            self.device = ctx.devices[0]
+            self.platform = ctx.devices[0].platform
         else:
             if isinstance(device, str):
                 platform, device = map(int, device.split("."))

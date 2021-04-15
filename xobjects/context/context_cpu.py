@@ -370,17 +370,20 @@ class BufferByteArray(XBuffer):
             src_offset : src_offset + byte_count
         ]
 
-    def write(self, offset, data):
+    def write(self, offset, data, count=0):
         self.buffer[offset : offset + len(data)] = data
 
-    def read(self, offset, size):
-        return self.buffer[offset : offset + size]
+    def read(self, offset, nbytes):
+        return self.buffer[offset : offset + nbytes]
 
-    def to_nplike(self, dtype, shape, offset):
+    def to_nplike(self, dtype, shape, offset=0):
         count = np.prod(shape)
         return np.frombuffer(
             self.buffer, dtype=dtype, count=count, offset=offset
         ).reshape(shape)
+
+    def to_bytearray(self, offset, nbytes):
+        return self.buffer[offset : offset + nbytes]
 
 
 # One could implement something like this and chose between Numpy and ByteArr

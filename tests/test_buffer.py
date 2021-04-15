@@ -153,20 +153,20 @@ def test_type_matrix():
 
     import numpy as np
 
-    data = []
-    data.append(np.zeros(24, dtype="uint8"))
-    data.append(np.zeros((6, 4), dtype="double"))
-    data.append(np.zeros((6, 2, 4), dtype="double")[:, 1, :])
-    data.append(bytearray(24))
+    sources = []
+    sources.append(bytearray(24))
+    sources.append(np.zeros(24, dtype="uint8"))
+    sources.append(np.zeros((6, 4), dtype="double"))
+    sources.append(np.zeros((6, 2, 4), dtype="double")[:, 1, :])
 
     try:
         import pyopencl
 
         ctx = pyopencl.create_some_context(0)
         queue = pyopencl.CommandQueue(ctx)
-        data.append(pyopencl.Buffer(queue, pyopencl.mem_flags.READ_WRITE, 24))
-        data.append(pyopencl.array.Array(queue, shape=24, dtype="uint8"))
-        data.append(
+        sources.append(pyopencl.Buffer(ctx, pyopencl.mem_flags.READ_WRITE, 24))
+        sources.append(pyopencl.array.Array(queue, shape=24, dtype="uint8"))
+        sources.append(
             pyopencl.array.Array(queue, shape=(6, 2, 4), dtype="uint8")
         )[:, 1, :]
     except:

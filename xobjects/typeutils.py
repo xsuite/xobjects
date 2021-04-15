@@ -25,8 +25,8 @@ def dispatch_arg(f, arg):
 
 
 class Info:
-    def __init__(self, **nargs):
-        self.__dict__.update(nargs)
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
 
     def __repr__(self):
         args = [f"{k}={repr(v)}" for k, v in self.__dict__.items()]
@@ -47,3 +47,27 @@ def _is_dynamic(cls):
 
 def is_integer(i):
     return isinstance(i, (int, np.integer))
+
+
+float2c = {2: "half", 4: "float", 8: "double", 16: "double[2]"}
+
+
+def get_c_type(typ):
+    if hasattr(typ, "dtype"):
+        ss = typ.dtype.str
+        tt = ss[1]
+        nb = int(ss[2:])
+        if tt == "f":
+            return float2c[nb]
+        elif tt == "i":
+            return f"int{nb*8}_t"
+        elif tt == "u":
+            return f"int{nb*8}_t"
+        elif tt == "c":
+            return f"{float2c[nb//2]}[2]"
+        elif tt == "S":
+            return f"char[{nb}]"
+    elif hasattr(typ, "_c_type"):
+        return typ._c_type
+    else:
+        raise ValueError(f"Cannot find C type for type {typ}")

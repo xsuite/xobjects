@@ -182,14 +182,11 @@ def test_struct_getter():
     class AStruct(xo.Struct):
         fa = xo.Int64
         fb = xo.Float64
-        afun = xo.Function(
-            sourcename="hello",
-            args=[xo.Arg("n", xo.Int32)],
-            ret=None,
-            includes=["<stdio.h>"],
-            source='void hello(int n){ printf("Hello %d!",n);',
-        )
 
-    s = AStruct()
+    ctx = xo.ContextCpu()
 
-    assert s == s
+    source = AStruct._get_c_api()
+
+    ctx.add_kernels
+
+    assert 1 == 1

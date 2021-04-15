@@ -13,7 +13,9 @@ Welcome to XObjects's documentation!
 
 XObjects is a library to create and manipulate serialized object in CPU and GPU memory efficiently in Python and C.
 
-Example (tentative)::
+Example (tentative)
+
+.. code-block:: python
 
   import xobjects as xo
   import numpy as np

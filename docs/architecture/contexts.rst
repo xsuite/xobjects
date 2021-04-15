@@ -8,6 +8,21 @@ Devices
 Buffers
 -------
 
+Buffers are able to store data in the host or device from several object types and return data in device or host.
+
+
+Instance methods:
+
+*  write(self, source, offset, nbytes): write nbytes from source that can be a np-like array, bytearray, bytes or another buffer
+*  to_nplike(self,dtype,shape,offset): return a view of the data in a np-like arrays
+*  to_bytearray(self,offset,count): return
+
+.. code:: python
+
+   def write(self, source, offset, nbytes):
+       source[offset:offset+nbytes]
+
+
 
 Code generation
 ---------------
@@ -27,8 +42,7 @@ The callable functions are defined by:
 
 The callable functions are parametrized by name and argument types.
 
-Each xobject type can provide the API source code  the `_get_capi()` class method.
-
+Each xobject type can provide the API source code  the ``_get_c_api()`` class method.
 
 
 

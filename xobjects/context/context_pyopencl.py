@@ -58,15 +58,19 @@ class ContextPyopencl(XContext):
 
         super().__init__()
 
-        if isinstance(device, str):
-            platform, device = map(int, device.split("."))
+        if device is None:
+            self.context = cl.create_some_context()
         else:
-            self.device = device
-            self.platform = device.platform
+            if isinstance(device, str):
+                platform, device = map(int, device.split("."))
+            else:
+                self.device = device
+                self.platform = device.platform
 
-        self.platform = cl.get_platforms()[platform]
-        self.device = self.platform.get_devices()[device]
-        self.context = cl.Context([self.device])
+            self.platform = cl.get_platforms()[platform]
+            self.device = self.platform.get_devices()[device]
+            self.context = cl.Context([self.device])
+
         self.queue = cl.CommandQueue(self.context)
 
         if patch_pyopencl_array:
@@ -335,6 +339,14 @@ class BufferPyopencl(XBuffer):
             self.context.queue, data, self.buffer, device_offset=offset
         )
         return data
+
+    def to_nplike(self, dtype, shape, offset=0):
+        return cl.array.Array(
+            self.context.queue,
+            base_data=self.buffer,
+            offset=offset,
+            shape=shape,
+        )
 
 
 class KernelCpu(object):

@@ -142,3 +142,32 @@ def test_nplike():
     buff.copy_from(arr.tobytes(), 0, offset, arr.nbytes)
     arr2 = buff.to_nplike("float64", (2, 3), offset)
     assert np.all(arr == arr2)
+
+
+def test_type_matrix():
+    try:
+        import pyopencl
+        import cupy
+    except ImportError:
+        return
+
+    import numpy as np
+
+    data = []
+    data.append(np.zeros(24, dtype="uint8"))
+    data.append(np.zeros((6, 4), dtype="double"))
+    data.append(np.zeros((6, 2, 4), dtype="double")[:, 1, :])
+    data.append(bytearray(24))
+
+    try:
+        import pyopencl
+
+        ctx = pyopencl.create_some_context(0)
+        queue = pyopencl.CommandQueue(ctx)
+        data.append(pyopencl.Buffer(queue, pyopencl.mem_flags.READ_WRITE, 24))
+        data.append(pyopencl.array.Array(queue, shape=24, dtype="uint8"))
+        data.append(
+            pyopencl.array.Array(queue, shape=(6, 2, 4), dtype="uint8")
+        )[:, 1, :]
+    except:
+        pass

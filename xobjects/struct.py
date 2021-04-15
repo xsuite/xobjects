@@ -172,7 +172,7 @@ class MetaStruct(type):
             def _get_size(self):
                 return self.__class__._size
 
-            def _inspect_args(cls, *args, **nargs):
+            def _inspect_args(cls, *args, **kwargs):
                 return Info(size=cls._size, is_static_size=True)
 
         else:
@@ -195,8 +195,8 @@ class MetaStruct(type):
             def _get_size(self):
                 return Int64._from_buffer(self._buffer, self._offset)
 
-            def _inspect_args(cls, *args, **nargs):
-                log.debug(f"get size for {cls} from {args} {nargs}")
+            def _inspect_args(cls, *args, **kwargs):
+                log.debug(f"get size for {cls} from {args} {kwargs}")
                 if len(args) == 1:
                     arg = args[0]
                     if isinstance(arg, dict):
@@ -229,7 +229,7 @@ class MetaStruct(type):
                     else:
                         raise ValueError(f"{arg} Not valid type for {cls}")
                 else:  # python argument
-                    return cls._inspect_args(nargs)
+                    return cls._inspect_args(kwargs)
 
         data["_size"] = size
         data["_get_size"] = _get_size
@@ -293,14 +293,14 @@ class Struct(metaclass=MetaStruct):
                 if field.name in value:
                     field.__set__(self, value[field.name])
 
-    def __init__(self, _context=None, _buffer=None, _offset=None, **nargs):
+    def __init__(self, _context=None, _buffer=None, _offset=None, **kwargs):
         """
         Create new struct in buffer from offset.
         If offset not provide
         """
         cls = self.__class__
         # compute resources
-        info = cls._inspect_args(**nargs)
+        info = cls._inspect_args(**kwargs)
         self._size = info.size
         # acquire buffer
         self._buffer, self._offset = get_a_buffer(
@@ -309,7 +309,7 @@ class Struct(metaclass=MetaStruct):
         # if dynamic struct store dynamic offsets
         if hasattr(info, "_offsets"):
             self._offsets = info._offsets  # struct offsets
-        self.__class__._to_buffer(self._buffer, self._offset, nargs, info)
+        self.__class__._to_buffer(self._buffer, self._offset, kwargs, info)
         self._cache = {}
 
     @classmethod
@@ -384,5 +384,5 @@ class Struct(metaclass=MetaStruct):
         return out
 
     @classmethod
-    def _gen_api(cls, conf={}):
+    def _get_c_api(cls, conf={}):
         pass

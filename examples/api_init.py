@@ -18,8 +18,8 @@ class StructB:
 
 
 class StructC:
-    def _parse_args_(self, *args, **nargs):
-        return args, nargs
+    def _parse_args_(self, *args, **kwargs):
+        return args, kwargs
 
 
 a = StructA()  # default struct

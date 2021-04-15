@@ -61,8 +61,8 @@ class ContextPyopencl(XContext):
         # TODO assume one device only
         if device is None:
             self.context = cl.create_some_context(interactive=False)
-            self.device = ctx.devices[0]
-            self.platform = ctx.devices[0].platform
+            self.device = self.context.devices[0]
+            self.platform = self.device.platform
         else:
             if isinstance(device, str):
                 platform, device = map(int, device.split("."))

@@ -342,17 +342,34 @@ class FFTCupy(object):
 
         from cupyx.scipy import fftpack as cufftp
 
+        if data.flags.f_contiguous:
+            self._ax = [data.ndim-1-aa for aa in axes]
+            _dat = data.T
+            self.f_contiguous = True
+        else:
+            self._ax = axes
+            _dat = data
+            self.f_contiguous = False
+
         self._fftplan = cufftp.get_fft_plan(
-            data, axes=self.axes, value_type="C2C"
+            _dat, axes=self._ax, value_type="C2C"
         )
 
     def transform(self, data):
-        data[:] = cufftp.fftn(data, axes=self.axes, plan=self._fftplan)[:]
+        if self.f_contiguous:
+            _dat = data.T
+        else:
+            _dat = data
+        _dat[:] = cufftp.fftn(_dat, axes=self._ax, plan=self._fftplan)[:]
         """The transform is done inplace"""
 
     def itransform(self, data):
         """The transform is done inplace"""
-        data[:] = cufftp.ifftn(data, axes=self.axes, plan=self._fftplan)[:]
+        if self.f_contiguous:
+            _dat = data.T
+        else:
+            _dat = data
+        _dat[:] = cufftp.ifftn(_dat, axes=self._ax, plan=self._fftplan)[:]
 
 
 if _enabled:

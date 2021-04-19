@@ -148,7 +148,7 @@ def test_array_dshape_stype():
 
     arr = Array1(10)
     arr[3] = 42
-    data = arr._buffer.to_nplike("int64", (12,), arr._offset)
+    data = arr._buffer.to_nplike(arr._offset, "int64", (12,))
     assert data[0] == 8 + 8 + 10 * 8
     assert data[1] == 10
     data[6] = 43
@@ -156,7 +156,7 @@ def test_array_dshape_stype():
 
     arr = Array2(2)
     arr[1, 2, 3] = 42
-    data = arr._buffer.to_nplike("int64", (29,), arr._offset)
+    data = arr._buffer.to_nplike(arr._offset, "int64", (29,))
 
     assert data[0] == 8 + 8 + 3 * 8 + 24 * 8
 

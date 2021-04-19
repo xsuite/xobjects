@@ -36,7 +36,7 @@ class ContextPyopencl(XContext):
             for id, device in enumerate(platform.get_devices()):
                 print(f"Device {ip}.{id}: {device.name}")
 
-    def __init__(self, device="0.0", patch_pyopencl_array=True):
+    def __init__(self, device=None, patch_pyopencl_array=True):
 
         """
         Creates a Pyopencl Context object, that allows performing the computations
@@ -58,15 +58,22 @@ class ContextPyopencl(XContext):
 
         super().__init__()
 
-        if isinstance(device, str):
-            platform, device = map(int, device.split("."))
+        # TODO assume one device only
+        if device is None:
+            self.context = cl.create_some_context(interactive=False)
+            self.device = self.context.devices[0]
+            self.platform = self.device.platform
         else:
-            self.device = device
-            self.platform = device.platform
+            if isinstance(device, str):
+                platform, device = map(int, device.split("."))
+            else:
+                self.device = device
+                self.platform = device.platform
 
-        self.platform = cl.get_platforms()[platform]
-        self.device = self.platform.get_devices()[device]
-        self.context = cl.Context([self.device])
+            self.platform = cl.get_platforms()[platform]
+            self.device = self.platform.get_devices()[device]
+            self.context = cl.Context([self.device])
+
         self.queue = cl.CommandQueue(self.context)
 
         if patch_pyopencl_array:
@@ -335,6 +342,73 @@ class BufferPyopencl(XBuffer):
             self.context.queue, data, self.buffer, device_offset=offset
         )
         return data
+
+    def update_from_native(
+        self, offset: int, source: cl.Buffer, source_offset: int, nbytes: int
+    ):
+        """Copy data from native buffer into self.buffer starting from offset"""
+        cl.enqueue_copy(
+            self.context.queue,
+            self.buffer,
+            source,
+            src_offset=source_offset,
+            dest_offset=offset,
+            byte_count=nbytes,
+        )
+
+    def copy_native(self, offset: int, nbytes: int):
+        """return native data with content at from offset and nbytes"""
+        buff = cl.Buffer(self.context.context, cl.mem_flags.READ_WRITE, nbytes)
+        cl.enqueue_copy(
+            queue=self.context.queue,
+            dest=buff,
+            src=self.buffer,
+            src_offset=offset,
+            byte_count=nbytes,
+        )
+        return buff
+
+    def update_from_buffer(self, offset: int, source):
+        """Copy data from python buffer such as bytearray, bytes, memoryview, numpy array.data"""
+        cl.enqueue_copy(
+            queue=self.context.queue,
+            dest=self.buffer,
+            src=source,  # nbytes taken from min(len(source),len(buffer))
+            device_offset=offset,
+        )
+
+    def to_nplike(self, offset, dtype, shape):
+        """view in nplike"""
+        return cl.array.Array(
+            self.context.queue,
+            base_data=self.buffer,
+            offset=offset,
+            shape=shape,
+        )
+
+    def update_from_nplike(self, offset, dest_dtype, arr):
+        if arr.dtype != dest_dtype:
+            arr = arr.astype(dest_dtype)
+        self.update_from_native(offset, arr.base_data, arr.offset, arr.nbytes)
+
+    def to_bytearray(self, offset, nbytes):
+        """copy in byte array: used in update_from_xbuffer"""
+        data = bytearray(nbytes)
+        cl.enqueue_copy(
+            queue=self.context.queue,
+            dest=data,  # nbytes taken from min(len(data),len(buffer))
+            src=self.buffer,
+            device_offset=offset,
+        )
+        return data
+
+    def to_pointer_arg(self, offset, nbytes):
+        """return data that can be used as argument in kernel
+
+        Can fail if offset is not a multiple of self.alignment
+
+        """
+        return self.buffer[offset : offset + nbytes]
 
 
 class KernelCpu(object):

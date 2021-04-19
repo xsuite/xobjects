@@ -189,4 +189,4 @@ def test_struct_getter():
 
     ctx.add_kernels
 
-    assert 1 == 1
+    assert source == source

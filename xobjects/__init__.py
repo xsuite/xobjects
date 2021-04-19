@@ -19,4 +19,4 @@ from .union import Union
 from .unionref import UnionRef
 
 
-from .capi import Function, Method, Property, Arg, Kernel
+# from .capi import Function, Method, Property, Arg, Kernel

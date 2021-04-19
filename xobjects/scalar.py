@@ -21,12 +21,12 @@ class NumpyScalar:
         self._cname = cname
 
     def _from_buffer(self, buffer, offset):
-        data = buffer.read(offset, self._size)
+        data = buffer.to_bytearray(offset, self._size)
         return np.frombuffer(data, dtype=self._dtype)[0]
 
     def _to_buffer(self, buffer, offset, value, info=None):
         data = self._dtype.type(value).tobytes()
-        buffer.write(offset, data)
+        buffer.update_from_buffer(offset, data)
 
     def __call__(self, value=0):
         return self._dtype.type(value)
@@ -43,10 +43,10 @@ class NumpyScalar:
         return self.__name__
 
     def _array_to_buffer(self, buffer, offset, value):
-        return buffer.write(offset, value.tobytes())
+        return buffer.update_from_buffer(offset, value.tobytes())
 
     def _array_from_buffer(self, buffer, offset, count):
-        return np._frombuffer(
+        return np.frombuffer(
             buffer, dtype=self._dtype, offset=offset, count=count
         )
 

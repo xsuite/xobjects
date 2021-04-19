@@ -70,6 +70,18 @@ def test_read_write():
         assert buff.read(23, len(bb)) == bb
 
 
+def test_to_from_byterarray():
+    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
+        if CTX not in available:
+            continue
+        print(f"Test {CTX}")
+        ctx = CTX()
+        buff = ctx.new_buffer()
+        bb = b"asdfasdfafsdf"
+        buff.update_from_buffer(23, bb)
+        assert buff.to_bytearray(23, len(bb)) == bb
+
+
 def test_allocate_simple():
     for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
         if CTX not in available:
@@ -140,5 +152,35 @@ def test_nplike():
     arr = np.arange(6.0).reshape((2, 3))
     offset = 3
     buff.copy_from(arr.tobytes(), 0, offset, arr.nbytes)
-    arr2 = buff.to_nplike("float64", (2, 3), offset)
+    arr2 = buff.to_nplike(offset, "float64", (2, 3))
     assert np.all(arr == arr2)
+
+
+def test_type_matrix():
+    try:
+        import pyopencl
+        import cupy
+    except ImportError:
+        return
+
+    import numpy as np
+
+    sources = []
+    sources.append(bytearray(24))
+    sources.append(np.zeros(24, dtype="uint8"))
+    sources.append(np.zeros((6, 4), dtype="double"))
+    sources.append(np.zeros((6, 2, 4), dtype="double")[:, 1, :])
+
+    try:
+        import pyopencl
+        import pyopencl.array
+
+        ctx = pyopencl.create_some_context(0)
+        queue = pyopencl.CommandQueue(ctx)
+        sources.append(pyopencl.Buffer(ctx, pyopencl.mem_flags.READ_WRITE, 24))
+        sources.append(pyopencl.array.Array(queue, shape=24, dtype="uint8"))
+        sources.append(
+            pyopencl.array.Array(queue, shape=(6, 2, 4), dtype="uint8")
+        )[:, 1, :]
+    except:
+        pass

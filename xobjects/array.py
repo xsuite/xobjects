@@ -395,15 +395,10 @@ class Array(metaclass=MetaArray):
         if not cls._is_static_type:
             Int64._array_to_buffer(buffer, coffset, info.offsets)
             coffset += 8 * len(info.offsets)
-        if isinstance(value, np.ndarray) and hasattr(
-            cls._itemtype, "_dtype"
-        ):  # not robust try scalar classes
-            if cls._itemtype._dtype == value.dtype:
-                buffer.write(coffset, value.tobytes())
-            else:
-                buffer.write(
-                    coffset, value.astype(cls._itemtype._dtype).tobytes()
-                )
+        if hasattr(cls._itemtype, "_dtype") and hasattr(
+            value, "dtype"
+        ):  # is a scalar type:
+            buffer.update_from_nplike(offset, cls._itemtype._dtype, value)
         elif isinstance(value, cls):
             if value._size == info.size:
                 buffer.copy_from(

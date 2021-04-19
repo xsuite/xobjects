@@ -307,7 +307,7 @@ class BufferCupy(XBuffer):
             .reshape(*shape)
         )
 
-    def update_from_nplike(self, offset, arr, dest_dtype):
+    def update_from_nplike(self, offset, dest_dtype, arr):
         if arr.dtype != dest_dtype:
             arr = arr.astype(dest_dtype)
         self.update_from_native(offset, arr.data, 0, arr.nbytes)

@@ -28,7 +28,7 @@ def test_scalar_buffer():
     for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
         if CTX not in available:
             continue
-        print(f'Test {CTX}')
+        print(f"Test {CTX}")
         ctx = CTX()
         buff = ctx.new_buffer()
         for sc in scalars:
@@ -37,4 +37,3 @@ def test_scalar_buffer():
             vv = sc._from_buffer(buff, offset)
             assert nn == vv
             assert nn == sc(nn)
-

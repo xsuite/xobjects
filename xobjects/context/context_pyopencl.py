@@ -343,13 +343,72 @@ class BufferPyopencl(XBuffer):
         )
         return data
 
-    def to_nplike(self, dtype, shape, offset=0):
+    def update_from_native(
+        self, offset: int, source: cl.Buffer, source_offset: int, nbytes: int
+    ):
+        """Copy data from native buffer into self.buffer starting from offset"""
+        cl.enqueue_copy(
+            self.context.queue,
+            self.buffer,
+            source,
+            src_offset=source_offset,
+            dest_offset=offset,
+            byte_count=nbytes,
+        )
+
+    def copy_native(self, offset: int, nbytes: int):
+        """return native data with content at from offset and nbytes"""
+        buff = cl.Buffer(self.context.context, cl.mem_flags.READ_WRITE, nbytes)
+        cl.enqueue_copy(
+            queue=self.context.queue,
+            dest=buff,
+            src=self.buffer,
+            src_offset=offset,
+            byte_count=nbytes,
+        )
+        return buff
+
+    def update_from_buffer(self, offset: int, source):
+        """Copy data from python buffer such as bytearray, bytes, memoryview, numpy array.data"""
+        cl.enqueue_copy(
+            queue=self.context.queue,
+            dest=self.buffer,
+            src=source,  # nbytes taken from min(len(source),len(buffer))
+            device_offset=offset,
+        )
+
+    def to_nplike(self, offset, dtype, shape):
+        """view in nplike"""
         return cl.array.Array(
             self.context.queue,
             base_data=self.buffer,
             offset=offset,
             shape=shape,
         )
+
+    def update_from_nplike(self, offset, dest_dtype, arr):
+        if arr.dtype != dest_dtype:
+            arr = arr.astype(dest_dtype)
+        self.update_from_native(offset, arr.base_data, arr.offset, arr.nbytes)
+
+    def to_bytearray(self, offset, nbytes):
+        """copy in byte array: used in update_from_xbuffer"""
+        data = bytearray(nbytes)
+        cl.enqueue_copy(
+            queue=self.context.queue,
+            dest=data,  # nbytes taken from min(len(data),len(buffer))
+            src=self.buffer,
+            device_offset=offset,
+        )
+        return data
+
+    def to_pointer_arg(self, offset, nbytes):
+        """return data that can be used as argument in kernel
+
+        Can fail if offset is not a multiple of self.alignment
+
+        """
+        return self.buffer[offset : offset + nbytes]
 
 
 class KernelCpu(object):

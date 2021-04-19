@@ -49,7 +49,7 @@ class MetaString(type):
                 size = _to_slot_size(len(data) + 1 + 8)
                 return Info(size=size, data=data)  # add zero termination
             elif isinstance(string_or_int, cls):
-                return Info(size=string_or_int._get_size())
+                return Info(size=string_or_int._size)
             raise ValueError(
                 f"String can accept only one integer or string and not `{string_or_int}`"
             )
@@ -64,13 +64,15 @@ class MetaString(type):
         string_capacity = info.size - 8
         Int64._to_buffer(buffer, offset, size)
         if isinstance(value, String):
-            buffer.write(offset, value.to_bytes())
+            buffer.update_from_xbuffer(
+                offset, value._buffer, value._offset, value._size
+            )
         elif isinstance(value, str):
             data = info.data
             off = string_capacity - len(data)
             data += b"\x00" * off
             log.debug(f"to_buffer {offset+8} {len(data)} {string_capacity}")
-            buffer.write(offset + 8, data)
+            buffer.update_from_buffer(offset + 8, data)
         elif is_integer(value):
             pass
         else:
@@ -96,9 +98,6 @@ class MetaString(type):
 class String(metaclass=MetaString):
     _size = None
     _cname = "char*"
-
-    def _get_size(self):
-        return Int64._from_buffer(self._buffer, self._offset)
 
     def __init__(
         self, string_or_int, _buffer=None, _offset=None, _context=None

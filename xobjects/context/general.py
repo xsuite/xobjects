@@ -153,6 +153,48 @@ class XBuffer(ABC):
         "return newbuffer"
 
     @abstractmethod
+    def update_from_native(self, offset, source, source_offset, nbytes):
+        """Copy data from native buffer into self.buffer starting from offset"""
+
+    @abstractmethod
+    def copy_native(self, offset, nbytes):
+        """return native data with content at from offset and nbytes"""
+
+    @abstractmethod
+    def update_from_buffer(self, offset, source):
+        """Copy data from python buffer such as bytearray, bytes, memoryview, numpy array.data"""
+
+    @abstractmethod
+    def to_nplike(self, offset, dtype, shape):
+        """view in nplike"""
+
+    @abstractmethod
+    def to_bytearray(self, offset, nbytes):
+        """copy in byte array: used in update_from_xbuffer"""
+
+    @abstractmethod
+    def to_pointer_arg(self, offset, nbytes):
+        """return data that can be used as argument in kernel"""
+
+    def update_from_xbuffer(self, offset, source, source_offset, nbytes):
+        """update from any xbuffer, don't pass through gpu if possible"""
+        if source.context == self.context:
+            self.update_from_native(
+                offset, source.buffer, source_offset, nbytes
+            )
+        else:
+            data = source.to_bytearray(source_offset, nbytes)
+            self.update_from_buffer(offset, data)
+
+    def get_free(self):
+        return sum([ch.size for ch in self.chunks])
+
+    def __repr__(self):
+        name = self.__class__.__name__
+        return f"<{name} {self.get_free()}/{self.capacity}>"
+
+    ##Old API
+    @abstractmethod
     def copy_to(self, dest):
         pass
 
@@ -167,13 +209,6 @@ class XBuffer(ABC):
     @abstractmethod
     def read(self, offset, size):
         "return data"
-
-    def get_free(self):
-        return sum([ch.size for ch in self.chunks])
-
-    def __repr__(self):
-        name = self.__class__.__name__
-        return f"<{name} {self.get_free()}/{self.capacity}>"
 
 
 class Chunk:

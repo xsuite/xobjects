@@ -99,7 +99,7 @@ class Field:
 
         if hasattr(self.ftype, "_update"):
             self.__get__(instance)._update(value)
-        else:
+        else:  # TODO check if below is really needed
             offset = instance._offset + self.get_offset(instance)
             self.ftype._to_buffer(instance._buffer, offset, value)
 
@@ -263,19 +263,17 @@ class Struct(metaclass=MetaStruct):
     @classmethod
     def _to_buffer(cls, buffer, offset, value, info=None):
         if isinstance(value, cls):  # binary copy
-            value_size = value._size
-            if value._buffer.context is buffer.context:
-                buffer.copy_from(
-                    value._buffer, value._offset, offset, value_size
-                )
-            else:
-                data = value._buffer.read(value._offset, value_size)
-                buffer.write(offset, data)
+            buffer.update_from_xbuffer(
+                offset, value._buffer, value._offset, value._size
+            )
         else:  # value must be a dict, again potential disctructive
-            if info is not None:
-                if hasattr(info, "_offsets"):
-                    cls._set_offsets(buffer, offset, info._offsets)
-                extra = getattr(info, "extra", {})
+            if info is None:
+                info = cls._inspect_args(value)
+            if hasattr(
+                info, "_offsets"
+            ):  # if it has a least two dynamic fields
+                cls._set_offsets(buffer, offset, info._offsets)
+            extra = getattr(info, "extra", {})
             for field in cls._fields:
                 fvalue = field.value_from_args(value)
                 foffset = offset + field.get_offset(info)
@@ -285,8 +283,8 @@ class Struct(metaclass=MetaStruct):
     def _update(self, value):
         # check if direct copy is possible
         if isinstance(value, self.__class__) and value._size == self._size:
-            self._buffer.copy_from(
-                value._buffer, value._offset, self._offset, self._size
+            self._buffer.update_from_xbuffer(
+                self._offset, value._buffer, value._offset, value._size
             )
         else:
             for field in self._fields:
@@ -309,7 +307,7 @@ class Struct(metaclass=MetaStruct):
         # if dynamic struct store dynamic offsets
         if hasattr(info, "_offsets"):
             self._offsets = info._offsets  # struct offsets
-        self.__class__._to_buffer(self._buffer, self._offset, kwargs, info)
+        cls._to_buffer(self._buffer, self._offset, kwargs, info)
         self._cache = {}
 
     @classmethod

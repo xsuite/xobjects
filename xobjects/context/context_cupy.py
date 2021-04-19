@@ -20,6 +20,10 @@ except ImportError:
     _enabled = False
 
 
+def nplike_to_cupy(arr):
+    return cupy.array(arr)
+
+
 class ContextCupy(XContext):
 
     """
@@ -278,6 +282,43 @@ class BufferCupy(XBuffer):
 
     def _new_buffer(self, capacity):
         return cupy.zeros(shape=(capacity,), dtype=cupy.uint8)
+
+    def update_from_native(self, offset, source, source_offset, nbytes):
+        """Copy data from native buffer into self.buffer starting from offset"""
+        self.buffer[offset : offset + nbytes] = source[
+            source_offset : source_offset + nbytes
+        ]
+
+    def copy_native(self, offset, nbytes):
+        """return native data with content at from offset and nbytes"""
+        return self.buffer[offset : offset + nbytes]
+
+    def update_from_buffer(self, offset, source):
+        """Copy data from python buffer such as bytearray, bytes, memoryview, numpy array.data"""
+        nbytes = len(source)
+        self.buffer[offset : offset + nbytes] = source
+
+    def to_nplike(self, offset, dtype, shape):
+        """view in nplike"""
+        nbytes = np.prod(shape) * dtype.itemsize
+        return (
+            self.buffer[offset : offset + nbytes]
+            .asarray(dtype=dtype)
+            .reshape(*shape)
+        )
+
+    def update_from_nplike(self, offset, arr, dest_dtype):
+        if arr.dtype != dest_dtype:
+            arr = arr.astype(dest_dtype)
+        self.update_from_native(offset, arr.data, 0, arr.nbytes)
+
+    def to_bytearray(self, offset, nbytes):
+        """copy in byte array: used in update_from_xbuffer"""
+        return self.buffer[offset : offset + nbytes]
+
+    def to_pointer_arg(self, offset, nbytes):
+        """return data that can be used as argument in kernel"""
+        return self.buffer[offset : offset + nbytes]
 
     def copy_to(self, dest):
         dest[: len(self.buffer)] = self.buffer

@@ -18,11 +18,52 @@ Instance methods:
 *  to_bytearray(self,offset,count): return
 
 .. code:: python
+    def update_from_xbuffer(self,offset, source, source_offset, nbytes):
+    "update from any xbuffer, don't pass through gpu if possible"
 
-   def write(self, source, offset, nbytes):
-       source[offset:offset+nbytes]
+   def update_from_buffer(self, offset, buffer):
+       """source is python buffer such as bytearray, numpy array .data"""
+       self[offset:offset+nbytes]=source[source_offset:source_offset+nbytes]
+
+   def copy_native(self,offset,nbytes):
+        """return native data with content at from offset and nbytes
+        return native_data
+
+   def update_from_native(self, offset, source, source_offset, nbytes):
+       """update native source into buffer usef in update_from_xbuffer"""
+
+   def to_nplike(self,offset,shape,dtype)
+       """view in nplike"""
+
+   def to_bytearray(self,offset,nbytes)
+       """copy in byte array: used in update_from_xbuffer"""
+
+   def to_pointer_arg(self,offset,nbytes):
+       return self.data[offset:offset+nbytes] #offset can lead to alignement error in opencl if not multiple of 4 bytes
+
+self:   [BufferByteArray,BufferOpencl,BufferCupy]
+source: [BufferByteArray,BufferOpencl,BufferCupy, byterray,nparray,cupyarray,clarray, clbuffer]
 
 
+Arguments for kernels:
+*  CPU:
+    *  numpy array -> ffi.cast("double *", ffi.from_buffer(arr))
+    *  numpy scalar -> no change
+    *  s s:string -> ss.decode("utf8")
+*  PyOpenCL:
+    *   pyopencl.Buffer  [offset:offset+nbytes] or copy back and fort if needs to be aligned
+    *   pyopencl.array:  arr.base_data[arr.offset:arr.offset+arr.nbytes] or copy back and fort
+*  cuda:
+    *  pycuda.array: arr or arr.data
+
+
+nparray.data:    python buffer pointing to start of the array arrays
+clarray.data:  Optional Opencl buffer pointing to the start of the array
+clarray.base_data,clarray.base_data:  Optional Opencl buffer  and offset from where the pointer start
+cupyaray.
+
+
+clarray.base_data[]:
 
 Code generation
 ---------------

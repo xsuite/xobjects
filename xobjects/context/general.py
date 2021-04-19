@@ -169,6 +169,10 @@ class XBuffer(ABC):
         """view in nplike"""
 
     @abstractmethod
+    def update_from_nplike(self, offset, dest_dtype, value):
+        """update data from nplike matching dest_dtype"""
+
+    @abstractmethod
     def to_bytearray(self, offset, nbytes):
         """copy in byte array: used in update_from_xbuffer"""
 

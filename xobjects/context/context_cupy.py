@@ -296,7 +296,9 @@ class BufferCupy(XBuffer):
     def update_from_buffer(self, offset, source):
         """Copy data from python buffer such as bytearray, bytes, memoryview, numpy array.data"""
         nbytes = len(source)
-        self.buffer[offset : offset + nbytes] = source
+        self.buffer[offset : offset + nbytes] = cupy.array(
+            np.frombuffer(source, dtype=np.uint8)
+        )
 
     def to_nplike(self, offset, dtype, shape):
         """view in nplike"""
@@ -314,7 +316,7 @@ class BufferCupy(XBuffer):
 
     def to_bytearray(self, offset, nbytes):
         """copy in byte array: used in update_from_xbuffer"""
-        return self.buffer[offset : offset + nbytes]
+        return self.buffer[offset : offset + nbytes].get().tobytes()
 
     def to_pointer_arg(self, offset, nbytes):
         """return data that can be used as argument in kernel"""

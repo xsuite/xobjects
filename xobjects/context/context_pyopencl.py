@@ -20,6 +20,7 @@ except ImportError:
             "pyopencl is not installed. " "this context is not available!"
         )
     )
+    cl.Buffer = cl
     cla = cl
     _enabled = False
 

@@ -2,6 +2,8 @@ import numpy as np
 
 from .typeutils import get_a_buffer, Info, is_integer, _to_slot_size
 from .scalar import Int64
+from . import capi
+
 
 """
 array itemtype d1 d2 ...
@@ -546,3 +548,13 @@ class Array(metaclass=MetaArray):
 
     def _iter_index(self):
         return iter_index(self._shape, self._order)
+
+    @classmethod
+    def _get_c_api_header(cls, conf={}):
+        specs_list = cls._gen_method_specs()
+        return capi.gen_headers(cls, specs_list)
+
+    @classmethod
+    def _get_c_api(cls, conf={}):
+        specs_list = cls._gen_method_specs()
+        return capi.gen_code(cls, specs_list)

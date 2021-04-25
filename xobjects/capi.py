@@ -23,6 +23,14 @@ def get_last_type(specs, conf):
     return ret, size
 
 
+def get_last_scalar_type(specs):
+    spec = specs[-1]
+    if hasattr(spec, "_dtype"):
+        return spec._c_type
+    else:
+        return None
+
+
 def get_last_type2(specs):
     spec = specs[-1]
     if hasattr(spec, "name"):  # is a field
@@ -48,15 +56,15 @@ def gen_method_get_declaration(name, specs, conf):
         elif hasattr(spec, "_shape"):
             iparts += len(spec._shape)
 
-    ret, _ = get_last_type(specs, conf)
-
-    method = f"{ret} {name}_get"
-    if len(nparts) > 0:
-        method += "_" + "_".join(nparts)
-    args = [f"{prepointer}{name}*{postpointer} obj"]
-    if iparts > 0:
-        args.extend([f"{itype} i{ii}" for ii in range(iparts)])
-    return f"{method}({', '.join(args)})"
+    ret = get_last_scalar_type(specs)
+    if ret is not None:
+        method = f"{ret} {name}_get"
+        if len(nparts) > 0:
+            method += "_" + "_".join(nparts)
+        args = [f"{prepointer}{name}*{postpointer} obj"]
+        if iparts > 0:
+            args.extend([f"{itype} i{ii}" for ii in range(iparts)])
+        return f"{method}({', '.join(args)})"
 
 
 def gen_method_get_description(name, specs, conf):
@@ -113,3 +121,185 @@ def gen_method_get_definition(name, specs, conf):
             lst.append(f"  return *({ret}*)((char*) obj+offset);")
     lst.append("}")
     return "\n".join(lst)
+
+
+### new take
+
+
+def is_field(part):
+    return hasattr(part, "name")
+
+
+def is_struct(atype):
+    return hasattr(atype, "name")
+
+
+def is_array(atype):
+    return hasattr(atype, "_shape")
+
+
+def is_scalar(atype):
+    return hasattr(atype, "_dtype")
+
+
+def get_inner_type(part):
+    if is_field(part):  # is a field
+        return part.ftype
+    elif is_array(part):  # is an array
+        return part._itemtype
+
+
+def get_inner_c_type(part):
+    if is_field(part):  # is a field
+        return part.ftype._c_type
+    elif is_array(part):  # is an array
+        return part._itemtype._c_type
+
+
+def is_last_scalar(spec):
+    atype = get_inner_type(spec[-1])
+    if atype is not None:
+        return is_scalar(atype)
+    else:
+        return False
+
+
+def is_last_array(spec):
+    atype = get_inner_type(spec[-1])
+    if atype is not None:
+        return hasattr(atype, "_shape")
+    else:
+        return False
+
+
+def gen_pointer(typename, argname, conf):
+    prepointer = conf.get("prepointer", "")
+    postpointer = conf.get("postpointer", "")
+    return f"{prepointer}{typename}*{postpointer} {argname}"
+
+
+def gen_arg(atype, conf, argname="", const=False, pointer=False):
+    ctype = atype._c_type
+    if pointer:
+        ctype += "*"
+    if const:
+        ctype = "const " + ctype
+    if pointer or not is_scalar(atype):
+        prepointer = conf.get("prepointer", "")
+        postpointer = conf.get("postpointer", "")
+        ctype = f"{prepointer}{ctype}{postpointer}"
+    return f"{ctype} {argname}"
+
+
+def gen_int(argname, conf):
+    itype = conf.get("itype", "int64_t")
+    return f"{itype} {argname}"
+
+
+def gen_c_name(cls, action, parts, ret, conf):
+    typename = cls._c_type
+    nparts = []
+    iparts = 0
+    for part in parts:
+        if hasattr(part, "name"):  # is field
+            nparts.append(part.name)
+        elif hasattr(part, "_shape"):  # is array
+            iparts += len(part._shape)
+    npart = "_".join(nparts)
+    iparts = [gen_int(f"i{ii}", conf) for ii in range(iparts)]
+    fname = f"{typename}_{action}_{npart}"
+    const = True
+    if ret == "void":
+        fname = f"void {fname}"
+        const = False
+    elif ret == "value":
+        fname = f"{get_inner_c_type(part)} {fname}"
+    elif ret == "pointer":
+        fname = gen_arg(part, conf, argname=fname, pointer=True)
+    args = [gen_arg(cls, conf, argname="obj", const=const)]
+    args.extend(iparts)
+    if ret == "void":
+        val = gen_arg(get_inner_type(part), conf, argname="value")
+        args.append(val)
+    args = ", ".join(args)
+    return f"{fname}({args})"
+
+
+def gen_get(cls, parts, header, conf):
+    decl = gen_c_name(cls, "get", parts, "value", conf)
+    if header:
+        return decl + ";"
+    else:
+        pass
+
+
+def gen_set(cls, parts, header, conf):
+    decl = gen_c_name(cls, "set", parts, "void", conf)
+    if header:
+        return decl + ";"
+    else:
+        pass
+
+
+def gen_size(cls, parts, header, conf):
+    pass
+
+
+def gen_getp(cls, parts, header, conf):
+    pass
+
+
+def gen_len(cls, parts, header, conf):
+    pass
+
+
+def gen_dim(cls, parts, header, conf):
+    pass
+
+
+def gen_ndim(cls, parts, header, conf):
+    pass
+
+
+def gen_strides(cls, parts, header, conf):
+    pass
+
+
+def gen_iter(cls, parts, header, conf):
+    pass
+
+
+def gen_functions(cls, specs, header, conf):
+    out = []
+    for parts in specs:
+        out.append(gen_getp(cls, parts, header, conf))
+        out.append(gen_size(cls, parts, header, conf))
+        if is_last_scalar(parts):
+            out.append(gen_get(cls, parts, header, conf))
+            out.append(gen_set(cls, parts, header, conf))
+        if is_last_array(parts):
+            out.append(gen_len(cls, parts, header, conf))
+            out.append(gen_dim(cls, parts, header, conf))
+            out.append(gen_ndim(cls, parts, header, conf))
+            out.append(gen_strides(cls, parts, header, conf))
+            out.append(gen_iter(cls, parts, header, conf))
+    return out
+
+
+def gen_typedef(cls):
+    # out=["#include <stdint.h>"]
+    out = []
+    typename = cls._c_type
+    if not is_scalar(cls):
+        out.append(f"typedef struct {typename} * {typename};")
+    return "\n".join(out)
+
+
+def gen_headers(cls, specs, conf):
+    out = []
+    out.append(gen_typedef(cls))
+    return gen_functions(cls, specs, False, conf)
+
+
+def gen_code(specs, conf):
+    pass

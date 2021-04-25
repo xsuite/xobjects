@@ -364,25 +364,11 @@ class Struct(metaclass=MetaStruct):
         return methods
 
     @classmethod
-    def _gen_method_get_declaration(cls, conf={}):
+    def _get_c_api_header(cls, conf={}):
         specs_list = cls._gen_method_specs()
-        out = []
-        for specs in specs_list:
-            out.append(
-                capi.gen_method_get_declaration(cls.__name__, specs, conf)
-            )
-        return out
-
-    @classmethod
-    def _gen_method_get_definition(cls, conf={}):
-        specs_list = cls._gen_method_specs()
-        out = []
-        for specs in specs_list:
-            out.append(
-                capi.gen_method_get_definition(cls.__name__, specs, conf)
-            )
-        return out
+        return capi.gen_headers(cls, specs_list)
 
     @classmethod
     def _get_c_api(cls, conf={}):
-        pass
+        specs_list = cls._gen_method_specs()
+        return capi.gen_code(cls, specs_list)

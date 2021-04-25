@@ -88,8 +88,26 @@ Each xobject type can provide the API source code  the ``_get_c_api()`` class me
 
 
 
-Setters and getters
+C Api
 ^^^^^^^^^^^^^^^^^^^
+
+General:
+
+- ``<pointer type> <typename>_getp_<field_names>(<typename> obj, <indexes>)``
+- ``<scalar type>  <typename>_get_<field_names>(<typename> obj, <indexes>)``
+- ``<typename>_set_<field_names>(<typename> obj, <indexes>, <scalar_type> value)``
+- ``<int64> <typename>_size_<field_names>(<typename> obj,<indexes>)``
+
+Array:
+- ``<int64> <typename>_len...(<typename> obj) : number of itemns``
+- ``<int64> <typename>_dim...(<typename> obj, int index): size of dimension``
+- ``<int64> <typename>_ndim...(<typename> obj): number of dimensions``
+- ``void <typename>_strides(int* result)``
+
+UnionRef:
+- ``<int64> <typename>_typeid...(<typename> obj) : get member
+- ``void* <typename>_member...(int* result)``
+
 
 Kernels and Functions
 ^^^^^^^^^^^^^^^^^^^^^

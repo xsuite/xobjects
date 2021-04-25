@@ -18,7 +18,7 @@ class NumpyScalar:
         self.__name__ = dtype.capitalize()
         self._dtype = np.dtype(dtype)
         self._size = self._dtype.itemsize
-        self._cname = cname
+        self._c_type = cname
 
     def _from_buffer(self, buffer, offset):
         data = buffer.to_bytearray(offset, self._size)

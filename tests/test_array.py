@@ -1,3 +1,5 @@
+# pylint:disable=E1101
+
 import numpy as np
 
 import xobjects as xo
@@ -16,7 +18,7 @@ def test_get_shape():
     assert get_shape_from_array([[2], [2]]) == (2, 1)
 
 
-def mk_classes():
+def mk_classes() -> xo.Array:
     class ArrayA(xo.Array):
         _itemtype = xo.Float64
         _shape = (6, 6)
@@ -73,22 +75,17 @@ def test_class_mk_array():
     ArrayA = xo.Float64[3, 6]
     assert ArrayA._shape == (3, 6)
     assert ArrayA._order == (0, 1)
-    assert ArrayA.__name__ == "Float64_3by6"
+    assert ArrayA.__name__ == "Float64_3x6"
 
     ArrayA = xo.Float64[None, 6]
     assert ArrayA._shape == (None, 6)
-    assert ArrayA.__name__ == "Float64_Nby6"
+    assert ArrayA.__name__ == "Float64_Nx6"
 
     ArrayA = xo.String[3:1, 4:0, 5:2]
     assert ArrayA._shape == (3, 4, 5)
-    assert ArrayA.__name__ == "String_3by4by5"
+    assert ArrayA.__name__ == "String_3x4x5"
 
     class StructA(xo.Struct):
-        a = xo.Float64
-
-    ArrayA = StructA[10]
-
-    class StructB(xo.Struct):
         a = xo.Float64
 
     ArrayA = StructA[10]
@@ -106,8 +103,7 @@ def test_inspect_args():
             info = AnArray._inspect_args()
             assert info.value == None
 
-    ArrayA, ArrayB, ArrayC, ArrayD, ArrayE = arrays
-
+    ArrayA = arrays[0]
     info = ArrayA._inspect_args(np.zeros((6, 6)))
 
     assert info.size == 36 * 8
@@ -116,6 +112,7 @@ def test_inspect_args():
 def test_array_allocation():
     MyArray = xo.Int64[10]
     ss = MyArray()
+    assert ss._itemtype == xo.Int64
 
 
 def test_array_sshape_stype():

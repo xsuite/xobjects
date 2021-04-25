@@ -190,7 +190,7 @@ class MetaStruct(type):
                     offset += _to_slot_size(8)
                 # first dynamic field
                 d_fields[0].offset = offset
-                field.is_reference = False
+                d_fields[0].is_reference = False
 
             def _get_size(self):
                 return Int64._from_buffer(self._buffer, self._offset)
@@ -234,6 +234,8 @@ class MetaStruct(type):
         data["_size"] = size
         data["_get_size"] = _get_size
         data["_inspect_args"] = classmethod(_inspect_args)
+        if "_c_type" not in data:
+            data["_c_type"] = name
 
         return type.__new__(cls, name, bases, data)
 

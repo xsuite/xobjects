@@ -17,13 +17,13 @@ Instance methods:
 *  to_nplike(self,dtype,shape,offset): return a view of the data in a np-like arrays
 *  to_bytearray(self,offset,count): return
 
-.. code:: python
-    def update_from_xbuffer(self,offset, source, source_offset, nbytes):
-    "update from any xbuffer, don't pass through gpu if possible"
+.. code::
+
+   def update_from_xbuffer(self,offset, source, source_offset, nbytes):
+       "update from any xbuffer, don't pass through gpu if possible"
 
    def update_from_buffer(self, offset, buffer):
        """source is python buffer such as bytearray, numpy array .data"""
-       self[offset:offset+nbytes]=source[source_offset:source_offset+nbytes]
 
    def copy_native(self,offset,nbytes):
         """return native data with content at from offset and nbytes
@@ -41,20 +41,21 @@ Instance methods:
    def to_pointer_arg(self,offset,nbytes):
        return self.data[offset:offset+nbytes] #offset can lead to alignement error in opencl if not multiple of 4 bytes
 
-self:   [BufferByteArray,BufferOpencl,BufferCupy]
-source: [BufferByteArray,BufferOpencl,BufferCupy, byterray,nparray,cupyarray,clarray, clbuffer]
 
 
 Arguments for kernels:
-*  CPU:
-    *  numpy array -> ffi.cast("double *", ffi.from_buffer(arr))
-    *  numpy scalar -> no change
-    *  s s:string -> ss.decode("utf8")
-*  PyOpenCL:
-    *   pyopencl.Buffer  [offset:offset+nbytes] or copy back and fort if needs to be aligned
-    *   pyopencl.array:  arr.base_data[arr.offset:arr.offset+arr.nbytes] or copy back and fort
-*  cuda:
-    *  pycuda.array: arr or arr.data
+
+- CPU:
+  - numpy array ->  ``ffi.cast("double *", ffi.from_buffer(arr))``
+  - numpy scalar -> no change
+  - s string -> ``ss.decode("utf8")``
+
+- PyOpenCL:
+  - pyopencl.Buffer: [offset:offset+nbytes] or copy back and fort if needs to be aligned
+  - pyopencl.array:  arr.base_data[arr.offset:arr.offset+arr.nbytes] or copy back and fort
+
+- cuda:
+    -  pycuda.array: arr or arr.data
 
 
 nparray.data:    python buffer pointing to start of the array arrays
@@ -90,8 +91,50 @@ Each xobject type can provide the API source code  the ``_get_c_api()`` class me
 Setters and getters
 ^^^^^^^^^^^^^^^^^^^
 
-Functions
-^^^^^^^^^
+Kernels and Functions
+^^^^^^^^^^^^^^^^^^^^^
+
+Context can execute:
+
+- kernels: no return function and executed on a grid
+- functions: only for cpu kernels
+
+
+.. code:: python
+  Kernel(
+    cname,
+    args=Arg(dtype, name: String, const: Boolean)
+    grid=integer, string or list of string or functions of arguments
+    ret=None)
+
+
+Arg:
+
+* atype: argument type:
+  - provide validation function: cls._validate(value) or atype(value)
+  - provide C-type name: atype._get_ctype()  or dtype -> converted to c types,
+  - generate raw argument from value .atype._get_carg() for the interface
+* name: optional, String needed for the grid
+* const: boolean (used in case of copy back)
+
+Code:
+
+* define sources, list of string or files
+* define kernels to expose, list of kernels
+* define preprocessors
+* attach callable kernels to context
+* to be used by CMethod or CProperty
+
+.. code::
+    double x -> Arg(dtype=xo.Float64,name='x'): takes python scalar and np scalar
+    double *restrict x -> Arg(dtype=xo.Float64,pointer=True,const=False,name='x'): takes np.array, xo.Float64 arrays
+    const double *restrict x -> Arg(dtype=xo.Float64,pointer=True,const=True,name='x'): takes np.array, xo.Float64 arrays
+    const Float64_N -> Arg(dtype=xo.Float64[:],const=True,name='x'): takes xo.Float64[:]
+    const Float64_6by6 -> Arg(dtype=xo.Float64[6,6],const=True,name='x'): takes xo.Float64[6,6]
+
+
+
+
 
 *  function: general function
 *  method: implies first attribute is the instance of the class where it is defined

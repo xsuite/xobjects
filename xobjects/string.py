@@ -13,7 +13,7 @@ Layout:
 
 String class data:
     _size = None
-    _cname = "char*"
+    _c_type = "char*"
 
 String instance data:
     _size = string type size (including capacity)
@@ -97,7 +97,7 @@ class MetaString(type):
 
 class String(metaclass=MetaString):
     _size = None
-    _cname = "char*"
+    _c_type = "char*"
 
     def __init__(
         self, string_or_int, _buffer=None, _offset=None, _context=None

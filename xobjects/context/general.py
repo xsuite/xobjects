@@ -1,7 +1,8 @@
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 from abc import ABC, abstractmethod
 import logging
 import weakref
+
 
 """
 
@@ -13,6 +14,11 @@ TODO:
 
 
 log = logging.getLogger(__name__)
+
+
+def _align(offset, alignment):
+    "round to nearest multiple of 8"
+    return (offset + alignment - 1) & (-alignment)
 
 
 class MinimalDotDict(dict):
@@ -32,6 +38,7 @@ class XContext(ABC):
     def __init__(self):
         self._kernels = MinimalDotDict()
         self._buffers = []
+        self.kernels_v2 = MinimalDotDict()
 
     def new_buffer(self, capacity=1048576):
         buf = self._make_buffer(capacity=capacity)
@@ -52,6 +59,16 @@ class XContext(ABC):
 
     @abstractmethod
     def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
+        pass
+
+    # @abstractmethod
+    def add_kernels_v2(
+        self,
+        sources: list,
+        kernels: dict,
+        specialize: bool,
+        save_source_as: str,
+    ):
         pass
 
     @abstractmethod
@@ -95,25 +112,26 @@ class XBuffer(ABC):
     def _make_context(self):
         "return a default context"
 
-    def allocate(self, size):
+    def allocate(self, size, alignment=1):
         # find available free slot
         # and update free slot if exists
+        sizepa = size + alignment - 1
         for chunk in self.chunks:
-            if size <= chunk.size:
+            if sizepa <= chunk.size:
                 offset = chunk.start
-                chunk.start += size
+                chunk.start += sizepa
                 if chunk.size == 0:
                     self.chunks.remove(chunk)
-                return offset
+                return _align(offset, alignment)
 
         # no free slot check if can be allocated then try to grow
-        if size > self.capacity:
-            self.grow(size)
+        if sizepa > self.capacity:
+            self.grow(sizepa)
         else:
             self.grow(self.capacity)
 
         # try again
-        return self.allocate(size)
+        return self.allocate(sizepa)
 
     def grow(self, capacity):
         oldcapacity = self.capacity
@@ -249,3 +267,43 @@ class View(NamedTuple):
 
 
 available = []
+
+
+class Arg:
+    def __init__(
+        self, atype, pointer=False, name=None, const=False, factory=None
+    ):
+        self.atype = atype
+        self.pointer = pointer
+        self.name = name
+        self.const = const
+        self.factory = factory
+
+    def get_c_type(self):
+        ctype = self.atype._c_type
+        if self.pointer:
+            ctype += "*"
+        return ctype
+
+
+class Kernel:
+    def __init__(self, args, c_name=None, ret=None, n_threads=None):
+        self.c_name = c_name
+        self.args = args
+        self.ret = ret
+        self.n_threads = None
+
+
+class Method:
+    def __init__(self, kernel_name, arg_name="self"):
+        self.kernel_name = kernel_name
+        self.arg_name = arg_name
+
+    def mk_method(self):
+        def a_method(instance, *args, **kwargs):
+            context = instance._buffer.context
+            kernel = context.kernels[self.kernel_name]
+            kwargs[self.arg_name] = instance
+            return kernel(*args, **kwargs)
+
+        return a_method

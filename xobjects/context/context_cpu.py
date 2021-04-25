@@ -31,7 +31,20 @@ except ImportError:
     print("WARNING: pyfftw not available, will use numpy")
     pyfftw = ModuleNotAvailable(message="pyfftw not available")
 
-type_mapping = {np.int32: "int32_t", np.int64: "int64_y", np.float64: "double"}
+type_mapping = {np.int32: "int32_t", np.int64: "int64_t", np.float64: "double"}
+
+dtype_dict = {
+    "float64": "double",
+    "float32": "float",
+    "int64": "int64_t",
+    "int32": "int32_t",
+    "uint64": "uint64_t",
+    "uint32": "uint32_t",
+}
+
+
+def dtype2ctype(dtype):
+    return dtype_dict[dtype.name]
 
 
 def nplike_to_numpy(arr):
@@ -175,8 +188,8 @@ class ContextCpu(XContext):
         tempfname = str(uuid.uuid4().hex)
 
         # Compile
-        xtr_compile_args = ['-std=c99']
-        xtr_link_args = ['-std=c99']
+        xtr_compile_args = ["-std=c99"]
+        xtr_link_args = ["-std=c99"]
         xtr_compile_args += extra_compile_args
         xtr_link_args += extra_link_args
         if self.omp_num_threads > 0:
@@ -221,6 +234,118 @@ class ContextCpu(XContext):
                     arg_types=aa_types,
                     return_type=kernel_descriptions[nn].get("return"),
                     ffi_interface=ffi_interface,
+                    context=self,
+                )
+        finally:
+            # Clean temp files
+            files_to_remove = [so_fname, tempfname + ".c", tempfname + ".o"]
+            for ff in files_to_remove:
+                if os.path.exists(ff):
+                    os.remove(ff)
+
+    def add_kernels_v2(
+        self,
+        sources="",
+        kernels=[],
+        specialize=True,
+        save_source_as=None,
+        extra_compile_args=["-O3"],
+        extra_link_args=["-O3"],
+    ):
+
+        source = []
+        if self.omp_num_threads > 0:
+            source.append("#include <omp.h>")
+
+        fold_list = set()
+        for ss in sources:
+            if hasattr(ss, "read"):
+                source.append(ss.read())
+                fold_list.add(os.path.dirname(ss.name))
+            else:
+                source.append(ss)
+        source = "\n".join(source)
+
+        if specialize:
+            if self.omp_num_threads > 0:
+                specialize_for = "cpu_openmp"
+            else:
+                specialize_for = "cpu_serial"
+            # included files are searched in the same folders od the src_filed
+            source = specialize_source(
+                source,
+                specialize_for=specialize_for,
+                search_in_folders=list(fold_list),
+            )
+
+        if save_source_as is not None:
+            with open(save_source_as, "w") as fid:
+                fid.write(source)
+
+        ffi_interface = cffi.FFI()
+
+        for pyname, kernel in kernels.items():
+            if kernel.c_name is None:
+                kernel.c_name = pyname
+            if kernel.ret is not None:
+                rettype = kernel.ret.get_c_type()
+            else:
+                rettype = "void"
+            signature = f"{rettype} {kernel.c_name}("
+            signature += ",".join(arg.get_c_type() for arg in kernel.args)
+            signature += ");"
+
+            ffi_interface.cdef(signature)
+            log.debug(f"cffi def {pyname} {signature}")
+
+        if self.omp_num_threads > 0:
+            ffi_interface.cdef("void omp_set_num_threads(int);")
+
+        # Generate temp fname
+        tempfname = str(uuid.uuid4().hex)
+
+        # Compile
+        xtr_compile_args = ["-std=c99"]
+        xtr_link_args = ["-std=c99"]
+        xtr_compile_args += extra_compile_args
+        xtr_link_args += extra_link_args
+        if self.omp_num_threads > 0:
+            xtr_compile_args.append("-fopenmp")
+            xtr_link_args.append("-fopenmp")
+
+        ffi_interface.set_source(
+            tempfname,
+            source,
+            extra_compile_args=xtr_compile_args,
+            extra_link_args=xtr_link_args,
+        )
+
+        ffi_interface.compile(verbose=True)
+
+        # build full so filename, something like:
+        # 0e14651ea79740119c6e6c24754f935e.cpython-38-x86_64-linux-gnu.so
+        suffix = sysconfig.get_config_var("EXT_SUFFIX")
+        so_fname = tempfname + suffix
+
+        try:
+            # Import the compiled module
+            spec = importlib.util.spec_from_file_location(
+                tempfname, os.path.abspath("./" + tempfname + suffix)
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            if self.omp_num_threads > 0:
+                ffi_interface.omp_set_num_threads = (
+                    module.lib.omp_set_num_threads
+                )
+
+            # Get the methods
+            for pyname, kernel in kernels.items():
+                self.kernels[pyname] = KernelCpu_v2(
+                    func=getattr(module.lib, kernel.c_name),
+                    desc=kernel,
+                    ffi_interface=module.ffi,
                     context=self,
                 )
         finally:
@@ -485,6 +610,85 @@ class KernelCpu(object):
                 return np.from_buffer(ret, dtype=dtype, count=count).reshape(
                     shape
                 )
+
+
+class KernelCpu_v2:
+    def __init__(
+        self,
+        func,
+        desc,
+        ffi_interface,
+        context,
+    ):
+
+        self.func = func
+        self.desc = desc
+        self.ffi_interface = ffi_interface
+        self.context = context
+
+    def to_arg(self, arg, value):
+        if arg.pointer:
+            if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
+                if hasattr(value, "dtype"):  # nparray
+                    return self.ffi_interface.cast(
+                        dtype2ctype(value.dtype) + "*",
+                        self.ffi_interface.from_buffer(value.data),
+                    )
+                elif hasattr(value, "_shape"):  # xobject array
+                    # TODO: check context
+                    return self.ffi_interface.cast(
+                        value._c_type + "*",
+                        self.ffi_interface.from_buffer(
+                            value._buffer.buffer[
+                                value._offset + value._data_offset :
+                            ]  # fails for pyopencl, cuda
+                        ),
+                    )
+            else:
+                raise ValueError(
+                    f"Invalid value {value} for argument {arg.name} of kernel {self.desc.pyname}"
+                )
+        else:
+            if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
+                return arg.atype(value)  # try to return a numpy scalar
+            elif hasattr(arg.atype, "_size"):  # it is a compound xobject
+                # TODO: check context
+                return self.ffi_interface.cast(
+                    arg.atype._c_type,
+                    self.ffi_interface.from_buffer(
+                        value._buffer.buffer[
+                            value._offset :
+                        ]  # fails for pyopencl, cuda
+                    ),
+                )
+            else:
+                raise ValueError(
+                    f"Invalid value {value} for argument {arg.name} of kernel {self.desc.pyname}"
+                )
+
+    def from_arg(self, arg, value):
+        return value
+
+    @property
+    def num_args(self):
+        return len(self.desc.args)
+
+    def __call__(self, **kwargs):
+        assert len(kwargs.keys()) == self.num_args
+        arg_list = []
+        for arg in self.desc.args:
+            vv = kwargs[arg.name]
+            arg_list.append(self.to_arg(arg, vv))
+
+        if self.context.omp_num_threads > 0:
+            self.ffi_interface.omp_set_num_threads(
+                self.context.omp_num_threads
+            )
+
+        ret = self.func(*arg_list)
+
+        if self.desc.ret is not None:
+            return self.from_arg(self.desc.ret, ret)
 
 
 class FFTCpu(object):

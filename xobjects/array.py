@@ -38,6 +38,20 @@ Array instance:
 """
 
 
+def get_suffix(shape):
+    # write suffix  6x6x6 or Nx6xM
+    sshape = []
+    ilst = 0
+    lst = "NMOPQRSTUVWXYZABCDEFGHIJKLM"
+    for dd in shape:
+        if dd is None:
+            sshape.append(lst[ilst])
+            ilst = (ilst + 1) % len(lst)
+        else:
+            sshape.append(str(dd))
+    return "x".join(sshape)
+
+
 def get_shape_from_array(value):
     if hasattr(value, "shape"):
         return value.shape
@@ -176,6 +190,8 @@ class MetaArray(type):
 
             data["_size"] = _size
             data["_data_offset"] = _data_offset
+            if "_c_type" not in data:
+                data["_c_type"] = name
 
         return type.__new__(cls, name, bases, data)
 
@@ -208,20 +224,8 @@ class Array(metaclass=MetaArray):
             else:
                 nshape.append(dd)
 
-        if len(shape) <= 3:
-            lst = "NMOPQRSTU"
-            sshape = []
-            ilst = 0
-            for d in nshape:
-                if d is None:
-                    sshape.append(lst[ilst % len(lst)])
-                    ilst += 1
-                else:
-                    sshape.append(str(d))
+        suffix = get_suffix(nshape)
 
-            suffix = "by".join(sshape)
-        else:
-            suffix = f"{len(shape)}D"
         name = itemtype.__name__ + "_" + suffix
 
         data = {

@@ -48,9 +48,10 @@ double my_mul(const int n, const double* x1,
 
 def test_kernels():
     for (CTX, kwargs, name) in zip(
-            (xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy),
-            ({'omp_num_threads': 2}, {}, {}),
-            ('cpu', 'pyopencl', 'cupy')):
+        (xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy),
+        ({"omp_num_threads": 2}, {}, {}),
+        ("cpu", "pyopencl", "cupy"),
+    ):
 
         if CTX not in available:
             continue
@@ -58,7 +59,7 @@ def test_kernels():
         print(f"Test {CTX}")
         ctx = CTX(**kwargs)
 
-        src_code='''
+        src_code = """
         /*gpufun*/
         void myfun(double x, double y,
             double* z){
@@ -76,26 +77,42 @@ def test_kernels():
             y[tid] = z;
             //end_vectorize
             }
-        '''
+        """
 
-        kernel_descriptions = {'my_mul':{
-            'args':(
-                (('scalar', np.int32),   'n',),
-                (('array',  np.float64), 'x1',),
-                (('array',  np.float64), 'x2',),
-                (('array',  np.float64), 'y',),
+        kernel_descriptions = {
+            "my_mul": {
+                "args": (
+                    (
+                        ("scalar", np.int32),
+                        "n",
+                    ),
+                    (
+                        ("array", np.float64),
+                        "x1",
+                    ),
+                    (
+                        ("array", np.float64),
+                        "x2",
+                    ),
+                    (
+                        ("array", np.float64),
+                        "y",
+                    ),
                 ),
-            'num_threads_from_arg': 'n'
-            },}
+                "num_threads_from_arg": "n",
+            },
+        }
 
         # Import kernel in context
-        ctx.add_kernels(src_code=src_code,
-                kernel_descriptions=kernel_descriptions,
-                #save_src_as=f'_test_{name}.c')
-                save_src_as=None)
+        ctx.add_kernels(
+            src_code=src_code,
+            kernel_descriptions=kernel_descriptions,
+            # save_src_as=f'_test_{name}.c')
+            save_src_as=None,
+        )
 
-        x1_host = np.array([1.,2.,3.], dtype=np.float64)
-        x2_host = np.array([7.,8.,9.], dtype=np.float64)
+        x1_host = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+        x2_host = np.array([7.0, 8.0, 9.0], dtype=np.float64)
 
         x1_dev = ctx.nparray_to_context_array(x1_host)
         x2_dev = ctx.nparray_to_context_array(x2_host)
@@ -105,8 +122,9 @@ def test_kernels():
 
         y_host = ctx.nparray_from_context_array(y_dev)
 
-        assert np.allclose(y_host, x1_host*x2_host)
+        assert np.allclose(y_host, x1_host * x2_host)
+
 
 # With a1 and a2 being arrays on the context, the kernel
 # can be called as follows:
-#conddtext.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
+# conddtext.kernels.my_mul(n=len(a1), x1=a1, x2=a2)

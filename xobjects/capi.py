@@ -10,8 +10,8 @@ def get_last_type(specs, conf):
     elif hasattr(spec, "_shape"):  # is an array
         lasttype = spec._itemtype
 
-    if hasattr(lasttype, "_cname"):
-        ret = lasttype._cname
+    if hasattr(lasttype, "_c_type"):
+        ret = lasttype._c_type
         size = lasttype._size
     else:
         ret = f"{lasttype.__name__}*"
@@ -29,10 +29,10 @@ def get_last_type2(specs):
         lasttype = spec.ftype
     elif hasattr(spec, "_shape"):  # is an array
         lasttype = spec._itemtype
-    if hasattr(lasttype, "_cname"):
-        ret = ("scalar", lasttype._cname)
+    if hasattr(lasttype, "_c_type"):
+        ret = ("scalar", lasttype._c_type)
     else:
-        ret = ("pointer", lasttype._cname)
+        ret = ("pointer", lasttype._c_type)
     return ret
 
 
@@ -113,10 +113,3 @@ def gen_method_get_definition(name, specs, conf):
             lst.append(f"  return *({ret}*)((char*) obj+offset);")
     lst.append("}")
     return "\n".join(lst)
-
-
-class Arg:
-    def __init__(self, name, dtype, qualifier="value"):
-        self.name = name
-        self.dtype = dtype
-        self.qualifier = qualifier

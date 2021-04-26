@@ -185,10 +185,16 @@ def gen_arg(atype, conf, argname="", const=False, pointer=False):
     if const:
         ctype = "const " + ctype
     if pointer or not is_scalar(atype):
-        prepointer = conf.get("prepointer", "")
-        postpointer = conf.get("postpointer", "")
-        ctype = f"{prepointer}{ctype}{postpointer}"
-    return f"{ctype} {argname}"
+        ctype = dress_pointer(ctype, conf)
+    if argname != "":
+        ctype = f"{ctype} {argname}"
+    return ctype
+
+
+def dress_pointer(ctype, conf):
+    prepointer = conf.get("prepointer", "")
+    postpointer = conf.get("postpointer", "")
+    return f"{prepointer}{ctype}{postpointer}"
 
 
 def gen_int(argname, conf):
@@ -196,7 +202,17 @@ def gen_int(argname, conf):
     return f"{itype} {argname}"
 
 
-def gen_c_name(cls, action, parts, ret, conf):
+def gen_return(ret, pointer, conf):
+    if hasattr(ret, "_c_type"):
+        ctype = ret._c_type
+    else:
+        ctype = ret
+    if pointer:
+        ctype = dress_pointer(ctype, conf)
+    return ctype
+
+
+def gen_c_decl(cls, action, parts, extra, ret, conf):
     typename = cls._c_type
     nparts = []
     iparts = 0
@@ -209,47 +225,68 @@ def gen_c_name(cls, action, parts, ret, conf):
     iparts = [gen_int(f"i{ii}", conf) for ii in range(iparts)]
     fname = f"{typename}_{action}_{npart}"
     const = True
-    if ret == "void":
-        fname = f"void {fname}"
+    if action in ["set"]:
         const = False
-    elif ret == "value":
-        fname = f"{get_inner_c_type(part)} {fname}"
-    elif ret == "pointer":
-        fname = gen_arg(part, conf, argname=fname, pointer=True)
     args = [gen_arg(cls, conf, argname="obj", const=const)]
     args.extend(iparts)
-    if ret == "void":
-        val = gen_arg(get_inner_type(part), conf, argname="value")
-        args.append(val)
+    if extra is not None:
+        args.extend(extra)
     args = ", ".join(args)
-    return f"{fname}({args})"
+    return f"{ret} {fname}({args})"
 
 
 def gen_get(cls, parts, header, conf):
-    decl = gen_c_name(cls, "get", parts, "value", conf)
+    lasttype = get_inner_type(parts[-1])
+    ret = gen_arg(lasttype, conf)
+    extra = []
+    decl = gen_c_decl(cls, "get", parts, extra, ret, conf)
     if header:
         return decl + ";"
     else:
-        pass
+        prepointer = conf.get("prepointer", "")
+        lst = [decl + "{"]
+        lst.append(gen_method_offset(parts, conf))
+        ret, size = get_last_type(parts, conf)
+        if prepointer != "":
+            ret = prepointer + " " + ret
+        if "*" in ret:  # return type is a pointer
+            lst.append(f"  return ({ret})((char*) obj+offset);")
+        else:  # return type is a scalar
+            if size == 1:
+                lst.append(f"  return *(({ret}*) obj+offset);")
+            else:
+                lst.append(f"  return *({ret}*)((char*) obj+offset);")
+        lst.append("}")
+        return "\n".join(lst)
 
 
 def gen_set(cls, parts, header, conf):
-    decl = gen_c_name(cls, "set", parts, "void", conf)
+    lasttype = get_inner_type(parts[-1])
+    ret = "void"
+    extra = [gen_arg(lasttype, conf, argname="value")]
+    decl = gen_c_decl(cls, "set", parts, extra, ret, conf)
     if header:
         return decl + ";"
     else:
         pass
 
 
-def gen_size(cls, parts, header, conf):
-    pass
-
-
 def gen_getp(cls, parts, header, conf):
-    pass
+    lasttype = get_inner_type(parts[-1])
+    ret = gen_arg(lasttype, conf, pointer=True)
+    extra = []
+    decl = gen_c_decl(cls, "getp", parts, extra, ret, conf)
+    if header:
+        return decl + ";"
+    else:
+        pass
 
 
 def gen_len(cls, parts, header, conf):
+    pass
+
+
+def gen_size(cls, parts, header, conf):
     pass
 
 

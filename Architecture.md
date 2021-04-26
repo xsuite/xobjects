@@ -205,22 +205,16 @@ Kernel convention:
 
 ## TODO
 
-- debug Array
+- re-implement kernel
 - debug C getter and setter
-- debug Union
-- debug UnionRef
-- review buffer interface
-- rename XBuffer, XContext
-- implement nplike
-- implement SOA
+- implement Ref and UnionRef
 - implement custom init
+- implement SOA
 - add __del__ methods for Struct, Array, Union, Unionref, SOA
-- add Ref
-- add zero-copy implementation in setter and _to_buffer
-- Make types read-only instances to avoid unsafe run-time operations
 
 ### Later
 
+- Make types read-only instances to avoid unsafe run-time operations
 - Consider exposing XBuffer and moving specialization to XContext
 - Consider Buffer[offset] to creating XView and avoid _offset in type API
 - Consider mutable string class

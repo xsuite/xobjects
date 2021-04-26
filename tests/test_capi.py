@@ -62,6 +62,18 @@ def test_gen_get():
         == "int8_t Multipole_get_order(const Multipole obj);"
     )
 
+    code = capi.gen_get(Multipole, parts, False, {})
+
+    assert (
+        code
+        == """\
+int8_t Multipole_get_order(const Multipole obj){
+  int64_t offset=0;
+  offset+=8;
+  return *((int8_t*) obj+offset);
+}"""
+    )
+
 
 def test_gen_set():
     _, Multipole = gen_classes()
@@ -70,6 +82,16 @@ def test_gen_set():
     assert (
         capi.gen_set(Multipole, parts, True, {})
         == "void Multipole_set_order(Multipole obj, int8_t value);"
+    )
+
+
+def test_gen_getp():
+    _, Multipole = gen_classes()
+    parts = [Multipole.order]
+
+    assert (
+        capi.gen_getp(Multipole, parts, True, {})
+        == "int8_t* Multipole_getp_order(const Multipole obj);"
     )
 
 

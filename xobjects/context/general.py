@@ -33,6 +33,8 @@ def _concatenate_sources(sources):
             source.append(ss)
     source = "\n".join(source)
 
+    folders = [str(ff) for ff in folders]
+
     return source, folders
 
 

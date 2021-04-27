@@ -3,9 +3,6 @@ import numpy as np
 import xobjects as xo
 from xobjects.context import available
 
-# TODO,TEMPORARY!!!!!!!
-available = [xo.ContextCpu, xo.ContextCupy]
-
 def test_kernel_cpu():
     ctx = xo.ContextCpu()
     src_code = r"""

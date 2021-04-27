@@ -331,7 +331,11 @@ class KernelCupy(object):
             vv = kwargs[arg.name]
             arg_list.append(self.to_function_arg(arg, vv))
 
-        n_threads = kwargs[self.description.n_threads]
+        if isinstance(self.description.n_threads, str):
+            n_threads = kwargs[self.description.n_threads]
+        else:
+            n_threads = self.description.n_threads
+
         grid_size = int(np.ceil(n_threads / self.block_size))
         self.function((grid_size,), (self.block_size,), arg_list)
 

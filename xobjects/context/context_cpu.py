@@ -260,48 +260,6 @@ class ContextCpu(XContext):
 
     @property
     def kernels(self):
-
-        """
-        Dictionary containing all the kernels that have been imported to the context.
-        The syntax ``context.kernels.mykernel`` can also be used.
-
-        Example:
-
-        .. code-block:: python
-
-            src_code = r'''
-            /*gpukern*/
-            void my_mul(const int n,
-                /*gpuglmem*/ const double* x1,
-                /*gpuglmem*/ const double* x2,
-                /*gpuglmem*/       double* y) {
-
-                for (int tid=0; tid<n; tid++){ //vectorize_over tid n
-                    y[tid] = x1[tid] * x2[tid];
-                }//end_vectorize
-            }
-            '''
-
-            kernel_descriptions = {'my_mul':{
-                args':(
-                    (('scalar', np.int32),   'n',),
-                    (('array',  np.float64), 'x1',),
-                    (('array',  np.float64), 'x2',),
-                    )
-                'num_threads_from_arg': 'n'
-                },}
-
-            # Import kernel in context
-            context.add_kernels(src_code, kernel_descriptions)
-
-            # With a1 and a2 being arrays on the context, the kernel
-            # can be called as follows:
-            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
-            # or as follows:
-            context.kernels['my_mul'](n=len(a1), x1=a1, x2=a2)
-
-        """
-
         return self._kernels
 
 

@@ -55,101 +55,45 @@ class ContextCupy(XContext):
 
     def add_kernels(
         self,
-        src_code="",
-        src_files=[],
-        kernel_descriptions={},
-        specialize_code=True,
-        save_src_as=None,
+        sources,
+        kernels,
+        specialize=True,
+        save_source_as=None,
     ):
 
-        """
-        Adds user-defined kernels to to the context. The kernel source
-        code is provided as a string and/or in source files and must contain
-        the kernel names defined in the kernel descriptions.
+        source = []
+        source.append('extern "C"{')
+        fold_list = set()
+        for ss in sources:
+            if hasattr(ss, "read"):
+                source.append(ss.read())
+                fold_list.add(os.path.dirname(ss.name))
+            else:
+                source.append(ss)
+        source.append("}")
+        source = "\n".join(source)
 
-        Args:
-            src_code (str): String with the kernel source code. Default: empty
-                string.
-            src_files (list of strings): paths to files containing the
-                source code. Default: empty list.
-            kernel_descriptions (dict): Dictionary with the kernel descriptions
-                in the form given by the following examples. The decriptions
-                define the kernel names, the type and name of the arguments
-                and identifies one input argument that defines the number of
-                threads to be launched.
-            specialize_code (bool): If True, the code is specialized using
-                annotations in the source code. Default is ``True``
-
-        Example:
-
-        .. code-block:: python
-
-            src_code = r'''
-            /*gpukern*/
-            void my_mul(const int n,
-                /*gpuglmem*/ const double* x1,
-                /*gpuglmem*/ const double* x2,
-                /*gpuglmem*/       double* y) {
-
-                for (int tid=0; tid<n; tid++){ //vectorize_over tid n
-                    y[tid] = x1[tid] * x2[tid];
-                }//end_vectorize
-            }
-            '''
-
-            kernel_descriptions = {'my_mul':{
-                args':(
-                    (('scalar', np.int32),   'n',),
-                    (('array',  np.float64), 'x1',),
-                    (('array',  np.float64), 'x2',),
-                    (('array',  np.float64), 'y',),
-                    )
-                'num_threads_from_arg': 'n'
-                },}
-
-            # Import kernel in context
-            context.add_kernels(src_code, kernel_descriptions)
-
-            # With a1, a2, b being arrays on the context, the kernel
-            # can be called as follows:
-            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
-
-        """
-
-        src_content = 'extern "C"{\n' + src_code
-        fold_list = []
-        for ff in src_files:
-            fold_list.append(os.path.dirname(ff))
-            with open(ff, "r") as fid:
-                src_content += "\n\n" + fid.read()
-        src_content += "}"
-
-        if specialize_code:
+        if specialize:
             # included files are searched in the same folders od the src_filed
-            src_content = specialize_source(
-                src_content, specialize_for="cuda", search_in_folders=fold_list
+            source = specialize_source(
+                source, specialize_for="cuda", search_in_folders=fold_list
             )
 
-        if save_src_as is not None:
-            with open(save_src_as, "w") as fid:
-                fid.write(src_content)
+        if save_source_as is not None:
+            with open(save_source_as, "w") as fid:
+                fid.write(source)
 
-        module = cupy.RawModule(code=src_content)
+        module = cupy.RawModule(code=source)
 
-        ker_names = kernel_descriptions.keys()
-        for nn in ker_names:
-            if "return" in kernel_descriptions[nn]:
-                raise ValueError("Kernel return not supported!")
-            kk = module.get_function(nn)
-            aa = kernel_descriptions[nn]["args"]
-            nt_from = kernel_descriptions[nn]["num_threads_from_arg"]
-            aa_types, aa_names = zip(*aa)
-            self.kernels[nn] = KernelCupy(
-                cupy_kernel=kk,
-                arg_names=aa_names,
-                arg_types=aa_types,
-                num_threads_from_arg=nt_from,
+        for pyname, kernel in kernels.items():
+            if kernel.c_name is None:
+                kernel.c_name = pyname
+
+            self.kernels[pyname] = KernelCupy(
+                function=module.get_function(kernel.c_name),
+                description=kernel,
                 block_size=self.default_block_size,
+                context=self
             )
 
     def nparray_to_context_array(self, arr):
@@ -342,43 +286,54 @@ class BufferCupy(XBuffer):
 class KernelCupy(object):
     def __init__(
         self,
-        cupy_kernel,
-        arg_names,
-        arg_types,
-        num_threads_from_arg,
+        function,
+        description,
         block_size,
+        context,
     ):
 
-        assert len(arg_names) == len(arg_types)
-        assert num_threads_from_arg in arg_names
-
-        self.cupy_kernel = cupy_kernel
-        self.arg_names = arg_names
-        self.arg_types = arg_types
-        self.num_threads_from_arg = num_threads_from_arg
+        self.function = function
+        self.description = description
         self.block_size = block_size
+        self.context = context
+
+    def to_function_arg(self, arg, value):
+        if arg.pointer:
+            if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
+                if hasattr(value, "dtype"):  # nparray
+                    assert isinstance(value, cupy.ndarray)
+                    return value.data
+                elif hasattr(value, "_shape"):  # xobject array
+                    raise NotImplementedError
+            else:
+                raise ValueError(
+                    f"Invalid value {value} for argument {arg.name} "
+                    f"of kernel {self.description.pyname}"
+                )
+        else:
+            if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
+                return arg.atype(value)  # try to return a numpy scalar
+            elif hasattr(arg.atype, "_size"):  # it is a compound xobject
+                    raise NotImplementedError
+            else:
+                raise ValueError(
+                    f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}"
+                )
 
     @property
     def num_args(self):
-        return len(self.arg_names)
+        return len(self.description.args)
 
     def __call__(self, **kwargs):
         assert len(kwargs.keys()) == self.num_args
         arg_list = []
-        for nn, tt in zip(self.arg_names, self.arg_types):
-            vv = kwargs[nn]
-            if tt[0] == "scalar":
-                assert np.isscalar(vv)
-                arg_list.append(tt[1](vv))
-            elif tt[0] == "array":
-                assert isinstance(vv, cupy.ndarray)
-                arg_list.append(vv.data)
-            else:
-                raise ValueError(f"Type {tt} not recognized")
+        for arg in self.description.args:
+            vv = kwargs[arg.name]
+            arg_list.append(self.to_function_arg(arg, vv))
 
-        n_threads = kwargs[self.num_threads_from_arg]
+        n_threads = kwargs[self.description.n_threads]
         grid_size = int(np.ceil(n_threads / self.block_size))
-        self.cupy_kernel((grid_size,), (self.block_size,), arg_list)
+        self.function((grid_size,), (self.block_size,), arg_list)
 
 
 class FFTCupy(object):

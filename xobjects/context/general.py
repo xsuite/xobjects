@@ -291,7 +291,7 @@ class Kernel:
         self.c_name = c_name
         self.args = args
         self.ret = ret
-        self.n_threads = None
+        self.n_threads = n_threads
 
 
 class Method:

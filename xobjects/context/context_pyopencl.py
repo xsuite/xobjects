@@ -4,6 +4,7 @@ import logging
 import numpy as np
 
 from .general import XBuffer, XContext, ModuleNotAvailable, available
+from .general import _concatenate_sources
 from .specialize_source import specialize_source
 
 try:
@@ -91,20 +92,12 @@ class ContextPyopencl(XContext):
         save_source_as=None,
     ):
 
-        source = []
-        fold_list = set()
-        for ss in sources:
-            if hasattr(ss, "read"):
-                source.append(ss.read())
-                fold_list.add(os.path.dirname(ss.name))
-            else:
-                source.append(ss)
-        source = "\n".join(source)
+        source, folders = _concatenate_sources(sources)
 
         if specialize:
             # included files are searched in the same folders od the src_filed
             source = specialize_source(
-                source, specialize_for="opencl", search_in_folders=fold_list
+                source, specialize_for="opencl", search_in_folders=folders
             )
 
         if save_source_as is not None:

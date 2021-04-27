@@ -383,7 +383,7 @@ class KernelCpu:
         self.ffi_interface = ffi_interface
         self.context = context
 
-    def to_arg(self, arg, value):
+    def to_function_arg(self, arg, value):
         if arg.pointer:
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 if hasattr(value, "dtype"):  # nparray
@@ -423,7 +423,7 @@ class KernelCpu:
                     f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}"
                 )
 
-    def from_arg(self, arg, value):
+    def from_function_arg(self, arg, value):
         return value
 
     @property
@@ -435,7 +435,7 @@ class KernelCpu:
         arg_list = []
         for arg in self.description.args:
             vv = kwargs[arg.name]
-            arg_list.append(self.to_arg(arg, vv))
+            arg_list.append(self.to_function_arg(arg, vv))
 
         if self.context.omp_num_threads > 0:
             self.context.omp_set_num_threads(
@@ -445,7 +445,7 @@ class KernelCpu:
         ret = self.function(*arg_list)
 
         if self.description.ret is not None:
-            return self.from_arg(self.description.ret, ret)
+            return self.from_function_arg(self.description.ret, ret)
 
 
 class FFTCpu(object):

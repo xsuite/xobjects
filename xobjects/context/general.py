@@ -1,5 +1,6 @@
 from typing import NamedTuple, Optional
 from abc import ABC, abstractmethod
+from pathlib import Path
 import logging
 import weakref
 
@@ -14,6 +15,26 @@ TODO:
 
 
 log = logging.getLogger(__name__)
+
+
+def _concatenate_sources(sources):
+
+    source = []
+    folders = set()
+    for ss in sources:
+        if hasattr(ss, "read"):
+            source.append(ss.read())
+            folders.add(os.path.dirname(ss.name))
+        elif isinstance(ss, Path):
+            with open(ss, 'r') as fid:
+                source.append(fid.read())
+            folders.add(ss.parent)
+        else:
+            source.append(ss)
+    source = "\n".join(source)
+
+    return source, folders
+
 
 
 def _align(offset, alignment):

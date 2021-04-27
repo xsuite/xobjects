@@ -3,6 +3,7 @@ import os
 import numpy as np
 
 from .general import XBuffer, XContext, ModuleNotAvailable, available
+from .general import _concatenate_sources
 from .specialize_source import specialize_source
 
 
@@ -61,22 +62,16 @@ class ContextCupy(XContext):
         save_source_as=None,
     ):
 
-        source = []
-        source.append('extern "C"{')
-        fold_list = set()
-        for ss in sources:
-            if hasattr(ss, "read"):
-                source.append(ss.read())
-                fold_list.add(os.path.dirname(ss.name))
-            else:
-                source.append(ss)
-        source.append("}")
-        source = "\n".join(source)
+        source, folders = _concatenate_sources(sources)
+        source = '\n'.join([
+            'extern "C"{',
+            source,
+            '}'])
 
         if specialize:
             # included files are searched in the same folders od the src_filed
             source = specialize_source(
-                source, specialize_for="cuda", search_in_folders=fold_list
+                source, specialize_for="cuda", search_in_folders=folders
             )
 
         if save_source_as is not None:

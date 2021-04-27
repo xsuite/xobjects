@@ -6,7 +6,8 @@ import logging
 
 import numpy as np
 
-from .general import XBuffer, XContext, ModuleNotAvailable, available
+from .general import (XBuffer, XContext, ModuleNotAvailable,
+                      available, _concatenate_sources)
 from .specialize_source import specialize_source
 
 log = logging.getLogger(__name__)
@@ -77,18 +78,10 @@ class ContextCpu(XContext):
         extra_link_args=["-O3"],
     ):
 
-        source = []
-        if self.omp_num_threads > 0:
-            source.append("#include <omp.h>")
+        source, folders = _concatenate_sources(sources)
 
-        fold_list = set()
-        for ss in sources:
-            if hasattr(ss, "read"):
-                source.append(ss.read())
-                fold_list.add(os.path.dirname(ss.name))
-            else:
-                source.append(ss)
-        source = "\n".join(source)
+        if self.omp_num_threads > 0:
+            source = "#include <omp.h>\n" + source
 
         if specialize:
             if self.omp_num_threads > 0:
@@ -99,7 +92,7 @@ class ContextCpu(XContext):
             source = specialize_source(
                 source,
                 specialize_for=specialize_for,
-                search_in_folders=list(fold_list),
+                search_in_folders=list(folders),
             )
 
         if save_source_as is not None:

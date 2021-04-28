@@ -1,4 +1,5 @@
 import numpy as np
+
 from .typeutils import Info
 from xobjects import Int64
 
@@ -14,7 +15,6 @@ class Ref(metaclass=MetaRef):
         self._rtype = rtype
 
     def _from_buffer(self, buffer, offset):
-        data = buffer.to_bytearray(offset, self._size)
         refoffset = Int64._from_buffer(buffer, offset)
         return self._rtype._from_buffer(buffer, refoffset)
 
@@ -30,7 +30,6 @@ class Ref(metaclass=MetaRef):
                 newobj = self._rtype(value, _buffer=buffer)
                 refoffset = newobj._offset
         Int64._to_buffer(buffer, offset, refoffset)
-        #buffer.update_from_buffer(offset, np.int64(refoffset).tobytes())
 
     def __call__(self, value=None):
         if value is None:

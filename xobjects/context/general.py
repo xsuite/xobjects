@@ -81,11 +81,7 @@ class XContext(ABC):
         "return buffer"
 
     @abstractmethod
-    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
-        pass
-
-    # @abstractmethod
-    def add_kernels_v2(
+    def add_kernels(
         self,
         sources: list,
         kernels: dict,

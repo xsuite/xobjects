@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 import logging
 import weakref
-
+import os
 
 """
 
@@ -26,7 +26,7 @@ def _concatenate_sources(sources):
             source.append(ss.read())
             folders.add(os.path.dirname(ss.name))
         elif isinstance(ss, Path):
-            with open(ss, 'r') as fid:
+            with open(ss, "r") as fid:
                 source.append(fid.read())
             folders.add(ss.parent)
         else:
@@ -36,7 +36,6 @@ def _concatenate_sources(sources):
     folders = [str(ff) for ff in folders]
 
     return source, folders
-
 
 
 def _align(offset, alignment):
@@ -156,12 +155,15 @@ class XBuffer(ABC):
         oldcapacity = self.capacity
         newcapacity = self.capacity + capacity
         newbuff = self._new_buffer(newcapacity)
-        self.copy_to(newbuff)
+        self.copy_to_native(
+            dest=newbuff, dest_offset=0, source_offset=0, nbytes=oldcapacity
+        )
         self.buffer = newbuff
-        if self.chunks[-1].end == self.capacity:  # last chunk is at the end
-            self.chunks[-1].end = newcapacity
-        else:
+        if len(self.chunks) == 0 or self.chunks[-1].end != self.capacity:
             self.chunks.append(Chunk(oldcapacity, newcapacity))
+        else:  # free chunk is at the end
+            self.chunks[-1].end = newcapacity
+
         self.capacity = newcapacity
 
     def free(self, offset, size):
@@ -192,6 +194,10 @@ class XBuffer(ABC):
     @abstractmethod
     def update_from_native(self, offset, source, source_offset, nbytes):
         """Copy data from native buffer into self.buffer starting from offset"""
+
+    @abstractmethod
+    def copy_to_native(self, dest, dest_offset, source_offset, nbytes):
+        """copy data from self.buffer into dest"""
 
     @abstractmethod
     def copy_native(self, offset, nbytes):
@@ -233,23 +239,6 @@ class XBuffer(ABC):
     def __repr__(self):
         name = self.__class__.__name__
         return f"<{name} {self.get_free()}/{self.capacity}>"
-
-    ##Old API
-    @abstractmethod
-    def copy_to(self, dest):
-        pass
-
-    @abstractmethod
-    def copy_from(self, source, src_offset, dest_offset, byte_count):
-        pass
-
-    @abstractmethod
-    def write(self, offset, data):
-        pass
-
-    @abstractmethod
-    def read(self, offset, size):
-        "return data"
 
 
 class Chunk:

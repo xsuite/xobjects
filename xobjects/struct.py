@@ -364,11 +364,6 @@ class Struct(metaclass=MetaStruct):
         return methods
 
     @classmethod
-    def _get_c_api_header(cls, conf={}):
+    def _gen_c_api(cls, conf={}):
         specs_list = cls._gen_method_specs()
-        return capi.gen_headers(cls, specs_list)
-
-    @classmethod
-    def _get_c_api(cls, conf={}):
-        specs_list = cls._gen_method_specs()
-        return capi.gen_code(cls, specs_list)
+        return capi.gen_code(cls, specs_list, conf)

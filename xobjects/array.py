@@ -407,8 +407,8 @@ class Array(metaclass=MetaArray):
             buffer.update_from_nplike(offset, cls._itemtype._dtype, value)
         elif isinstance(value, cls):
             if value._size == info.size:
-                buffer.copy_from(
-                    value._buffer, value._offset, coffset, value.size
+                buffer.update_from_xbuffer(
+                    offset, value._buffer, value._offset, value._size
                 )
             else:
                 raise ValueError("Value {value} not compatible size")
@@ -550,11 +550,6 @@ class Array(metaclass=MetaArray):
         return iter_index(self._shape, self._order)
 
     @classmethod
-    def _get_c_api_header(cls, conf={}):
+    def _gen_c_api(cls, conf={}):
         specs_list = cls._gen_method_specs()
-        return capi.gen_headers(cls, specs_list)
-
-    @classmethod
-    def _get_c_api(cls, conf={}):
-        specs_list = cls._gen_method_specs()
-        return capi.gen_code(cls, specs_list)
+        return capi.gen_code(cls, specs_list, conf)

@@ -19,7 +19,7 @@ class Check:
             data = bytes(np.random.randint(65, 90, size, dtype="u1"))
 
             offset = self.buffer.allocate(len(data))
-            self.buffer.write(offset, data)
+            self.buffer.update_from_buffer(offset, data)
             self.state[offset] = data
             return offset
         else:
@@ -37,7 +37,7 @@ class Check:
 
     def check(self):
         for offset, value in self.state.items():
-            assert self.buffer.read(offset, len(value)) == value
+            assert self.buffer.to_bytearray(offset, len(value)) == value
 
 
 def test_cl_print_devices():
@@ -66,8 +66,8 @@ def test_read_write():
         ctx = CTX()
         buff = ctx.new_buffer()
         bb = b"asdfasdfafsdf"
-        buff.write(23, bb)
-        assert buff.read(23, len(bb)) == bb
+        buff.update_from_buffer(23, bb)
+        assert buff.to_bytearray(23, len(bb)) == bb
 
 
 def test_to_from_byterarray():
@@ -151,7 +151,7 @@ def test_nplike():
     buff = ctx.new_buffer(capacity=80)
     arr = np.arange(6.0).reshape((2, 3))
     offset = 3
-    buff.copy_from(arr.tobytes(), 0, offset, arr.nbytes)
+    buff.update_from_buffer(offset, arr.tobytes())
     arr2 = buff.to_nplike(offset, "float64", (2, 3))
     assert np.all(arr == arr2)
 

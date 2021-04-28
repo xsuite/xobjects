@@ -99,6 +99,7 @@ class ContextCpu(XContext):
 
         .. code-block:: python
 
+            # A simple kernel
             src_code = '''
             /*gpukern*/
             void my_mul(const int n,
@@ -311,6 +312,12 @@ class ContextCpu(XContext):
 
     @property
     def kernels(self):
+
+        """
+        Dictionary containing all the kernels that have been imported to the context.
+        The syntax ``context.kernels.mykernel`` can also be used.
+        """
+
         return self._kernels
 
 

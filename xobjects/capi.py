@@ -135,7 +135,11 @@ def is_field(part):
 
 
 def is_struct(atype):
-    return hasattr(atype, "name")
+    return hasattr(atype, "_fields")
+
+
+def is_xobject(atype):
+    return is_array(atype) or is_struct(atype)
 
 
 def is_array(atype):
@@ -235,50 +239,42 @@ def gen_fun_data(cls, parts, action, const, extra, ret):
 
 
 def c_type_from_arg(arg: Arg, conf):
-    cdec = arg.atype._c_type
-    if arg.pointer:
-        cdec = dress_pointer(cdec + "*", conf)
-    if arg.const:
-        cdec = "const " + cdec
-    if arg.name is not None:
-        cdec = f"{cdec} {arg.name}"
-    return cdec
+    if arg is None:
+        return "void"
+    else:
+        cdec = arg.atype._c_type
+        if arg.pointer:
+            cdec = dress_pointer(cdec + "*", conf)
+        if is_xobject(arg.atype):
+            cdec = dress_pointer(cdec + "*", conf)
+        if arg.const:
+            cdec = "const " + cdec
+        if arg.name is not None:
+            cdec = f"{cdec} {arg.name}"
+        return cdec
 
 
 def gen_c_decl_from_kernel(kernel: Kernel, conf):
-    args = ", ".join([c_type_from_arg(kernel, conf) for arg in kernel.args])
-    ret = c_type_from_arg(kernel.ret, conf)
+    args = ", ".join([c_type_from_arg(arg, conf) for arg in kernel.args])
+    if kernel.ret is None:
+        ret = "void"
+    else:
+        ret = c_type_from_arg(kernel.ret, conf)
     return f"{ret} {kernel.c_name}({args})"
-
-
-def gen_c_decl(cls, action, parts, extra, ret, conf):
-    typename = cls._c_type
-    nparts = []
-    iparts = 0
-    for part in parts:
-        if hasattr(part, "name"):  # is field
-            nparts.append(part.name)
-        elif hasattr(part, "_shape"):  # is array
-            iparts += len(part._shape)
-    npart = "_".join(nparts)
-    iparts = [gen_int(f"i{ii}", conf) for ii in range(iparts)]
-    fname = f"{typename}_{action}_{npart}"
-    const = True
-    if action in ["set"]:
-        const = False
-    args = [gen_arg(cls, conf, argname="obj", const=const)]
-    args.extend(iparts)
-    if extra is not None:
-        args.extend(extra)
-    args = ", ".join(args)
-    return f"{ret} {fname}({args})"
 
 
 def gen_get(cls, parts, conf):
     lasttype = get_inner_type(parts[-1])
-    ret = gen_arg(lasttype, conf)
-    extra = []
-    decl = gen_c_decl(cls, "get", parts, extra, ret, conf)
+    kernel = gen_fun_data(
+        cls,
+        parts,
+        const=True,
+        action="get",
+        extra=[],
+        ret=Arg(lasttype),
+    )
+    decl = gen_c_decl_from_kernel(kernel, conf)
+
     prepointer = conf.get("prepointer", "")
     lst = [decl + "{"]
     lst.append(gen_method_offset(parts, conf))
@@ -293,52 +289,64 @@ def gen_get(cls, parts, conf):
         else:
             lst.append(f"  return *({ret}*)((char*) obj+offset);")
     lst.append("}")
-    return "\n".join(lst)
+    return "\n".join(lst), kernel
 
 
 def gen_set(cls, parts, conf):
     lasttype = get_inner_type(parts[-1])
-    ret = "void"
-    extra = [gen_arg(lasttype, conf, argname="value")]
-    decl = gen_c_decl(cls, "set", parts, extra, ret, conf)
-    return decl + ";"
+    kernel = gen_fun_data(
+        cls,
+        parts,
+        const=False,
+        action="set",
+        extra=[
+            Arg(
+                lasttype,
+                name="value",
+            )
+        ],
+        ret=None,
+    )
+    decl = gen_c_decl_from_kernel(kernel, conf)
+    return decl + ";", kernel
 
 
 def gen_getp(cls, parts, conf):
     lasttype = get_inner_type(parts[-1])
-    ret = gen_arg(lasttype, conf, pointer=True)
-    extra = []
-    decl = gen_c_decl(cls, "getp", parts, extra, ret, conf)
-    return decl + ";"
+    kernel = gen_fun_data(
+        cls,
+        parts,
+        const=False,
+        action="getp",
+        extra=[],
+        ret=Arg(lasttype),
+    )
+    decl = gen_c_decl_from_kernel(kernel, conf)
+    return decl + ";", kernel
 
 
 def gen_len(cls, parts, conf):
-    pass
+    return None, None
 
 
 def gen_size(cls, parts, conf):
-    pass
+    return None, None
 
 
 def gen_dim(cls, parts, conf):
-    pass
+    return None, None
 
 
 def gen_ndim(cls, parts, conf):
-    pass
+    return None, None
 
 
 def gen_strides(cls, parts, conf):
-    pass
+    return None, None
 
 
 def gen_iter(cls, parts, conf):
-    pass
-
-
-def gen_functions(cls, specs, conf):
-    out = []
-    return out
+    return None, None
 
 
 def gen_typedef(cls):
@@ -367,7 +375,7 @@ def gen_headers(cls, specs, conf):
             types.add(get_inner_type(part))
     for tt in types:
         out.append(gen_typedef(tt))
-    return out
+    return "\n".join(out)
 
 
 def gen_code(cls, specs, conf):
@@ -386,10 +394,13 @@ def gen_code(cls, specs, conf):
             out.append(gen_iter(cls, parts, conf))
 
     sources = [gen_headers(cls, specs, conf)]
-    kernels = []
+    kernels = {}
     for source, kernel in out:
-        sources.append(source)
-        kernels.append(kernel)
+        if source is not None:
+            sources.append(source)
+        if kernel is not None:
+            kernels[kernel.c_name] = kernel
 
     source = "\n".join(sources)
+
     return source, kernels

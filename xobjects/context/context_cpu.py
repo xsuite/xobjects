@@ -6,8 +6,13 @@ import logging
 
 import numpy as np
 
-from .general import (XBuffer, XContext, ModuleNotAvailable,
-                      available, _concatenate_sources)
+from .general import (
+    XBuffer,
+    XContext,
+    ModuleNotAvailable,
+    available,
+    _concatenate_sources,
+)
 from .specialize_source import specialize_source
 
 log = logging.getLogger(__name__)
@@ -336,7 +341,13 @@ class BufferByteArray(XBuffer):
 
     def copy_native(self, offset, nbytes):
         """return native data with content at from offset and nbytes"""
-        return self.buffer[offset : offset + nbytes]
+        return self.buffer[offset : offset + nbytes].copy()
+
+    def copy_to_native(self, dest, dest_offset, source_offset, nbytes):
+        """copy data from self.buffer into dest"""
+        dest[dest_offset : dest_offset + nbytes] = self.buffer[
+            source_offset : source_offset + nbytes
+        ]
 
     def update_from_buffer(self, offset, source):
         """Copy data from python buffer such as bytearray, bytes, memoryview, numpy array.data"""
@@ -364,26 +375,13 @@ class BufferByteArray(XBuffer):
         """return data that can be used as argument in kernel"""
         return self.buffer[offset : offset + nbytes]
 
-    def copy_to(self, dest):
-        dest[:] = self.buffer
-
-    def copy_from(self, source, src_offset, dest_offset, byte_count):
-        self.buffer[dest_offset : dest_offset + byte_count] = source[
-            src_offset : src_offset + byte_count
-        ]
-
-    def write(self, offset, data, count=0):
-        self.buffer[offset : offset + len(data)] = data
-
-    def read(self, offset, nbytes):
-        return self.buffer[offset : offset + nbytes]
-
 
 # One could implement something like this and choose
 # between Numpy and ByteArr when building the context
 class NumpyArrayBuffer(XBuffer):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError
+
 
 class KernelCpu:
     def __init__(
@@ -455,9 +453,7 @@ class KernelCpu:
             arg_list.append(self.to_function_arg(arg, vv))
 
         if self.context.omp_num_threads > 0:
-            self.context.omp_set_num_threads(
-                self.context.omp_num_threads
-            )
+            self.context.omp_set_num_threads(self.context.omp_num_threads)
 
         ret = self.function(*arg_list)
 

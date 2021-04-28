@@ -80,7 +80,7 @@ class MetaString(type):
 
     def _get_data(cls, buffer, offset):
         ll = Int64._from_buffer(buffer, offset)
-        return buffer.read(offset + 8, ll - 8)
+        return buffer.to_bytearray(offset + 8, ll - 8)
 
     def _from_buffer(cls, buffer, offset):
         # TODO keep in mind that in windows many funcitons returns wchar encoded in utf16

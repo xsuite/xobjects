@@ -191,3 +191,13 @@ def test_array_in_struct():
         bal = xo.Float64[:]
 
     m = Multipole(order=2, bal=np.array([1.0, 2.0, 3.0, 4.0]))
+
+
+def test_initialize_from_array():
+    class MyStruct(xo.Struct):
+        a = xo.Float64[3]
+
+    sa = MyStruct()
+    buf = sa._buffer
+    sb = MyStruct(_buffer=buf)
+    sa.a = sb.a

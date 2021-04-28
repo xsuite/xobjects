@@ -92,7 +92,6 @@ class ContextPyopencl(XContext):
         save_source_as=None,
     ):
 
-
         """
         Adds user-defined kernels to to the context. The kernel source
         code is provided as a string and/or in source files and must contain
@@ -173,7 +172,7 @@ class ContextPyopencl(XContext):
             self.kernels[pyname] = KernelPyopencl(
                 function=getattr(prg, kernel.c_name),
                 description=kernel,
-                context=self
+                context=self,
             )
 
     def nparray_to_context_array(self, arr):
@@ -273,11 +272,6 @@ class BufferPyopencl(XBuffer):
             self.context.context, cl.mem_flags.READ_WRITE, capacity
         )
 
-    def copy_to(self, dest):
-        # Does not pass through cpu if it can
-        # dest: python object that uses buffer protocol or opencl buffer
-        cl.enqueue_copy(self.context.queue, dest, self.buffer)
-
     def copy_from(self, source, src_offset, dest_offset, byte_count):
         # Does not pass through cpu if it can
         # source: python object that uses buffer protocol or opencl buffer
@@ -320,7 +314,7 @@ class BufferPyopencl(XBuffer):
 
     def copy_native(self, offset: int, nbytes: int):
         """return native data with content at from offset and nbytes"""
-        buff = cl.Buffer(self.context.context, cl.mem_flags.READ_WRITE, nbytes)
+        buff = self._new_buffer(nbytes)
         cl.enqueue_copy(
             queue=self.context.queue,
             dest=buff,
@@ -329,6 +323,18 @@ class BufferPyopencl(XBuffer):
             byte_count=nbytes,
         )
         return buff
+
+    def copy_to_native(
+        self, dest, dest_offset, source_offset: int, nbytes: int
+    ):
+        """return native data with content at from offset and nbytes"""
+        cl.enqueue_copy(
+            queue=self.context.queue,
+            dest=dest,
+            src=self.buffer,
+            src_offset=source_offset,
+            byte_count=nbytes,
+        )
 
     def update_from_buffer(self, offset: int, source):
         """Copy data from python buffer such as bytearray, bytes, memoryview, numpy array.data"""
@@ -404,10 +410,11 @@ class KernelPyopencl(object):
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 return arg.atype(value)  # try to return a numpy scalar
             elif hasattr(arg.atype, "_size"):  # it is a compound xobject
-                    raise NotImplementedError
+                raise NotImplementedError
             else:
                 raise ValueError(
-                    f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}")
+                    f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}"
+                )
 
     @property
     def num_args(self):

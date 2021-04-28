@@ -122,10 +122,7 @@ class ContextCupy(XContext):
         """
 
         source, folders = _concatenate_sources(sources)
-        source = '\n'.join([
-            'extern "C"{',
-            source,
-            '}'])
+        source = "\n".join(['extern "C"{', source, "}"])
 
         if specialize:
             # included files are searched in the same folders od the src_filed
@@ -147,7 +144,7 @@ class ContextCupy(XContext):
                 function=module.get_function(kernel.c_name),
                 description=kernel,
                 block_size=self.default_block_size,
-                context=self
+                context=self,
             )
 
     def nparray_to_context_array(self, arr):
@@ -235,7 +232,7 @@ class ContextCupy(XContext):
         Dictionary containing all the kernels that have been imported to the context.
         The syntax ``context.kernels.mykernel`` can also be used.
         """
-        
+
         return self._kernels
 
 
@@ -253,8 +250,14 @@ class BufferCupy(XBuffer):
         ]
 
     def copy_native(self, offset, nbytes):
-        """return native data with content at from offset and nbytes"""
-        return self.buffer[offset : offset + nbytes]
+        """Return a new cupy buffer with data from offset"""
+        return self.buffer[offset : offset + nbytes].copy()
+
+    def copy_to_native(self, dest, dest_offset, source_offset, nbytes):
+        """copy data from self to source from offset and nbytes"""
+        dest[dest_offset : dest_offset + nbytes] = self.buffer[
+            source_offset : source_offset + nbytes
+        ]
 
     def update_from_buffer(self, offset, source):
         """Copy data from python buffer such as bytearray, bytes, memoryview, numpy array.data"""
@@ -284,22 +287,6 @@ class BufferCupy(XBuffer):
     def to_pointer_arg(self, offset, nbytes):
         """return data that can be used as argument in kernel"""
         return self.buffer[offset : offset + nbytes]
-
-    def copy_to(self, dest):
-        dest[: len(self.buffer)] = self.buffer
-
-    def copy_from(self, source, src_offset, dest_offset, byte_count):
-        self.buffer[dest_offset : dest_offset + byte_count] = source[
-            src_offset : src_offset + byte_count
-        ]
-
-    def write(self, offset, data):
-        self.buffer[offset : offset + len(data)] = cupy.array(
-            np.frombuffer(data, dtype=np.uint8)
-        )
-
-    def read(self, offset, size):
-        return self.buffer[offset : offset + size].get().tobytes()
 
 
 class KernelCupy(object):
@@ -333,7 +320,7 @@ class KernelCupy(object):
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 return arg.atype(value)  # try to return a numpy scalar
             elif hasattr(arg.atype, "_size"):  # it is a compound xobject
-                    raise NotImplementedError
+                raise NotImplementedError
             else:
                 raise ValueError(
                     f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}"
@@ -370,7 +357,7 @@ class FFTCupy(object):
         from cupyx.scipy import fftpack as cufftp
 
         if data.flags.f_contiguous:
-            self._ax = [data.ndim-1-aa for aa in axes]
+            self._ax = [data.ndim - 1 - aa for aa in axes]
             _dat = data.T
             self.f_contiguous = True
         else:

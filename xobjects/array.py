@@ -407,8 +407,8 @@ class Array(metaclass=MetaArray):
             buffer.update_from_nplike(offset, cls._itemtype._dtype, value)
         elif isinstance(value, cls):
             if value._size == info.size:
-                buffer.copy_from(
-                    value._buffer, value._offset, coffset, value.size
+                buffer.update_from_xbuffer(
+                    offset, value._buffer, value._offset, value._size
                 )
             else:
                 raise ValueError("Value {value} not compatible size")

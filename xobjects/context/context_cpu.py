@@ -338,9 +338,10 @@ class KernelCpu:
         if arg.pointer:
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 if hasattr(value, "dtype"):  # nparray
+                    slice_first_elem = value[tuple(value.ndim * [slice(0, 1)])]
                     return self.ffi_interface.cast(
                         dtype2ctype(value.dtype) + "*",
-                        self.ffi_interface.from_buffer(value.data),
+                        self.ffi_interface.from_buffer(slice_first_elem.data),
                     )
                 elif hasattr(value, "_shape"):  # xobject array
                     # TODO: check context

@@ -1,5 +1,6 @@
 from typing import NamedTuple, Optional
 from abc import ABC, abstractmethod
+from pathlib import Path
 import logging
 import weakref
 
@@ -14,6 +15,28 @@ TODO:
 
 
 log = logging.getLogger(__name__)
+
+
+def _concatenate_sources(sources):
+
+    source = []
+    folders = set()
+    for ss in sources:
+        if hasattr(ss, "read"):
+            source.append(ss.read())
+            folders.add(os.path.dirname(ss.name))
+        elif isinstance(ss, Path):
+            with open(ss, 'r') as fid:
+                source.append(fid.read())
+            folders.add(ss.parent)
+        else:
+            source.append(ss)
+    source = "\n".join(source)
+
+    folders = [str(ff) for ff in folders]
+
+    return source, folders
+
 
 
 def _align(offset, alignment):
@@ -58,11 +81,7 @@ class XContext(ABC):
         "return buffer"
 
     @abstractmethod
-    def add_kernels(self, src_code="", src_files=[], kernel_descriptions={}):
-        pass
-
-    # @abstractmethod
-    def add_kernels_v2(
+    def add_kernels(
         self,
         sources: list,
         kernels: dict,
@@ -291,7 +310,7 @@ class Kernel:
         self.c_name = c_name
         self.args = args
         self.ret = ret
-        self.n_threads = None
+        self.n_threads = n_threads
 
 
 class Method:

@@ -6,7 +6,8 @@ import logging
 
 import numpy as np
 
-from .general import XBuffer, XContext, ModuleNotAvailable, available
+from .general import (XBuffer, XContext, ModuleNotAvailable,
+                      available, _concatenate_sources)
 from .specialize_source import specialize_source
 
 log = logging.getLogger(__name__)
@@ -30,8 +31,6 @@ try:
 except ImportError:
     print("WARNING: pyfftw not available, will use numpy")
     pyfftw = ModuleNotAvailable(message="pyfftw not available")
-
-type_mapping = {np.int32: "int32_t", np.int64: "int64_t", np.float64: "double"}
 
 dtype_dict = {
     "float64": "double",
@@ -71,200 +70,77 @@ class ContextCpu(XContext):
 
     def add_kernels(
         self,
-        src_code="",
-        src_files=[],
-        extra_compile_args=["-O3"],
-        extra_link_args=["-O3"],
-        kernel_descriptions={},
-        specialize_code=True,
-        save_src_as=None,
-    ):
-
-        """
-        Adds user-defined kernels to to the context. The kernel source
-        code is provided as a string and/or in source files and must contain
-        the kernel names defined in the kernel descriptions.
-
-        Args:
-            src_code (str): String with the kernel source code. Default: empty
-                string.
-            src_files (list of strings): paths to files containing the
-                source code. Default: empty list.
-            kernel_descriptions (dict): Dictionary with the kernel descriptions
-                in the form given by the following examples. The decriptions
-                define the kernel names, the type and name of the arguments
-                and identifies one input argument that defines the number of
-                threads to be launched.
-            specialize_code (bool): If True, the code is specialized using
-                annotations in the source code. Default is ``True``
-
-        Example:
-
-        .. code-block:: python
-
-            src_code = r'''
-            /*gpukern*/
-            void my_mul(const int n,
-                /*gpuglmem*/ const double* x1,
-                /*gpuglmem*/ const double* x2,
-                /*gpuglmem*/       double* y) {
-
-                for (int tid=0; tid<n; tid++){ //vectorize_over tid n
-                    y[tid] = x1[tid] * x2[tid];
-                }//end_vectorize
-            }
-            '''
-
-            kernel_descriptions = {'my_mul':{
-                'args':(
-                    (('scalar', np.int32),   'n',),
-                    (('array',  np.float64), 'x1',),
-                    (('array',  np.float64), 'x2',),
-                    (('array',  np.float64), 'y',),
-                    ),
-                'num_threads_from_arg': 'n'
-                },}
-
-            # Import kernel in context
-            context.add_kernels(src_code, kernel_descriptions)
-
-            # With a1, a2, b being arrays on the context, the kernel
-            # can be called as follows:
-            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
-
-        """
-
-        src_content = src_code
-        if self.omp_num_threads > 0:
-            src_content += "#include <omp.h>\n\n"
-        fold_list = []
-        for ff in src_files:
-            fold_list.append(os.path.dirname(ff))
-            with open(ff, "r") as fid:
-                src_content += "\n\n" + fid.read()
-
-        if specialize_code:
-            if self.omp_num_threads > 0:
-                specialize_for = "cpu_openmp"
-            else:
-                specialize_for = "cpu_serial"
-            # included files are searched in the same folders od the src_filed
-            src_content = specialize_source(
-                src_content,
-                specialize_for=specialize_for,
-                search_in_folders=fold_list,
-            )
-
-        if save_src_as is not None:
-            with open(save_src_as, "w") as fid:
-                fid.write(src_content)
-
-        ffi_interface = cffi.FFI()
-
-        ker_names = kernel_descriptions.keys()
-        for kk in ker_names:
-            if "return" in kernel_descriptions[kk]:
-                tt = kernel_descriptions[kk]["return"]
-                rettype = type_mapping[tt[1]]
-                rettype += {"array": "*", "scalar": ""}[tt[0]]
-            else:
-                rettype = "void"
-            signature = f"{rettype} {kk}("
-            for aa in kernel_descriptions[kk]["args"]:
-                tt = aa[0]
-                signature += type_mapping[tt[1]]
-                signature += {"array": "*", "scalar": ""}[tt[0]]
-                signature += ", "
-            signature = signature[:-2]  # remove the last comma and space
-            signature += ");"
-
-            ffi_interface.cdef(signature)
-            log.debug(f"cffi def {kk} {signature}")
-
-        if self.omp_num_threads > 0:
-            ffi_interface.cdef("void omp_set_num_threads(int);")
-
-        # Generate temp fname
-        tempfname = str(uuid.uuid4().hex)
-
-        # Compile
-        xtr_compile_args = ["-std=c99"]
-        xtr_link_args = ["-std=c99"]
-        xtr_compile_args += extra_compile_args
-        xtr_link_args += extra_link_args
-        if self.omp_num_threads > 0:
-            xtr_compile_args.append("-fopenmp")
-            xtr_link_args.append("-fopenmp")
-
-        ffi_interface.set_source(
-            tempfname,
-            src_content,
-            extra_compile_args=xtr_compile_args,
-            extra_link_args=xtr_link_args,
-        )
-
-        ffi_interface.compile(verbose=True)
-
-        # build full so filename, something like:
-        # 0e14651ea79740119c6e6c24754f935e.cpython-38-x86_64-linux-gnu.so
-        suffix = sysconfig.get_config_var("EXT_SUFFIX")
-        so_fname = tempfname + suffix
-
-        try:
-            # Import the compiled module
-            spec = importlib.util.spec_from_file_location(
-                tempfname, os.path.abspath("./" + tempfname + suffix)
-            )
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-
-            if self.omp_num_threads > 0:
-                ffi_interface.omp_set_num_threads = (
-                    module.lib.omp_set_num_threads
-                )
-
-            # Get the methods
-            for nn in ker_names:
-                kk = getattr(module.lib, nn)
-                aa = kernel_descriptions[nn]["args"]
-                aa_types, aa_names = zip(*aa)
-                self.kernels[nn] = KernelCpu(
-                    kernel=kk,
-                    arg_names=aa_names,
-                    arg_types=aa_types,
-                    return_type=kernel_descriptions[nn].get("return"),
-                    ffi_interface=ffi_interface,
-                    context=self,
-                )
-        finally:
-            # Clean temp files
-            files_to_remove = [so_fname, tempfname + ".c", tempfname + ".o"]
-            for ff in files_to_remove:
-                if os.path.exists(ff):
-                    os.remove(ff)
-
-    def add_kernels_v2(
-        self,
-        sources="",
-        kernels=[],
+        sources,
+        kernels,
         specialize=True,
         save_source_as=None,
         extra_compile_args=["-O3"],
         extra_link_args=["-O3"],
     ):
 
-        source = []
-        if self.omp_num_threads > 0:
-            source.append("#include <omp.h>")
+        """
+        Adds user-defined kernels to to the context. The kernel source
+        code is provided as a string and/or in source files and must contain
+        the kernel names defined in the kernel descriptions.
+        Args:
+            sources (list): List of source codes that are concatenated before
+                compilation. The list can contain strings (raw source code),
+                File objects and Path objects.
+            kernels (dict): Dictionary with the kernel descriptions
+                in the form given by the following examples. The descriptions
+                define the kernel names, the type and name of the arguments
+                and identify one input argument that defines the number of
+                threads to be launched (only on cuda/opencl).
+            specialize_code (bool): If True, the code is specialized using
+                annotations in the source code. Default is ``True``
+            save_source_as (str): Filename for saving the specialized source
+                code. Default is ```None```.
+        Example:
 
-        fold_list = set()
-        for ss in sources:
-            if hasattr(ss, "read"):
-                source.append(ss.read())
-                fold_list.add(os.path.dirname(ss.name))
-            else:
-                source.append(ss)
-        source = "\n".join(source)
+        .. code-block:: python
+
+            # A simple kernel
+            src_code = '''
+            /*gpukern*/
+            void my_mul(const int n,
+                /*gpuglmem*/ const double* x1,
+                /*gpuglmem*/ const double* x2,
+                /*gpuglmem*/       double* y) {
+                int tid = 0 //vectorize_over tid
+                y[tid] = x1[tid] * x2[tid];
+                //end_vectorize
+                }
+            '''
+
+            # Prepare description
+            kernel_descriptions = {
+                "my_mul": xo.Kernel(
+                    args=[
+                        xo.Arg(xo.Int32, name="n"),
+                        xo.Arg(xo.Float64, pointer=True, const=True, name="x1"),
+                        xo.Arg(xo.Float64, pointer=True, const=True, name="x2"),
+                        xo.Arg(xo.Float64, pointer=True, const=False, name="y"),
+                    ],
+                    n_threads="n",
+                    ),
+            }
+
+            # Import kernel in context
+            ctx.add_kernels(
+                sources=[src_code],
+                kernels=kernel_descriptions,
+                save_source_as=None,
+            )
+
+            # With a1, a2, b being arrays on the context, the kernel
+            # can be called as follows:
+            ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
+        """
+
+        source, folders = _concatenate_sources(sources)
+
+        if self.omp_num_threads > 0:
+            source = "#include <omp.h>\n" + source
 
         if specialize:
             if self.omp_num_threads > 0:
@@ -275,7 +151,7 @@ class ContextCpu(XContext):
             source = specialize_source(
                 source,
                 specialize_for=specialize_for,
-                search_in_folders=list(fold_list),
+                search_in_folders=list(folders),
             )
 
         if save_source_as is not None:
@@ -336,15 +212,13 @@ class ContextCpu(XContext):
             spec.loader.exec_module(module)
 
             if self.omp_num_threads > 0:
-                ffi_interface.omp_set_num_threads = (
-                    module.lib.omp_set_num_threads
-                )
+                self.omp_set_num_threads = module.lib.omp_set_num_threads
 
             # Get the methods
             for pyname, kernel in kernels.items():
-                self.kernels[pyname] = KernelCpu_v2(
-                    func=getattr(module.lib, kernel.c_name),
-                    desc=kernel,
+                self.kernels[pyname] = KernelCpu(
+                    function=getattr(module.lib, kernel.c_name),
+                    description=kernel,
                     ffi_interface=module.ffi,
                     context=self,
                 )
@@ -442,42 +316,6 @@ class ContextCpu(XContext):
         """
         Dictionary containing all the kernels that have been imported to the context.
         The syntax ``context.kernels.mykernel`` can also be used.
-
-        Example:
-
-        .. code-block:: python
-
-            src_code = r'''
-            /*gpukern*/
-            void my_mul(const int n,
-                /*gpuglmem*/ const double* x1,
-                /*gpuglmem*/ const double* x2,
-                /*gpuglmem*/       double* y) {
-
-                for (int tid=0; tid<n; tid++){ //vectorize_over tid n
-                    y[tid] = x1[tid] * x2[tid];
-                }//end_vectorize
-            }
-            '''
-
-            kernel_descriptions = {'my_mul':{
-                args':(
-                    (('scalar', np.int32),   'n',),
-                    (('array',  np.float64), 'x1',),
-                    (('array',  np.float64), 'x2',),
-                    )
-                'num_threads_from_arg': 'n'
-                },}
-
-            # Import kernel in context
-            context.add_kernels(src_code, kernel_descriptions)
-
-            # With a1 and a2 being arrays on the context, the kernel
-            # can be called as follows:
-            context.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
-            # or as follows:
-            context.kernels['my_mul'](n=len(a1), x1=a1, x2=a2)
-
         """
 
         return self._kernels
@@ -541,98 +379,34 @@ class BufferByteArray(XBuffer):
         return self.buffer[offset : offset + nbytes]
 
 
-# One could implement something like this and chose between Numpy and ByteArr
-# when building the context
+# One could implement something like this and choose
+# between Numpy and ByteArr when building the context
 class NumpyArrayBuffer(XBuffer):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError
 
-
-class KernelCpu(object):
+class KernelCpu:
     def __init__(
         self,
-        kernel,
-        arg_names,
-        arg_types,
-        ffi_interface,
-        return_type=None,
-        context=None,
-    ):
-
-        assert len(arg_names) == len(arg_types)
-
-        self.kernel = kernel
-        self.arg_names = arg_names
-        self.arg_types = arg_types
-        self.ffi_interface = ffi_interface
-        self.return_type = return_type
-        self.context = context
-
-    @property
-    def num_args(self):
-        return len(self.arg_names)
-
-    def __call__(self, **kwargs):
-        assert len(kwargs.keys()) == self.num_args
-        arg_list = []
-        for nn, tt in zip(self.arg_names, self.arg_types):
-            vv = kwargs[nn]
-            if tt[0] == "scalar":
-                assert np.isscalar(vv)
-                arg_list.append(tt[1](vv))
-            elif tt[0] == "array":
-                slice_first_elem = vv[tuple(vv.ndim * [slice(0, 1)])]
-                arg_list.append(
-                    self.ffi_interface.cast(
-                        type_mapping[tt[1]] + "*",
-                        self.ffi_interface.from_buffer(slice_first_elem),
-                    )
-                )
-            else:
-                raise ValueError(f"Type {tt} not recognized")
-
-        if self.context.omp_num_threads > 0:
-            self.ffi_interface.omp_set_num_threads(
-                self.context.omp_num_threads
-            )
-
-        ret = self.kernel(*arg_list)
-
-        if self.return_type is not None:
-            tt = self.return_type
-            log.debug(f"return {tt}")
-            if tt[0] == "scalar":
-                return ret
-            elif self.return_type[0] == "array":
-                dtype = tt[1]
-                shape = tt[2]
-                count = np.prod(shape)
-                return np.from_buffer(ret, dtype=dtype, count=count).reshape(
-                    shape
-                )
-
-
-class KernelCpu_v2:
-    def __init__(
-        self,
-        func,
-        desc,
+        function,
+        description,
         ffi_interface,
         context,
     ):
 
-        self.func = func
-        self.desc = desc
+        self.function = function
+        self.description = description
         self.ffi_interface = ffi_interface
         self.context = context
 
-    def to_arg(self, arg, value):
+    def to_function_arg(self, arg, value):
         if arg.pointer:
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 if hasattr(value, "dtype"):  # nparray
+                    slice_first_elem = value[tuple(value.ndim * [slice(0, 1)])]
                     return self.ffi_interface.cast(
                         dtype2ctype(value.dtype) + "*",
-                        self.ffi_interface.from_buffer(value.data),
+                        self.ffi_interface.from_buffer(slice_first_elem.data),
                     )
                 elif hasattr(value, "_shape"):  # xobject array
                     # TODO: check context
@@ -646,7 +420,7 @@ class KernelCpu_v2:
                     )
             else:
                 raise ValueError(
-                    f"Invalid value {value} for argument {arg.name} of kernel {self.desc.pyname}"
+                    f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}"
                 )
         else:
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
@@ -663,32 +437,32 @@ class KernelCpu_v2:
                 )
             else:
                 raise ValueError(
-                    f"Invalid value {value} for argument {arg.name} of kernel {self.desc.pyname}"
+                    f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}"
                 )
 
-    def from_arg(self, arg, value):
+    def from_function_arg(self, arg, value):
         return value
 
     @property
     def num_args(self):
-        return len(self.desc.args)
+        return len(self.description.args)
 
     def __call__(self, **kwargs):
         assert len(kwargs.keys()) == self.num_args
         arg_list = []
-        for arg in self.desc.args:
+        for arg in self.description.args:
             vv = kwargs[arg.name]
-            arg_list.append(self.to_arg(arg, vv))
+            arg_list.append(self.to_function_arg(arg, vv))
 
         if self.context.omp_num_threads > 0:
-            self.ffi_interface.omp_set_num_threads(
+            self.context.omp_set_num_threads(
                 self.context.omp_num_threads
             )
 
-        ret = self.func(*arg_list)
+        ret = self.function(*arg_list)
 
-        if self.desc.ret is not None:
-            return self.from_arg(self.desc.ret, ret)
+        if self.description.ret is not None:
+            return self.from_function_arg(self.description.ret, ret)
 
 
 class FFTCpu(object):

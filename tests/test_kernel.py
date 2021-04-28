@@ -3,7 +3,6 @@ import numpy as np
 import xobjects as xo
 from xobjects.context import available
 
-
 def test_kernel_cpu():
     ctx = xo.ContextCpu()
     src_code = r"""
@@ -18,27 +17,18 @@ double my_mul(const int n, const double* x1,
     }
 """
     kernel_descriptions = {
-        "my_mul": {
-            "args": (
-                (
-                    ("scalar", np.int32),
-                    "n",
-                ),
-                (
-                    ("array", np.float64),
-                    "x1",
-                ),
-                (
-                    ("array", np.float64),
-                    "x2",
-                ),
-            ),
-            "return": ("scalar", np.float64),
-            "num_threads_from_arg": "n",
-        },
+        "my_mul": xo.Kernel(
+            args=[
+                xo.Arg(xo.Int32, name="n"),
+                xo.Arg(xo.Float64, pointer=True, name="x1"),
+                xo.Arg(xo.Float64, pointer=True, name="x2"),
+            ],
+            ret=xo.Arg(xo.Float64),
+        )
     }
 
-    ctx.add_kernels(src_code=src_code, kernel_descriptions=kernel_descriptions)
+    ctx.add_kernels(sources=[src_code],
+            kernels=kernel_descriptions)
     a1 = np.arange(10.0)
     a2 = np.arange(10.0)
     y = ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
@@ -80,35 +70,23 @@ def test_kernels():
         """
 
         kernel_descriptions = {
-            "my_mul": {
-                "args": (
-                    (
-                        ("scalar", np.int32),
-                        "n",
-                    ),
-                    (
-                        ("array", np.float64),
-                        "x1",
-                    ),
-                    (
-                        ("array", np.float64),
-                        "x2",
-                    ),
-                    (
-                        ("array", np.float64),
-                        "y",
-                    ),
+            "my_mul": xo.Kernel(
+                args=[
+                    xo.Arg(xo.Int32, name="n"),
+                    xo.Arg(xo.Float64, pointer=True, const=True, name="x1"),
+                    xo.Arg(xo.Float64, pointer=True, const=True, name="x2"),
+                    xo.Arg(xo.Float64, pointer=True, const=False, name="y"),
+                ],
+                n_threads="n",
                 ),
-                "num_threads_from_arg": "n",
-            },
         }
 
         # Import kernel in context
         ctx.add_kernels(
-            src_code=src_code,
-            kernel_descriptions=kernel_descriptions,
+            sources=[src_code],
+            kernels=kernel_descriptions,
             # save_src_as=f'_test_{name}.c')
-            save_src_as=None,
+            save_source_as=None,
         )
 
         x1_host = np.array([1.0, 2.0, 3.0], dtype=np.float64)
@@ -124,7 +102,3 @@ def test_kernels():
 
         assert np.allclose(y_host, x1_host * x2_host)
 
-
-# With a1 and a2 being arrays on the context, the kernel
-# can be called as follows:
-# conddtext.kernels.my_mul(n=len(a1), x1=a1, x2=a2)

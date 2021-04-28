@@ -29,7 +29,8 @@ class Ref(metaclass=MetaRef):
             else:
                 newobj = self._rtype(value, _buffer=buffer)
                 refoffset = newobj._offset
-        buffer.update_from_buffer(offset, np.int64(refoffset).tobytes())
+        Int64._to_buffer(buffer, offset, refoffset)
+        #buffer.update_from_buffer(offset, np.int64(refoffset).tobytes())
 
     def __call__(self, value=None):
         if value is None:

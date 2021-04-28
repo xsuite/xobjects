@@ -1,5 +1,9 @@
 from typing import NamedTuple, List
 
+from .context import Kernel, Arg
+
+from .scalar import Int64
+
 
 def get_last_type(specs, conf):
     prepointer = conf.get("prepointer", "")
@@ -212,6 +216,41 @@ def gen_return(ret, pointer, conf):
     return ctype
 
 
+def gen_fun_data(cls, parts, action, const, extra, ret):
+    typename = cls._c_type
+    nparts = []
+    indices = 0
+    for part in parts:
+        if hasattr(part, "name"):  # is field
+            nparts.append(part.name)
+        elif hasattr(part, "_shape"):  # is array
+            indices += len(part._shape)
+    npart = "_".join(nparts)
+    fun_name = f"{typename}_{action}_{npart}"
+    args = [Arg(cls, pointer=False, const=const, name="obj")]
+    for ii in range(indices):
+        args.append(Arg(Int64, name=f"i{ii}"))
+
+    return Kernel(args, c_name=fun_name, ret=ret)
+
+
+def c_type_from_arg(arg: Arg, conf):
+    cdec = arg.atype._c_type
+    if arg.pointer:
+        cdec = dress_pointer(cdec + "*", conf)
+    if arg.const:
+        cdec = "const " + cdec
+    if arg.name is not None:
+        cdec = f"{cdec} {arg.name}"
+    return cdec
+
+
+def gen_c_decl_from_kernel(kernel: Kernel, conf):
+    args = ", ".join([c_type_from_arg(kernel, conf) for arg in kernel.args])
+    ret = c_type_from_arg(kernel.ret, conf)
+    return f"{ret} {kernel.c_name}({args})"
+
+
 def gen_c_decl(cls, action, parts, extra, ret, conf):
     typename = cls._c_type
     nparts = []
@@ -235,108 +274,122 @@ def gen_c_decl(cls, action, parts, extra, ret, conf):
     return f"{ret} {fname}({args})"
 
 
-def gen_get(cls, parts, header, conf):
+def gen_get(cls, parts, conf):
     lasttype = get_inner_type(parts[-1])
     ret = gen_arg(lasttype, conf)
     extra = []
     decl = gen_c_decl(cls, "get", parts, extra, ret, conf)
-    if header:
-        return decl + ";"
-    else:
-        prepointer = conf.get("prepointer", "")
-        lst = [decl + "{"]
-        lst.append(gen_method_offset(parts, conf))
-        ret, size = get_last_type(parts, conf)
-        if prepointer != "":
-            ret = prepointer + " " + ret
-        if "*" in ret:  # return type is a pointer
-            lst.append(f"  return ({ret})((char*) obj+offset);")
-        else:  # return type is a scalar
-            if size == 1:
-                lst.append(f"  return *(({ret}*) obj+offset);")
-            else:
-                lst.append(f"  return *({ret}*)((char*) obj+offset);")
-        lst.append("}")
-        return "\n".join(lst)
+    prepointer = conf.get("prepointer", "")
+    lst = [decl + "{"]
+    lst.append(gen_method_offset(parts, conf))
+    ret, size = get_last_type(parts, conf)
+    if prepointer != "":
+        ret = prepointer + " " + ret
+    if "*" in ret:  # return type is a pointer
+        lst.append(f"  return ({ret})((char*) obj+offset);")
+    else:  # return type is a scalar
+        if size == 1:
+            lst.append(f"  return *(({ret}*) obj+offset);")
+        else:
+            lst.append(f"  return *({ret}*)((char*) obj+offset);")
+    lst.append("}")
+    return "\n".join(lst)
 
 
-def gen_set(cls, parts, header, conf):
+def gen_set(cls, parts, conf):
     lasttype = get_inner_type(parts[-1])
     ret = "void"
     extra = [gen_arg(lasttype, conf, argname="value")]
     decl = gen_c_decl(cls, "set", parts, extra, ret, conf)
-    if header:
-        return decl + ";"
-    else:
-        pass
+    return decl + ";"
 
 
-def gen_getp(cls, parts, header, conf):
+def gen_getp(cls, parts, conf):
     lasttype = get_inner_type(parts[-1])
     ret = gen_arg(lasttype, conf, pointer=True)
     extra = []
     decl = gen_c_decl(cls, "getp", parts, extra, ret, conf)
-    if header:
-        return decl + ";"
-    else:
-        pass
+    return decl + ";"
 
 
-def gen_len(cls, parts, header, conf):
+def gen_len(cls, parts, conf):
     pass
 
 
-def gen_size(cls, parts, header, conf):
+def gen_size(cls, parts, conf):
     pass
 
 
-def gen_dim(cls, parts, header, conf):
+def gen_dim(cls, parts, conf):
     pass
 
 
-def gen_ndim(cls, parts, header, conf):
+def gen_ndim(cls, parts, conf):
     pass
 
 
-def gen_strides(cls, parts, header, conf):
+def gen_strides(cls, parts, conf):
     pass
 
 
-def gen_iter(cls, parts, header, conf):
+def gen_iter(cls, parts, conf):
     pass
 
 
-def gen_functions(cls, specs, header, conf):
+def gen_functions(cls, specs, conf):
     out = []
-    for parts in specs:
-        out.append(gen_getp(cls, parts, header, conf))
-        out.append(gen_size(cls, parts, header, conf))
-        if is_last_scalar(parts):
-            out.append(gen_get(cls, parts, header, conf))
-            out.append(gen_set(cls, parts, header, conf))
-        if is_last_array(parts):
-            out.append(gen_len(cls, parts, header, conf))
-            out.append(gen_dim(cls, parts, header, conf))
-            out.append(gen_ndim(cls, parts, header, conf))
-            out.append(gen_strides(cls, parts, header, conf))
-            out.append(gen_iter(cls, parts, header, conf))
     return out
 
 
 def gen_typedef(cls):
-    # out=["#include <stdint.h>"]
+    # TODO: for Union add enums
     out = []
     typename = cls._c_type
     if not is_scalar(cls):
-        out.append(f"typedef struct {typename} * {typename};")
+        out.append(
+            f"""
+#ifndef XOBJ_TYPEDEF_{typename}
+typedef struct {typename} * {typename};
+#define XOBJ_TYPEDEF_{typename}
+#endif
+"""
+        )
     return "\n".join(out)
 
 
 def gen_headers(cls, specs, conf):
+    # out=["#include <stdint.h>"]
     out = []
-    out.append(gen_typedef(cls))
-    return gen_functions(cls, specs, False, conf)
+    types = set()
+    types.add(cls)
+    for parts in specs:
+        for part in parts:
+            types.add(get_inner_type(part))
+    for tt in types:
+        out.append(gen_typedef(tt))
+    return out
 
 
-def gen_code(specs, conf):
-    pass
+def gen_code(cls, specs, conf):
+    out = []
+    for parts in specs:
+        out.append(gen_getp(cls, parts, conf))
+        out.append(gen_size(cls, parts, conf))
+        if is_last_scalar(parts):
+            out.append(gen_get(cls, parts, conf))
+            out.append(gen_set(cls, parts, conf))
+        if is_last_array(parts):
+            out.append(gen_len(cls, parts, conf))
+            out.append(gen_dim(cls, parts, conf))
+            out.append(gen_ndim(cls, parts, conf))
+            out.append(gen_strides(cls, parts, conf))
+            out.append(gen_iter(cls, parts, conf))
+
+    sources = [gen_headers(cls, specs, conf)]
+    kernels = []
+    for source, kernel in out:
+        sources.append(source)
+        kernels.append(kernel)
+
+    source = "\n".join(sources)
+    return source, kernels

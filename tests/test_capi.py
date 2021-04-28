@@ -43,27 +43,11 @@ def test_gen_method_spec():
     assert meth[6] == [Multipole.field, Field_N, Field.skew]
 
 
-def test_functions():
-    _, Multipole = gen_classes()
-
-    specs = Multipole._gen_method_specs()
-
-    res = capi.gen_functions(Multipole, specs, False, {})
-
-    assert len(res) == 29
-
-
 def test_gen_get():
     _, Multipole = gen_classes()
     parts = [Multipole.order]
 
-    assert (
-        capi.gen_get(Multipole, parts, True, {})
-        == "int8_t Multipole_get_order(const Multipole obj);"
-    )
-
-    code = capi.gen_get(Multipole, parts, False, {})
-
+    code = capi.gen_get(Multipole, parts, {})
     assert (
         code
         == """\
@@ -74,25 +58,27 @@ int8_t Multipole_get_order(const Multipole obj){
 }"""
     )
 
+    ctx = xo.ContextCpu()
+
+    source, kernels = Multipole._gen_c_api()
+
+    ctx.add_kernels(sources=[source], kernels=kernels)
+
 
 def test_gen_set():
     _, Multipole = gen_classes()
     parts = [Multipole.order]
 
-    assert (
-        capi.gen_set(Multipole, parts, True, {})
-        == "void Multipole_set_order(Multipole obj, int8_t value);"
-    )
+    code = capi.gen_set(Multipole, parts, {})
+    assert code == "void Multipole_set_order(Multipole obj, int8_t value);"
 
 
 def test_gen_getp():
     _, Multipole = gen_classes()
     parts = [Multipole.order]
 
-    assert (
-        capi.gen_getp(Multipole, parts, True, {})
-        == "int8_t* Multipole_getp_order(const Multipole obj);"
-    )
+    code = capi.gen_getp(Multipole, parts, {})
+    assert code == "int8_t* Multipole_getp_order(const Multipole obj);"
 
 
 # def test_gen_method_get_declaration():

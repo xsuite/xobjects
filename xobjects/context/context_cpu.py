@@ -78,6 +78,64 @@ class ContextCpu(XContext):
         extra_link_args=["-O3"],
     ):
 
+        """
+        Adds user-defined kernels to to the context. The kernel source
+        code is provided as a string and/or in source files and must contain
+        the kernel names defined in the kernel descriptions.
+        Args:
+            sources (list): List of source codes that are concatenated before
+                compilation. The list can contain strings (raw source code),
+                File objects and Path objects.
+            kernels (dict): Dictionary with the kernel descriptions
+                in the form given by the following examples. The descriptions
+                define the kernel names, the type and name of the arguments
+                and identify one input argument that defines the number of
+                threads to be launched (only on cuda/opencl).
+            specialize_code (bool): If True, the code is specialized using
+                annotations in the source code. Default is ``True``
+            save_source_as (str): Filename for saving the specialized source
+                code. Default is ```None```.
+        Example:
+
+        .. code-block:: python
+
+            src_code = '''
+            /*gpukern*/
+            void my_mul(const int n,
+                /*gpuglmem*/ const double* x1,
+                /*gpuglmem*/ const double* x2,
+                /*gpuglmem*/       double* y) {
+                int tid = 0 //vectorize_over tid
+                y[tid] = x1[tid] * x2[tid];
+                //end_vectorize
+                }
+            '''
+
+            # Prepare description
+            kernel_descriptions = {
+                "my_mul": xo.Kernel(
+                    args=[
+                        xo.Arg(xo.Int32, name="n"),
+                        xo.Arg(xo.Float64, pointer=True, const=True, name="x1"),
+                        xo.Arg(xo.Float64, pointer=True, const=True, name="x2"),
+                        xo.Arg(xo.Float64, pointer=True, const=False, name="y"),
+                    ],
+                    n_threads="n",
+                    ),
+            }
+
+            # Import kernel in context
+            ctx.add_kernels(
+                sources=[src_code],
+                kernels=kernel_descriptions,
+                save_source_as=None,
+            )
+
+            # With a1, a2, b being arrays on the context, the kernel
+            # can be called as follows:
+            ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
+        """
+
         source, folders = _concatenate_sources(sources)
 
         if self.omp_num_threads > 0:

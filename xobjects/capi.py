@@ -246,7 +246,7 @@ def c_type_from_arg(arg: Arg, conf):
         if arg.pointer:
             cdec = dress_pointer(cdec + "*", conf)
         if is_xobject(arg.atype):
-            cdec = dress_pointer(cdec + "*", conf)
+            cdec = dress_pointer(cdec, conf)
         if arg.const:
             cdec = "const " + cdec
         if arg.name is not None:
@@ -308,6 +308,7 @@ def gen_set(cls, parts, conf):
         ret=None,
     )
     decl = gen_c_decl_from_kernel(kernel, conf)
+    return None, None
     return decl + ";", kernel
 
 
@@ -322,6 +323,7 @@ def gen_getp(cls, parts, conf):
         ret=Arg(lasttype),
     )
     decl = gen_c_decl_from_kernel(kernel, conf)
+    return None, None
     return decl + ";", kernel
 
 
@@ -350,6 +352,11 @@ def gen_iter(cls, parts, conf):
 
 
 def gen_typedef(cls):
+    typename = cls._c_type
+    return f"typedef struct {typename} * {typename};"
+
+
+def gen_typedef_decl(cls):
     # TODO: for Union add enums
     out = []
     typename = cls._c_type
@@ -357,7 +364,7 @@ def gen_typedef(cls):
         out.append(
             f"""
 #ifndef XOBJ_TYPEDEF_{typename}
-typedef struct {typename} * {typename};
+{gen_typedef(cls)}
 #define XOBJ_TYPEDEF_{typename}
 #endif
 """
@@ -365,16 +372,28 @@ typedef struct {typename} * {typename};
     return "\n".join(out)
 
 
-def gen_headers(cls, specs, conf):
-    # out=["#include <stdint.h>"]
-    out = []
+def gen_headers(cls, specs):
+    out = ["#include <stdint.h>"]
     types = set()
     types.add(cls)
     for parts in specs:
         for part in parts:
             types.add(get_inner_type(part))
     for tt in types:
-        out.append(gen_typedef(tt))
+        out.append(gen_typedef_decl(tt))
+    return "\n".join(out)
+
+
+def gen_cdef(cls, specs):
+    types = set()
+    types.add(cls)
+    out = []
+    for parts in specs:
+        for part in parts:
+            types.add(get_inner_type(part))
+    for tt in types:
+        if not is_scalar(tt):
+            out.append(gen_typedef(tt))
     return "\n".join(out)
 
 
@@ -393,7 +412,7 @@ def gen_code(cls, specs, conf):
             out.append(gen_strides(cls, parts, conf))
             out.append(gen_iter(cls, parts, conf))
 
-    sources = [gen_headers(cls, specs, conf)]
+    sources = [gen_headers(cls, specs)]
     kernels = {}
     for source, kernel in out:
         if source is not None:
@@ -403,4 +422,5 @@ def gen_code(cls, specs, conf):
 
     source = "\n".join(sources)
 
-    return source, kernels
+    cdef = gen_cdef(cls, specs)
+    return source, kernels, cdef

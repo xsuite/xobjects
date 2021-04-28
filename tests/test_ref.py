@@ -2,7 +2,7 @@ import xobjects as xo
 from xobjects.context import available
 
 def test_ref_to_static_type():
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
+    for CTX in xo.ContextCupy, xo.ContextPyopencl, xo.ContextCpu:
         if CTX not in available:
             continue
 
@@ -16,14 +16,20 @@ def test_ref_to_static_type():
         arr2 = Float64_3([4,5,6], _buffer=buff)
 
         class MyStructRef(xo.Struct):
-            a = xo.Field(xo.Ref(Float64_3))
+            a = xo.Ref[Float64_3]
+            #a = xo.Field(xo.Ref(Float64_3)) # More explicit
 
         assert MyStructRef._size == 8
 
         mystructref = MyStructRef(a=arr2, _buffer=buff)
-
         assert mystructref._size == 8
-
         for ii in range(3):
             assert mystructref.a[ii] == arr2[ii]
 
+        mystructref.a = arr1
+        for ii in range(3):
+            assert mystructref.a[ii] == arr1[ii]
+
+        mystructref.a = [7,8,9]
+        for ii in range(3):
+            assert mystructref.a[ii] == [7,8,9][ii]

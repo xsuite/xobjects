@@ -1,5 +1,6 @@
 import numpy as np
 from .typeutils import Info
+from xobjects import Int64
 
 class MetaRef(type):
 
@@ -14,7 +15,7 @@ class Ref(metaclass=MetaRef):
 
     def _from_buffer(self, buffer, offset):
         data = buffer.to_bytearray(offset, self._size)
-        refoffset =  np.frombuffer(data, dtype=np.int64)[0]
+        refoffset = Int64._from_buffer(buffer, offset)
         return self._rtype._from_buffer(buffer, refoffset)
 
     def _to_buffer(self, buffer, offset, value, info=None):
@@ -26,7 +27,8 @@ class Ref(metaclass=MetaRef):
             if np.isscalar(value):
                 refoffset = int(value)
             else:
-                raise NotImplementedError
+                newobj = self._rtype(value, _buffer=buffer)
+                refoffset = newobj._offset
         buffer.update_from_buffer(offset, np.int64(refoffset).tobytes())
 
     def __call__(self, value=None):

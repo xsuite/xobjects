@@ -43,7 +43,7 @@ def test_gen_method_spec():
     assert meth[6] == [Multipole.field, Field_N, Field.skew]
 
 
-def notest_gen_get():
+def test_gen_get():
     _, Multipole = gen_classes()
     parts = [Multipole.order]
 
@@ -58,11 +58,21 @@ int8_t Multipole_get_order(const Multipole obj){
 }"""
     )
 
+
+def test_gen_c_api():
+    _, Multipole = gen_classes()
+
     ctx = xo.ContextCpu()
 
-    source, kernels = Multipole._gen_c_api()
+    source, kernels, cdef = Multipole._gen_c_api()
 
-    ctx.add_kernels(sources=[source], kernels=kernels)
+    ctx.add_kernels(sources=[source], kernels=kernels, extra_cdef=cdef)
+
+    m = Multipole(field=10)
+    m.order = 3
+    m.field[2].normal = 1
+    assert ctx.kernels.Multipole_get_order(obj=m) == 3
+    assert ctx.kernels.Multipole_get_field_normal(obj=m, i0=2) == 1.0
 
 
 def notest_gen_set():

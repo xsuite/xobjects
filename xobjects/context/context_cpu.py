@@ -81,6 +81,7 @@ class ContextCpu(XContext):
         save_source_as=None,
         extra_compile_args=["-O3"],
         extra_link_args=["-O3"],
+        extra_cdef=None,
     ):
 
         """
@@ -164,6 +165,9 @@ class ContextCpu(XContext):
                 fid.write(source)
 
         ffi_interface = cffi.FFI()
+
+        if extra_cdef is not None:
+            ffi_interface.cdef(extra_cdef)
 
         for pyname, kernel in kernels.items():
             if kernel.c_name is None:

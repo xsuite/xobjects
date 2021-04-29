@@ -23,11 +23,11 @@ def gen_classes():
 def test_gen_method_spec():
 
     Field, Multipole = gen_classes()
+    Field_N = Multipole.field.ftype
 
     meth = Field._gen_method_specs()
     assert meth[0] == [Field.normal]
 
-    Field_N = Multipole.field.ftype
     meth = Field_N._gen_method_specs()
     meth[0] = [Field_N]
     meth[1] = [Field_N, Field.normal]
@@ -44,10 +44,12 @@ def test_gen_method_spec():
 
 
 def test_gen_get():
-    _, Multipole = gen_classes()
+    Field, Multipole = gen_classes()
+    Field_N = Multipole.field.ftype
+
     parts = [Multipole.order]
 
-    source, _ = capi.gen_get(Multipole, parts, {})
+    source, _ = capi.gen_method_get(Multipole, parts, {})
     assert (
         source
         == """\
@@ -55,6 +57,36 @@ int8_t Multipole_get_order(const Multipole obj){
   int64_t offset=0;
   offset+=8;
   return *((int8_t*) obj+offset);
+}"""
+    )
+
+    parts = [Multipole.field, Field_N, Field.skew]
+    source, _ = capi.gen_method_get(Multipole, parts, {})
+    assert (
+        source
+        == """\
+double Multipole_get_field_skew(const Multipole obj, int64_t i0){
+  int64_t offset=0;
+  offset+=32;
+  offset+=16+i0*16;
+  offset+=8;
+  return *(double*)((char*) obj+offset);
+}"""
+    )
+
+
+def test_gen_set():
+    _, Multipole = gen_classes()
+    parts = [Multipole.order]
+
+    source, _ = capi.gen_method_set(Multipole, parts, {})
+    assert (
+        source
+        == """\
+void Multipole_set_order(Multipole obj, int8_t value){
+  int64_t offset=0;
+  offset+=8;
+  *((int8_t*) obj+offset)=value;
 }"""
     )
 
@@ -66,29 +98,18 @@ def test_gen_c_api():
 
     source, kernels, cdef = Multipole._gen_c_api()
 
-    ctx.add_kernels(sources=[source], kernels=kernels, extra_cdef=cdef)
+    ctx.add_kernels(
+        sources=[source],
+        kernels=kernels,
+        extra_cdef=cdef,
+        save_source_as="test.c",
+    )
 
     m = Multipole(field=10)
     m.order = 3
     m.field[2].normal = 1
     assert ctx.kernels.Multipole_get_order(obj=m) == 3
     assert ctx.kernels.Multipole_get_field_normal(obj=m, i0=2) == 1.0
-
-
-def notest_gen_set():
-    _, Multipole = gen_classes()
-    parts = [Multipole.order]
-
-    source, _ = capi.gen_set(Multipole, parts, {})
-    assert source == "void Multipole_set_order(Multipole obj, int8_t value);"
-
-
-def notest_gen_getp():
-    _, Multipole = gen_classes()
-    parts = [Multipole.order]
-
-    source, _ = capi.gen_getp(Multipole, parts, {})
-    assert source == "int8_t* Multipole_getp_order(const Multipole obj);"
 
 
 # def test_gen_method_get_declaration():

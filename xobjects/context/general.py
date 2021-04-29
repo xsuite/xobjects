@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple, List
 from abc import ABC, abstractmethod
 from pathlib import Path
 import logging
@@ -64,7 +64,7 @@ class XContext(ABC):
 
     def new_buffer(self, capacity=1048576):
         buf = self._make_buffer(capacity=capacity)
-        self.buffers.append(weakref.finalize(buf, log.debug, f"free buf"))
+        self.buffers.append(weakref.finalize(buf, log.debug, "free buf"))
         return buf
 
     @property
@@ -274,7 +274,7 @@ class View(NamedTuple):
     size: int
 
 
-available = []
+available: List[XContext] = []
 
 
 class Arg:

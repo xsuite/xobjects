@@ -1,5 +1,3 @@
-from typing import NamedTuple, List
-
 from .context import Kernel, Arg
 
 from .scalar import Int64
@@ -48,90 +46,11 @@ def get_last_type2(specs):
     return ret
 
 
-def gen_method_get_declaration(name, specs, conf):
-    itype = conf.get("itype", "int64_t")
-    prepointer = conf.get("prepointer", "")
-    postpointer = conf.get("postpointer", "")
-    nparts = []
-    iparts = 0
-    for spec in specs:
-        if hasattr(spec, "name"):
-            nparts.append(spec.name)
-        elif hasattr(spec, "_shape"):
-            iparts += len(spec._shape)
-
-    ret = get_last_scalar_type(specs)
-    if ret is not None:
-        method = f"{ret} {name}_get"
-        if len(nparts) > 0:
-            method += "_" + "_".join(nparts)
-        args = [f"{prepointer}{name}*{postpointer} obj"]
-        if iparts > 0:
-            args.extend([f"{itype} i{ii}" for ii in range(iparts)])
-        return f"{method}({', '.join(args)})"
-
-
-def gen_method_get_description(name, specs, conf):
-    nparts = []
-    iparts = 0
-    for spec in specs:
-        if hasattr(spec, "name"):
-            nparts.append(spec.name)
-        elif hasattr(spec, "_shape"):
-            iparts += len(spec._shape)
-
-    ret = get_last_type2(specs)
-
-    fun_name = f"{name}_get"
-    if len(nparts) > 0:
-        fun_name += "_" + "_".join(nparts)
-    args = [(("pointer", name), "obj")]
-    if iparts > 0:
-        args.extend([(("scalar", name), f"i{ii}") for ii in range(iparts)])
-    return (fun_name, {"args": args, "return": ret})
-
-
-def gen_method_offset(specs, conf):
-    itype = conf.get("itype", "int64_t")
-    lst = [f"  {itype} offset=0;"]
-    offset = 0
-    for spec in specs:
-        soffset = spec._get_c_offset(conf)
-        if type(soffset) is int:
-            offset += soffset
-        else:
-            lst.append(f"  offset+={offset};")  # dump current offset
-            lst.extend(soffset)  # update reference offset
-            offset = 0
-    if offset > 0:
-        lst.append(f"  offset+={offset};")
-    return "\n".join(lst)
-
-
-def gen_method_get_definition(name, specs, conf):
-    prepointer = conf.get("prepointer", "")
-
-    lst = [gen_method_get_declaration(name, specs, conf) + "{"]
-    lst.append(gen_method_offset(specs, conf))
-    ret, size = get_last_type(specs, conf)
-    if prepointer != "":
-        ret = prepointer + " " + ret
-    if "*" in ret:  # return type is a pointer
-        lst.append(f"  return ({ret})((char*) obj+offset);")
-    else:  # return type is a scalar
-        if size == 1:
-            lst.append(f"  return *(({ret}*) obj+offset);")
-        else:
-            lst.append(f"  return *({ret}*)((char*) obj+offset);")
-    lst.append("}")
-    return "\n".join(lst)
-
-
-### new take
+# new take
 
 
 def is_field(part):
-    return hasattr(part, "name")
+    return hasattr(part, "ftype")
 
 
 def is_struct(atype):
@@ -192,7 +111,7 @@ def gen_arg(atype, conf, argname="", const=False, pointer=False):
         ctype += "*"
     if const:
         ctype = "const " + ctype
-    if pointer or not is_scalar(atype):
+    if pointer or is_xobject(atype):
         ctype = dress_pointer(ctype, conf)
     if argname != "":
         ctype = f"{ctype} {argname}"
@@ -215,9 +134,67 @@ def gen_return(ret, pointer, conf):
         ctype = ret._c_type
     else:
         ctype = ret
-    if pointer:
+    if pointer or is_xobject(ret.atype):
         ctype = dress_pointer(ctype, conf)
     return ctype
+
+
+def gen_method_offset(specs, conf):
+    """return code to obtain offset of the target in bytes"""
+    itype = conf.get("itype", "int64_t")
+    lst = [f"  {itype} offset=0;"]
+    offset = 0
+    for spec in specs:
+        soffset = spec._get_c_offset(conf)
+        if type(soffset) is int:
+            offset += soffset
+        else:
+            lst.append(f"  offset+={offset};")  # dump current offset
+            lst.extend(soffset)  # update reference offset
+            offset = 0
+    if offset > 0:
+        lst.append(f"  offset+={offset};")
+    return "\n".join(lst)
+
+
+def c_type_from_arg(arg: Arg, conf):
+    if arg is None:
+        return "void"
+    else:
+        cdec = arg.atype._c_type
+        if arg.pointer:
+            cdec = dress_pointer(cdec + "*", conf)
+        if is_xobject(arg.atype):
+            cdec = dress_pointer(cdec, conf)
+        if arg.const:
+            cdec = "const " + cdec
+        return cdec
+
+
+def c_arg_from_arg(arg: Arg, conf):
+    cdec = c_type_from_arg(arg, conf)
+    return f"{cdec} {arg.name}"
+
+
+def c_size_from_arg(arg: Arg, conf):
+    if arg is None:
+        return None
+    else:
+        if arg.pointer:
+            return conf.get("pointersize", 64)
+        elif is_xobject(arg.atype):
+            return conf.get("pointersize", 64)
+        else:
+            return arg.atype._size
+
+
+def gen_c_decl_from_kernel(kernel: Kernel, conf):
+    args = ", ".join([c_arg_from_arg(arg, conf) for arg in kernel.args])
+    if kernel.ret is None:
+        ret = "void"
+    else:
+        ret = c_type_from_arg(kernel.ret, conf)
+    return f"{ret} {kernel.c_name}({args})"
 
 
 def gen_fun_data(cls, parts, action, const, extra, ret):
@@ -235,81 +212,63 @@ def gen_fun_data(cls, parts, action, const, extra, ret):
     for ii in range(indices):
         args.append(Arg(Int64, name=f"i{ii}"))
 
+    args.extend(extra)
+
     return Kernel(args, c_name=fun_name, ret=ret)
 
 
-def c_type_from_arg(arg: Arg, conf):
-    if arg is None:
-        return "void"
+def gen_c_pointed(target: Arg, conf):
+    size = c_size_from_arg(target, conf)
+    ret = c_type_from_arg(target, conf)
+    if target.pointer or is_xobject(target.atype):
+        return f"({ret})((char*) obj+offset)"
     else:
-        cdec = arg.atype._c_type
-        if arg.pointer:
-            cdec = dress_pointer(cdec + "*", conf)
-        if is_xobject(arg.atype):
-            cdec = dress_pointer(cdec, conf)
-        if arg.const:
-            cdec = "const " + cdec
-        if arg.name is not None:
-            cdec = f"{cdec} {arg.name}"
-        return cdec
+        if size == 1:
+            return f"*(({ret}*) obj+offset)"
+        else:
+            return f"*({ret}*)((char*) obj+offset)"
 
 
-def gen_c_decl_from_kernel(kernel: Kernel, conf):
-    args = ", ".join([c_type_from_arg(arg, conf) for arg in kernel.args])
-    if kernel.ret is None:
-        ret = "void"
-    else:
-        ret = c_type_from_arg(kernel.ret, conf)
-    return f"{ret} {kernel.c_name}({args})"
-
-
-def gen_get(cls, parts, conf):
+def gen_method_get(cls, parts, conf):
     lasttype = get_inner_type(parts[-1])
+    retarg = Arg(lasttype)
     kernel = gen_fun_data(
         cls,
         parts,
         const=True,
         action="get",
         extra=[],
-        ret=Arg(lasttype),
+        ret=retarg,
     )
     decl = gen_c_decl_from_kernel(kernel, conf)
 
-    prepointer = conf.get("prepointer", "")
     lst = [decl + "{"]
     lst.append(gen_method_offset(parts, conf))
-    ret, size = get_last_type(parts, conf)
-    if prepointer != "":
-        ret = prepointer + " " + ret
-    if "*" in ret:  # return type is a pointer
-        lst.append(f"  return ({ret})((char*) obj+offset);")
-    else:  # return type is a scalar
-        if size == 1:
-            lst.append(f"  return *(({ret}*) obj+offset);")
-        else:
-            lst.append(f"  return *({ret}*)((char*) obj+offset);")
+    pointed = gen_c_pointed(retarg, conf)
+    lst.append(f"  return {pointed};")
     lst.append("}")
     return "\n".join(lst), kernel
 
 
-def gen_set(cls, parts, conf):
+def gen_method_set(cls, parts, conf):
     lasttype = get_inner_type(parts[-1])
+    valarg = Arg(lasttype, name="value")
     kernel = gen_fun_data(
         cls,
         parts,
         const=False,
         action="set",
-        extra=[
-            Arg(
-                lasttype,
-                name="value",
-            )
-        ],
+        extra=[valarg],
         ret=None,
     )
     decl = gen_c_decl_from_kernel(kernel, conf)
-    return None, None
-    return decl + ";", kernel
+
+    lst = [decl + "{"]
+    lst.append(gen_method_offset(parts, conf))
+    pointed = gen_c_pointed(valarg, conf)
+    lst.append(f"  {pointed}=value;")
+    lst.append("}")
+    return "\n".join(lst), kernel
 
 
 def gen_getp(cls, parts, conf):
@@ -403,8 +362,8 @@ def gen_code(cls, specs, conf):
         out.append(gen_getp(cls, parts, conf))
         out.append(gen_size(cls, parts, conf))
         if is_last_scalar(parts):
-            out.append(gen_get(cls, parts, conf))
-            out.append(gen_set(cls, parts, conf))
+            out.append(gen_method_get(cls, parts, conf))
+            out.append(gen_method_set(cls, parts, conf))
         if is_last_array(parts):
             out.append(gen_len(cls, parts, conf))
             out.append(gen_dim(cls, parts, conf))

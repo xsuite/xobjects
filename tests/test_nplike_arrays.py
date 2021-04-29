@@ -12,7 +12,7 @@ def test_ffts():
         ctxs.append(
             xo.ContextPyopencl,
         )
-    except:
+    except ImportError:
         print("gpyfft not available")
 
     for CTX in ctxs:

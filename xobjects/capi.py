@@ -3,52 +3,6 @@ from .context import Kernel, Arg
 from .scalar import Int64
 
 
-def get_last_type(specs, conf):
-    prepointer = conf.get("prepointer", "")
-    pointersize = conf.get("pointersize", 64)
-    spec = specs[-1]
-    if hasattr(spec, "name"):  # is a field
-        lasttype = spec.ftype
-    elif hasattr(spec, "_shape"):  # is an array
-        lasttype = spec._itemtype
-
-    if hasattr(lasttype, "_c_type"):
-        ret = lasttype._c_type
-        size = lasttype._size
-    else:
-        ret = f"{lasttype.__name__}*"
-        size = pointersize
-
-    if "*" in ret and prepointer != "":
-        ret = f"{prepointer} {ret}"
-
-    return ret, size
-
-
-def get_last_scalar_type(specs):
-    spec = specs[-1]
-    if hasattr(spec, "_dtype"):
-        return spec._c_type
-    else:
-        return None
-
-
-def get_last_type2(specs):
-    spec = specs[-1]
-    if hasattr(spec, "name"):  # is a field
-        lasttype = spec.ftype
-    elif hasattr(spec, "_shape"):  # is an array
-        lasttype = spec._itemtype
-    if hasattr(lasttype, "_c_type"):
-        ret = ("scalar", lasttype._c_type)
-    else:
-        ret = ("pointer", lasttype._c_type)
-    return ret
-
-
-# new take
-
-
 def is_field(part):
     return hasattr(part, "ftype")
 
@@ -286,27 +240,27 @@ def gen_getp(cls, parts, conf):
     return decl + ";", kernel
 
 
-def gen_len(cls, parts, conf):
+def gen_method_len(cls, parts, conf):
     return None, None
 
 
-def gen_size(cls, parts, conf):
+def gen_method_size(cls, parts, conf):
     return None, None
 
 
-def gen_dim(cls, parts, conf):
+def gen_method_dim(cls, parts, conf):
     return None, None
 
 
-def gen_ndim(cls, parts, conf):
+def gen_method_ndim(cls, parts, conf):
     return None, None
 
 
-def gen_strides(cls, parts, conf):
+def gen_method_strides(cls, parts, conf):
     return None, None
 
 
-def gen_iter(cls, parts, conf):
+def gen_method_iter(cls, parts, conf):
     return None, None
 
 
@@ -360,16 +314,18 @@ def gen_code(cls, specs, conf):
     out = []
     for parts in specs:
         out.append(gen_getp(cls, parts, conf))
-        out.append(gen_size(cls, parts, conf))
+
         if is_last_scalar(parts):
             out.append(gen_method_get(cls, parts, conf))
             out.append(gen_method_set(cls, parts, conf))
+        else:
+            out.append(gen_method_size(cls, parts, conf))
         if is_last_array(parts):
-            out.append(gen_len(cls, parts, conf))
-            out.append(gen_dim(cls, parts, conf))
-            out.append(gen_ndim(cls, parts, conf))
-            out.append(gen_strides(cls, parts, conf))
-            out.append(gen_iter(cls, parts, conf))
+            out.append(gen_method_len(cls, parts, conf))
+            out.append(gen_method_dim(cls, parts, conf))
+            out.append(gen_method_ndim(cls, parts, conf))
+            out.append(gen_method_strides(cls, parts, conf))
+            out.append(gen_method_iter(cls, parts, conf))
 
     sources = [gen_headers(cls, specs)]
     kernels = {}

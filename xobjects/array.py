@@ -200,6 +200,9 @@ class MetaArray(type):
     def __getitem__(cls, shape):
         return Array.mk_arrayclass(cls, shape)
 
+    def _get_offset(cls, index):
+        return get_offset(index, cls._strides)
+
 
 class Array(metaclass=MetaArray):
     _shape: tuple
@@ -258,7 +261,7 @@ class Array(metaclass=MetaArray):
                     raise ValueError(f"shape not valid for {args[0]} ")
                 value = args[0]
             elif len(args) > 1:
-                raise ValueError(f"too many arguments")
+                raise ValueError("too many arguments")
             size = cls._size
             shape = cls._shape
             order = cls._order
@@ -459,10 +462,6 @@ class Array(metaclass=MetaArray):
             return self.__class__._size
 
     @classmethod
-    def _get_offset(cls, index):
-        return get_offset(index, cls._strides)
-
-    @classmethod
     def _get_position(cls, index):
         offset = get_offset(index, cls._strides)
         if cls._is_static_type:
@@ -553,3 +552,15 @@ class Array(metaclass=MetaArray):
     def _gen_c_api(cls, conf={}):
         specs_list = cls._gen_method_specs()
         return capi.gen_code(cls, specs_list, conf)
+
+    def to_nplike(self):
+        shape = self._shape
+        cshape = [shape[ii] for ii in self._order]
+        if hasattr(self._itemtype, "dtype"):
+            arr = self._buffer.to_nplike(
+                self._offset, self._itemtype.dtype, cshape
+            ).transpose(self._order)
+            assert arr.strides == self.strides
+            return arr
+        else:
+            raise NotImplementedError

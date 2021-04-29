@@ -115,7 +115,6 @@ def test_array_of_unionrefs():
         context = CTX()
         print(context)
 
-
         aoref = ArrOfUnionRefs(10, _context=context)
 
         for ii in range(10):

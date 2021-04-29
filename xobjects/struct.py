@@ -43,6 +43,8 @@ Field instance:
 
 """
 import logging
+from typing import Callable
+
 
 from .typeutils import (
     get_a_buffer,
@@ -246,7 +248,7 @@ class MetaStruct(type):
 class Struct(metaclass=MetaStruct):
     _fields: list
     _d_fields: list
-    _inspect_args: callable
+    _inspect_args: Callable
 
     @classmethod
     def _from_buffer(cls, buffer, offset):

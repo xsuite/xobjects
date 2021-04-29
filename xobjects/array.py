@@ -203,6 +203,12 @@ class MetaArray(type):
     def _get_offset(cls, index):
         return get_offset(index, cls._strides)
 
+    def _get_n_items(cls):
+        if cls._is_static_shape:
+            return np.prod(cls._shape)
+        else:
+            raise ValueError("Cannot get n items from dynamic shapes")
+
 
 class Array(metaclass=MetaArray):
     _shape: tuple

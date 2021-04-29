@@ -11,7 +11,8 @@ def is_struct(atype):
     return hasattr(atype, "_fields")
 
 
-def is_xobject(atype):
+def is_compound(atype):
+    """Types that are referenced in C with an opaque pointer"""
     return is_array(atype) or is_struct(atype)
 
 
@@ -24,52 +25,11 @@ def is_scalar(atype):
 
 
 def get_inner_type(part):
+    """type contained in a field or array"""
     if is_field(part):  # is a field
         return part.ftype
     elif is_array(part):  # is an array
         return part._itemtype
-
-
-def get_inner_c_type(part):
-    if is_field(part):  # is a field
-        return part.ftype._c_type
-    elif is_array(part):  # is an array
-        return part._itemtype._c_type
-
-
-def is_last_scalar(spec):
-    atype = get_inner_type(spec[-1])
-    if atype is not None:
-        return is_scalar(atype)
-    else:
-        return False
-
-
-def is_last_array(spec):
-    atype = get_inner_type(spec[-1])
-    if atype is not None:
-        return hasattr(atype, "_shape")
-    else:
-        return False
-
-
-def gen_pointer(typename, argname, conf):
-    prepointer = conf.get("prepointer", "")
-    postpointer = conf.get("postpointer", "")
-    return f"{prepointer}{typename}*{postpointer} {argname}"
-
-
-def gen_arg(atype, conf, argname="", const=False, pointer=False):
-    ctype = atype._c_type
-    if pointer:
-        ctype += "*"
-    if const:
-        ctype = "const " + ctype
-    if pointer or is_xobject(atype):
-        ctype = dress_pointer(ctype, conf)
-    if argname != "":
-        ctype = f"{ctype} {argname}"
-    return ctype
 
 
 def dress_pointer(ctype, conf):
@@ -78,19 +38,52 @@ def dress_pointer(ctype, conf):
     return f"{prepointer}{ctype}{postpointer}"
 
 
-def gen_int(argname, conf):
-    itype = conf.get("itype", "int64_t")
-    return f"{itype} {argname}"
-
-
-def gen_return(ret, pointer, conf):
-    if hasattr(ret, "_c_type"):
-        ctype = ret._c_type
+def gen_c_type_from_arg(arg: Arg, conf):
+    if arg is None:
+        return "void"
     else:
-        ctype = ret
-    if pointer or is_xobject(ret.atype):
-        ctype = dress_pointer(ctype, conf)
-    return ctype
+        cdec = arg.atype._c_type
+        if arg.pointer:
+            cdec = dress_pointer(cdec + "*", conf)
+        if is_compound(arg.atype):
+            cdec = dress_pointer(cdec, conf)
+        if arg.const:
+            cdec = "const " + cdec
+        return cdec
+
+
+def gen_c_arg_from_arg(arg: Arg, conf):
+    cdec = gen_c_type_from_arg(arg, conf)
+    return f"{cdec} {arg.name}"
+
+
+def gen_c_size_from_arg(arg: Arg, conf):
+    if arg is None:
+        return None
+    else:
+        if arg.pointer:
+            return conf.get("pointersize", 64)
+        elif is_compound(arg.atype):
+            return conf.get("pointersize", 64)
+        else:
+            return arg.atype._size
+
+
+def gen_c_decl_from_kernel(kernel: Kernel, conf):
+    args = ", ".join([gen_c_arg_from_arg(arg, conf) for arg in kernel.args])
+    if kernel.ret is None:
+        ret = "void"
+    else:
+        ret = gen_c_type_from_arg(kernel.ret, conf)
+    return f"{ret} {kernel.c_name}({args})"
+
+
+def get_layers(parts):
+    layers = 0
+    for part in parts:
+        if hasattr(part, "_shape"):
+            layers += 1
+    return layers
 
 
 def gen_method_offset(specs, conf):
@@ -109,46 +102,6 @@ def gen_method_offset(specs, conf):
     if offset > 0:
         lst.append(f"  offset+={offset};")
     return "\n".join(lst)
-
-
-def c_type_from_arg(arg: Arg, conf):
-    if arg is None:
-        return "void"
-    else:
-        cdec = arg.atype._c_type
-        if arg.pointer:
-            cdec = dress_pointer(cdec + "*", conf)
-        if is_xobject(arg.atype):
-            cdec = dress_pointer(cdec, conf)
-        if arg.const:
-            cdec = "const " + cdec
-        return cdec
-
-
-def c_arg_from_arg(arg: Arg, conf):
-    cdec = c_type_from_arg(arg, conf)
-    return f"{cdec} {arg.name}"
-
-
-def c_size_from_arg(arg: Arg, conf):
-    if arg is None:
-        return None
-    else:
-        if arg.pointer:
-            return conf.get("pointersize", 64)
-        elif is_xobject(arg.atype):
-            return conf.get("pointersize", 64)
-        else:
-            return arg.atype._size
-
-
-def gen_c_decl_from_kernel(kernel: Kernel, conf):
-    args = ", ".join([c_arg_from_arg(arg, conf) for arg in kernel.args])
-    if kernel.ret is None:
-        ret = "void"
-    else:
-        ret = c_type_from_arg(kernel.ret, conf)
-    return f"{ret} {kernel.c_name}({args})"
 
 
 def gen_fun_data(cls, parts, action, const, extra, ret):
@@ -172,9 +125,9 @@ def gen_fun_data(cls, parts, action, const, extra, ret):
 
 
 def gen_c_pointed(target: Arg, conf):
-    size = c_size_from_arg(target, conf)
-    ret = c_type_from_arg(target, conf)
-    if target.pointer or is_xobject(target.atype):
+    size = gen_c_size_from_arg(target, conf)
+    ret = gen_c_type_from_arg(target, conf)
+    if target.pointer or is_compound(target.atype):
         return f"({ret})((char*) obj+offset)"
     else:
         if size == 1:
@@ -225,27 +178,108 @@ def gen_method_set(cls, parts, conf):
     return "\n".join(lst), kernel
 
 
-def gen_getp(cls, parts, conf):
+def gen_method_getp(cls, parts, conf):
     lasttype = get_inner_type(parts[-1])
+    retarg = Arg(lasttype)
+    if is_scalar(lasttype):
+        retarg.pointer = True
+
+    action = "getp"
+    layers = get_layers(parts)
+    if layers > 0 and not is_scalar(lasttype):
+        action += str(layers)
+
     kernel = gen_fun_data(
         cls,
         parts,
         const=False,
-        action="getp",
+        action=action,
         extra=[],
-        ret=Arg(lasttype),
+        ret=retarg,
     )
     decl = gen_c_decl_from_kernel(kernel, conf)
-    return None, None
-    return decl + ";", kernel
+
+    lst = [decl + "{"]
+    lst.append(gen_method_offset(parts, conf))
+    pointed = gen_c_pointed(retarg, conf)
+    lst.append(f"  return {pointed};")
+    lst.append("}")
+    return "\n".join(lst), kernel
 
 
 def gen_method_len(cls, parts, conf):
-    return None, None
+    lasttype = get_inner_type(parts[-1])
+    assert is_array(lasttype)
+
+    retarg = Arg(Int64)
+
+    action = "len"
+    layers = get_layers(parts)
+    if layers > 0 and not is_scalar(lasttype):
+        action += str(layers)
+
+    kernel = gen_fun_data(
+        cls,
+        parts,
+        const=False,
+        action=action,
+        extra=[],
+        ret=retarg,
+    )
+    decl = gen_c_decl_from_kernel(kernel, conf)
+
+    lst = [decl + "{"]
+
+    if lasttype._is_static_shape:
+        ll = lasttype._get_n_items()
+        lst.append(f"  return {ll};"), kernel
+    else:
+        lst.append(gen_method_offset(parts, conf))
+        arrarg = Arg(Int64, pointer=True)
+        pointed = gen_c_pointed(arrarg, conf)
+        lst.append(f"  int64_t* arr= {pointed};")
+        terms = []
+        ii = 1
+        for sh in lasttype._shape:
+            if sh is None:
+                terms.append(f"arr[{ii}]")
+            else:
+                terms.append(str(sh))
+        terms = "*".join(terms)
+        lst.append(f"  return {terms};")
+    lst.append("}")
+    return "\n".join(lst), kernel
 
 
 def gen_method_size(cls, parts, conf):
-    return None, None
+    lasttype = get_inner_type(parts[-1])
+    retarg = Arg(Int64)
+
+    action = "size"
+    layers = get_layers(parts)
+    if layers > 0 and not is_scalar(lasttype):
+        action += str(layers)
+
+    kernel = gen_fun_data(
+        cls,
+        parts,
+        const=False,
+        action=action,
+        extra=[],
+        ret=retarg,
+    )
+    decl = gen_c_decl_from_kernel(kernel, conf)
+
+    lst = [decl + "{"]
+
+    if lasttype._size is None:
+        lst.append(gen_method_offset(parts, conf))
+        pointed = gen_c_pointed(retarg, conf)
+        lst.append(f"  return {pointed};")
+    else:
+        lst.append(f"  return {lasttype._size};")
+    lst.append("}")
+    return "\n".join(lst), kernel
 
 
 def gen_method_dim(cls, parts, conf):
@@ -313,14 +347,15 @@ def gen_cdef(cls, specs):
 def gen_code(cls, specs, conf):
     out = []
     for parts in specs:
-        out.append(gen_getp(cls, parts, conf))
+        out.append(gen_method_getp(cls, parts, conf))
+        lasttype = get_inner_type(parts[-1])
 
-        if is_last_scalar(parts):
+        if is_scalar(lasttype):
             out.append(gen_method_get(cls, parts, conf))
             out.append(gen_method_set(cls, parts, conf))
         else:
             out.append(gen_method_size(cls, parts, conf))
-        if is_last_array(parts):
+        if is_array(lasttype):
             out.append(gen_method_len(cls, parts, conf))
             out.append(gen_method_dim(cls, parts, conf))
             out.append(gen_method_ndim(cls, parts, conf))

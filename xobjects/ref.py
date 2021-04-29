@@ -13,6 +13,7 @@ class Ref(metaclass=MetaRef):
     def __init__(self, rtype):
         if hasattr(rtype, '__iter__'):
             self._rtypes = rtype
+            self._rtypes_names = [tt.__name__ for tt in self._rtypes]
             self._isunion = True
             self._size = 16
             self.__name__ = 'Ref_to_' + '_'.join(
@@ -24,8 +25,8 @@ class Ref(metaclass=MetaRef):
             self.__name__ = 'Ref_to_' + rtype.__name__
 
     def _typeid_from_type(self, typ):
-        for ii, tt in enumerate(self._rtypes):
-            if typ is tt:
+        for ii, tt in enumerate(self._rtypes_names):
+            if typ.__name__ == tt:
                 return ii
         # If no match found:
         raise TypeError(f'{typ} not registered types!')
@@ -56,12 +57,13 @@ class Ref(metaclass=MetaRef):
             if value is None:
                 # Use the first type (default)
                 rtype = self._rtypes[0]
-                Int64._to_buffer(buffer, offset + 8, 0)
-            elif (hasattr(value, '__class__')
-                and value.__class__ in self._rtypes):
+                Int64._to_buffer(buffer, offset + 8, -1)
+            elif (value.__class__.__name__ in self._rtypes_names):
                 rtype = value.__class__
                 typeid = self._typeid_from_type(rtype)
                 Int64._to_buffer(buffer, offset + 8, typeid)
+            elif isinstance(value, dict):
+                raise NotImplementedError
             else:
                 # Keep old type
                 rtype = self._get_stored_type(buffer, offset)
@@ -71,10 +73,8 @@ class Ref(metaclass=MetaRef):
         # Get/set content
         if value is None:
             refoffset = -1
-        elif (hasattr(value, '__class__')
-                  and hasattr(value.__class__, '__name__') # is xobject
-                  and value.__class__.__name__ == rtype.__name__ # same type
-                  and value._buffer is buffer):
+        elif (value.__class__.__name__ == rtype.__name__ # same type
+              and value._buffer is buffer):
             refoffset = value._offset
         else:
             newobj = rtype(value, _buffer=buffer)
@@ -82,10 +82,10 @@ class Ref(metaclass=MetaRef):
         Int64._to_buffer(buffer, offset, refoffset)
 
     def __call__(self, value=None):
-        if value is None:
-            return None
+        if self._isunion:
+            return value
         else:
-            raise NotImplementedError
+            return self.rtype(value)
 
     def _inspect_args(self, arg):
         return Info(size=self._size)

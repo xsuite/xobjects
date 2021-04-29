@@ -1,3 +1,4 @@
+import numpy as np
 import xobjects as xo
 from xobjects.context import available
 
@@ -96,3 +97,39 @@ def test_unionref():
         mystructref.a = string
         assert mystructref.a == 'Test'
 
+def test_array_of_unionrefs():
+
+    class MyStructA(xo.Struct):
+        a = xo.Float64
+
+    class MyStructB(xo.Struct):
+        a = xo.Int32
+
+    Element = xo.Ref(rtype=[MyStructA, MyStructB])
+    ArrOfUnionRefs = xo.Array.mk_arrayclass(itemtype=Element, shape=(None,))
+
+    for CTX in xo.ContextCupy, xo.ContextPyopencl, xo.ContextCpu:
+        if CTX not in available:
+            continue
+
+        context = CTX()
+        print(context)
+
+
+        aoref = ArrOfUnionRefs(10, _context=context)
+
+        for ii in range(10):
+            if np.mod(ii,2)==0:
+                # Even elements
+                temp = MyStructA()
+            else:
+                # Odd elements
+                temp = MyStructB(a=10, _biffer=aoref._buffer)
+            aoref[ii] = temp
+
+        for ii in range(10):
+            aoref[ii].a = 10*ii
+
+        for ii in range(10):
+            print(f'aoref[{ii}]=', aoref[ii])
+            assert aoref[ii].a == 10*ii

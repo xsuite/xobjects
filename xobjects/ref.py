@@ -15,10 +15,13 @@ class Ref(metaclass=MetaRef):
             self._rtypes = rtype
             self._isunion = True
             self._size = 16
+            self.__name__ = 'Ref_to_' + '_'.join(
+                    [tt.__name__ for tt in self._rtypes])
         else:
             self._rtype = rtype
             self._isunion = False
             self._size = 8
+            self.__name__ = 'Ref_to_' + rtype.__name__
 
     def _typeid_from_type(self, typ):
         for ii, tt in enumerate(self._rtypes):

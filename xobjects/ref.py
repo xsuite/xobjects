@@ -11,7 +11,7 @@ class MetaRef(type):
 class Ref(metaclass=MetaRef):
 
     def __init__(self, rtype):
-        if hasattr(rtype,' __iter__'):
+        if hasattr(rtype, '__iter__'):
             self._rtypes = rtype
             self._isunion = True
             self._size = 16
@@ -50,15 +50,15 @@ class Ref(metaclass=MetaRef):
 
         # Get/set reference type
         if self._isunion:
-            if (hasattr(value, '__class__')
+            if value is None:
+                # Use the first type (default)
+                rtype = self._rtypes[0]
+                Int64._to_buffer(buffer, offset + 8, 0)
+            elif (hasattr(value, '__class__')
                 and value.__class__ in self._rtypes):
                 rtype = value.__class__
                 typeid = self._typeid_from_type(rtype)
                 Int64._to_buffer(buffer, offset + 8, typeid)
-            elif value is None:
-                # Use the first type (default)
-                rtype = self._rtypes[0]
-                Int64._to_buffer(buffer, offset + 8, 0)
             else:
                 # Keep old type
                 rtype = self._get_stored_type()
@@ -66,15 +66,16 @@ class Ref(metaclass=MetaRef):
             rtype = self._rtype
 
         # Get/set content
-        if (isinstance(value, rtype)
-                    and value._buffer is buffer):
-                refoffset = value._offset
+        if value is None:
+            refoffset = -1
+        elif (hasattr(value, '__class__')
+                  and hasattr(value.__class__, '__name__') # is xobject
+                  and value.__class__.__name__ == rtype.__name__ # same type
+                  and value._buffer is buffer):
+            refoffset = value._offset
         else:
-            if value is None:
-                refoffset = -1
-            else:
-                newobj = rtype(value, _buffer=buffer)
-                refoffset = newobj._offset
+            newobj = rtype(value, _buffer=buffer)
+            refoffset = newobj._offset
         Int64._to_buffer(buffer, offset, refoffset)
 
     def __call__(self, value=None):

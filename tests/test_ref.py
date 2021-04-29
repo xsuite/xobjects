@@ -23,10 +23,12 @@ def test_ref_to_static_type():
 
         mystructref = MyStructRef(a=arr2, _buffer=buff)
         assert mystructref._size == 8
+        assert mystructref.a._offset == arr2._offset # Points to the same object
         for ii in range(3):
             assert mystructref.a[ii] == arr2[ii]
 
         mystructref.a = arr1
+        assert mystructref.a._offset == arr1._offset # Points to the same object
         for ii in range(3):
             assert mystructref.a[ii] == arr1[ii]
 
@@ -53,14 +55,30 @@ def test_ref_to_dynamic_type():
         assert MyStructRef._size == 8
 
         mystructref = MyStructRef(a=arr2, _buffer=buff)
+        assert mystructref.a._offset == arr2._offset # Points to the same object
         assert mystructref._size == 8
         for ii in range(4):
             assert mystructref.a[ii] == arr2[ii]
 
         mystructref.a = arr1
+        assert mystructref.a._offset == arr1._offset # Points to the same object
         for ii in range(3):
             assert mystructref.a[ii] == arr1[ii]
 
         mystructref.a = [7,8,]
         for ii in range(2):
             assert mystructref.a[ii] == [7,8,9][ii]
+
+# Test unionref
+arr = xo.Float64[:]([1,2,3])
+buf = arr._buffer
+string = xo.String('Test', _buffer=buf)
+
+class MyStructRef(xo.Struct):
+    a = xo.Ref([xo.Float64, xo.String])
+
+assert MyStructRef._size == 16
+
+mystructref = MyStructRef()
+
+

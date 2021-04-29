@@ -199,10 +199,10 @@ class MetaStruct(type):
 
             def _inspect_args(cls, *args, **kwargs):
                 log.debug(f"get size for {cls} from {args} {kwargs}")
-                args, kwargs = cls._pre_init(*args, **kwargs)
                 if len(args) == 1:
                     arg = args[0]
                     if isinstance(arg, dict):
+                        arg = cls._pre_init(**arg)
                         offsets = {}  # offset of dynamic data
                         extra = {}
                         offset = d_fields[
@@ -252,10 +252,10 @@ class Struct(metaclass=MetaStruct):
     _inspect_args: Callable
 
     @classmethod
-    def _pre_init(cls, *args, **kwargs):
-        return args, kwargs
+    def _pre_init(cls, *arg, **kwargs):
+        return kwargs
 
-    def _post_init(self, *args, **kwargs):
+    def _post_init(self):
         pass
 
     @classmethod
@@ -270,6 +270,7 @@ class Struct(metaclass=MetaStruct):
             _offsets[field.index] = val
         self._offsets = _offsets
         self._cache = {}
+        self._post_init()
         return self
 
     @classmethod
@@ -286,6 +287,7 @@ class Struct(metaclass=MetaStruct):
             ):  # if it has a least two dynamic fields
                 cls._set_offsets(buffer, offset, info._offsets)
             extra = getattr(info, "extra", {})
+            value = cls._pre_init(**value)
             for field in cls._fields:
                 fvalue = field.value_from_args(value)
                 foffset = offset + field.get_offset(info)
@@ -321,7 +323,7 @@ class Struct(metaclass=MetaStruct):
             self._offsets = info._offsets  # struct offsets
         cls._to_buffer(self._buffer, self._offset, kwargs, info)
         self._cache = {}
-        self._post_init(**kwargs)
+        self._post_init()
 
     @classmethod
     def _set_offsets(cls, buffer, offset, loffsets):

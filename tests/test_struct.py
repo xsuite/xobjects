@@ -171,3 +171,27 @@ def test_assign_full_struct():
         e = StructE(b="hello")
         s.g = e
     # assert f.h==-1
+
+
+def test_preinit():
+
+    import numpy as np
+
+    class Rotation(xo.Struct):
+        cx = xo.Float64
+        sx = xo.Float64
+
+        @classmethod
+        def _pre_init(cls, angle=0):
+            rad = np.deg2rad(angle)
+            return {"cx": np.cos(rad), "sx": np.sin(rad)}
+
+        def _post_init(self):
+            assert self.cx ** 2 + self.sx ** 2 == 1
+
+        def myprint(self):
+            return self.cx, self.sx
+
+    rot = Rotation(angle=90)
+
+    assert rot.sx == 1.0

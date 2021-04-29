@@ -199,6 +199,7 @@ class MetaStruct(type):
 
             def _inspect_args(cls, *args, **kwargs):
                 log.debug(f"get size for {cls} from {args} {kwargs}")
+                args, kwargs = cls._pre_init(*args, **kwargs)
                 if len(args) == 1:
                     arg = args[0]
                     if isinstance(arg, dict):
@@ -249,6 +250,13 @@ class Struct(metaclass=MetaStruct):
     _fields: list
     _d_fields: list
     _inspect_args: Callable
+
+    @classmethod
+    def _pre_init(cls, *args, **kwargs):
+        return args, kwargs
+
+    def _post_init(self, *args, **kwargs):
+        pass
 
     @classmethod
     def _from_buffer(cls, buffer, offset):
@@ -313,6 +321,7 @@ class Struct(metaclass=MetaStruct):
             self._offsets = info._offsets  # struct offsets
         cls._to_buffer(self._buffer, self._offset, kwargs, info)
         self._cache = {}
+        self._post_init(**kwargs)
 
     @classmethod
     def _set_offsets(cls, buffer, offset, loffsets):

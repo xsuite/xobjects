@@ -70,21 +70,29 @@ def test_ref_to_dynamic_type():
             assert mystructref.a[ii] == [7,8,9][ii]
 
 def test_unionref():
-    arr = xo.Float64[:]([1,2,3])
-    buf = arr._buffer
-    string = xo.String('Test', _buffer=buf)
 
-    class MyStructRef(xo.Struct):
-        a = xo.Ref([xo.Float64[:], xo.String])
+    for CTX in xo.ContextCupy, xo.ContextPyopencl, xo.ContextCpu:
+        if CTX not in available:
+            continue
 
-    assert MyStructRef._size == 16
+        context = CTX()
+        print(context)
 
-    mystructref = MyStructRef(_buffer=buf)
+        arr = xo.Float64[:]([1,2,3], _context=context)
+        buf = arr._buffer
+        string = xo.String('Test', _buffer=buf)
 
-    mystructref.a = arr
-    assert mystructref.a._offset == arr._offset # Points to the same object
-    assert mystructref.a[1] == 2
+        class MyStructRef(xo.Struct):
+            a = xo.Ref([xo.Float64[:], xo.String])
 
-    mystructref.a = string
-    assert mystructref.a == 'Test'
+        assert MyStructRef._size == 16
+
+        mystructref = MyStructRef(_buffer=buf)
+
+        mystructref.a = arr
+        assert mystructref.a._offset == arr._offset # Points to the same object
+        assert mystructref.a[1] == 2
+
+        mystructref.a = string
+        assert mystructref.a == 'Test'
 

@@ -1,4 +1,5 @@
 import numpy as np
+
 from .typeutils import Info
 from xobjects import Int64
 
@@ -8,33 +9,78 @@ class MetaRef(type):
         return cls(rtype)
 
 class Ref(metaclass=MetaRef):
-    _size = 8
 
     def __init__(self, rtype):
-        self._rtype = rtype
+        if hasattr(rtype, '__iter__'):
+            self._rtypes = rtype
+            self._isunion = True
+            self._size = 16
+        else:
+            self._rtype = rtype
+            self._isunion = False
+            self._size = 8
+
+    def _typeid_from_type(self, typ):
+        for ii, tt in enumerate(self._rtypes):
+            if typ is tt:
+                return ii
+        # If no match found:
+        raise TypeError(f'{typ} not registered types!')
+
+    def _type_from_typeid(self, typeid):
+        for ii, tt in enumerate(self._rtypes):
+            if ii == typeid:
+                return tt
+        # If no match found:
+        raise TypeError(f'Invalid id: {typeid}!')
+
+    def _get_stored_type(self, buffer, offset):
+        typeid = Int64._from_buffer(buffer, offset + 8)
+        return self._type_from_typeid(typeid)
 
     def _from_buffer(self, buffer, offset):
-        data = buffer.to_bytearray(offset, self._size)
         refoffset = Int64._from_buffer(buffer, offset)
-        return self._rtype._from_buffer(buffer, refoffset)
+        if self._isunion:
+            rtype = self._get_stored_type(buffer, offset)
+        else:
+            rtype = self._rtype
+        return rtype._from_buffer(buffer, refoffset)
 
     def _to_buffer(self, buffer, offset, value, info=None):
 
-        if (isinstance(value, self._rtype)
-                and value._buffer is buffer):
+        # Get/set reference type
+        if self._isunion:
+            if value is None:
+                # Use the first type (default)
+                rtype = self._rtypes[0]
+                Int64._to_buffer(buffer, offset + 8, 0)
+            elif (hasattr(value, '__class__')
+                and value.__class__ in self._rtypes):
+                rtype = value.__class__
+                typeid = self._typeid_from_type(rtype)
+                Int64._to_buffer(buffer, offset + 8, typeid)
+            else:
+                # Keep old type
+                rtype = self._get_stored_type(buffer, offset)
+        else:
+            rtype = self._rtype
+
+        # Get/set content
+        if value is None:
+            refoffset = -1
+        elif (hasattr(value, '__class__')
+                  and hasattr(value.__class__, '__name__') # is xobject
+                  and value.__class__.__name__ == rtype.__name__ # same type
+                  and value._buffer is buffer):
             refoffset = value._offset
         else:
-            if np.isscalar(value):
-                refoffset = int(value)
-            else:
-                newobj = self._rtype(value, _buffer=buffer)
-                refoffset = newobj._offset
+            newobj = rtype(value, _buffer=buffer)
+            refoffset = newobj._offset
         Int64._to_buffer(buffer, offset, refoffset)
-        #buffer.update_from_buffer(offset, np.int64(refoffset).tobytes())
 
     def __call__(self, value=None):
         if value is None:
-            return -1
+            return None
         else:
             raise NotImplementedError
 

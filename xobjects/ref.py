@@ -21,27 +21,27 @@ class Ref(metaclass=MetaRef):
             self._size = 8
 
     def _typeid_from_type(self, typ):
-        for ii, tt in self._rtypes:
+        for ii, tt in enumerate(self._rtypes):
             if typ is tt:
                 return ii
         # If no match found:
         raise TypeError(f'{typ} not registered types!')
 
     def _type_from_typeid(self, typeid):
-        for ii, tt in self._rtypes:
+        for ii, tt in enumerate(self._rtypes):
             if ii == typeid:
                 return tt
         # If no match found:
         raise TypeError(f'Invalid id: {typeid}!')
 
-    def _get_stored_type(self):
+    def _get_stored_type(self, buffer, offset):
         typeid = Int64._from_buffer(buffer, offset + 8)
         return self._type_from_typeid(typeid)
 
     def _from_buffer(self, buffer, offset):
         refoffset = Int64._from_buffer(buffer, offset)
         if self._isunion:
-            rtype = self._get_stored_type()
+            rtype = self._get_stored_type(buffer, offset)
         else:
             rtype = self._rtype
         return rtype._from_buffer(buffer, refoffset)
@@ -61,7 +61,7 @@ class Ref(metaclass=MetaRef):
                 Int64._to_buffer(buffer, offset + 8, typeid)
             else:
                 # Keep old type
-                rtype = self._get_stored_type()
+                rtype = self._get_stored_type(buffer, offset)
         else:
             rtype = self._rtype
 

@@ -69,16 +69,22 @@ def test_ref_to_dynamic_type():
         for ii in range(2):
             assert mystructref.a[ii] == [7,8,9][ii]
 
-# Test unionref
-arr = xo.Float64[:]([1,2,3])
-buf = arr._buffer
-string = xo.String('Test', _buffer=buf)
+def test_unionref():
+    arr = xo.Float64[:]([1,2,3])
+    buf = arr._buffer
+    string = xo.String('Test', _buffer=buf)
 
-class MyStructRef(xo.Struct):
-    a = xo.Ref([xo.Float64, xo.String])
+    class MyStructRef(xo.Struct):
+        a = xo.Ref([xo.Float64[:], xo.String])
 
-assert MyStructRef._size == 16
+    assert MyStructRef._size == 16
 
-mystructref = MyStructRef()
+    mystructref = MyStructRef(_buffer=buf)
 
+    mystructref.a = arr
+    assert mystructref.a._offset == arr._offset # Points to the same object
+    assert mystructref.a[1] == 2
+
+    mystructref.a = string
+    assert mystructref.a == 'Test'
 

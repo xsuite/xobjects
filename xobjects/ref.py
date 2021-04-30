@@ -1,42 +1,41 @@
-import numpy as np
-
 from .typeutils import Info
-from xobjects import Int64
+from .scalar import Int64
+from .array import Array
+
 
 class MetaRef(type):
+    def __getitem__(cls, rtypes):
+        if not isinstance(rtypes, tuple):
+            rtypes = (rtypes,)
+        return cls(*rtypes)
 
-    def __getitem__(cls, rtype):
-        return cls(rtype)
 
 class Ref(metaclass=MetaRef):
+    def __init__(self, *rtypes):
+        self._rtypes = rtypes
+        self._rtypes_names = [tt.__name__ for tt in rtypes]
+        self.__name__ = "Ref_" + "_".join(tt.__name__ for tt in self._rtypes)
 
-    def __init__(self, rtype):
-        if hasattr(rtype, '__iter__'):
-            self._rtypes = rtype
-            self._rtypes_names = [tt.__name__ for tt in self._rtypes]
-            self._isunion = True
-            self._size = 16
-            self.__name__ = 'Ref_to_' + '_'.join(
-                    [tt.__name__ for tt in self._rtypes])
-        else:
-            self._rtype = rtype
+        if len(rtypes) == 1:
             self._isunion = False
             self._size = 8
-            self.__name__ = 'Ref_to_' + rtype.__name__
+        else:
+            self._isunion = True
+            self._size = 16
 
     def _typeid_from_type(self, typ):
         for ii, tt in enumerate(self._rtypes_names):
             if typ.__name__ == tt:
                 return ii
         # If no match found:
-        raise TypeError(f'{typ} not registered types!')
+        raise TypeError(f"{typ} not registered types!")
 
     def _type_from_typeid(self, typeid):
         for ii, tt in enumerate(self._rtypes):
             if ii == typeid:
                 return tt
         # If no match found:
-        raise TypeError(f'Invalid id: {typeid}!')
+        raise TypeError(f"Invalid id: {typeid}!")
 
     def _get_stored_type(self, buffer, offset):
         typeid = Int64._from_buffer(buffer, offset + 8)
@@ -47,7 +46,7 @@ class Ref(metaclass=MetaRef):
         if self._isunion:
             rtype = self._get_stored_type(buffer, offset)
         else:
-            rtype = self._rtype
+            rtype = self._rtypes[0]
         return rtype._from_buffer(buffer, refoffset)
 
     def _to_buffer(self, buffer, offset, value, info=None):
@@ -58,7 +57,7 @@ class Ref(metaclass=MetaRef):
                 # Use the first type (default)
                 rtype = self._rtypes[0]
                 Int64._to_buffer(buffer, offset + 8, -1)
-            elif (value.__class__.__name__ in self._rtypes_names):
+            elif value.__class__.__name__ in self._rtypes_names:
                 rtype = value.__class__
                 typeid = self._typeid_from_type(rtype)
                 Int64._to_buffer(buffer, offset + 8, typeid)
@@ -68,13 +67,15 @@ class Ref(metaclass=MetaRef):
                 # Keep old type
                 rtype = self._get_stored_type(buffer, offset)
         else:
-            rtype = self._rtype
+            rtype = self._rtypes[0]
 
         # Get/set content
         if value is None:
             refoffset = -1
-        elif (value.__class__.__name__ == rtype.__name__ # same type
-              and value._buffer is buffer):
+        elif (
+            value.__class__.__name__ == rtype.__name__  # same type
+            and value._buffer is buffer
+        ):
             refoffset = value._offset
         else:
             newobj = rtype(value, _buffer=buffer)
@@ -85,12 +86,10 @@ class Ref(metaclass=MetaRef):
         if self._isunion:
             return value
         else:
-            return self.rtype(value)
+            return self._rtypes[0](value)
 
     def _inspect_args(self, arg):
         return Info(size=self._size)
 
-    #def __repr__(self):
-    #    return self
-
-
+    def __getitem__(self, shape):
+        return Array.mk_arrayclass(self, shape)

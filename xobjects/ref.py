@@ -37,17 +37,27 @@ class Ref(metaclass=MetaRef):
         # If no match found:
         raise TypeError(f"Invalid id: {typeid}!")
 
+    def _type_from_name(self, name):
+        for tt, nn in zip(self._rtypes, self._rtypes_names):
+            if nn == name:
+                return tt
+        # If no match found:
+        raise TypeError(f"Invalid id: {name}!")
+
     def _get_stored_type(self, buffer, offset):
         typeid = Int64._from_buffer(buffer, offset + 8)
         return self._type_from_typeid(typeid)
 
     def _from_buffer(self, buffer, offset):
         refoffset = Int64._from_buffer(buffer, offset)
-        if self._isunion:
-            rtype = self._get_stored_type(buffer, offset)
+        if refoffset >= 0:
+            if self._isunion:
+                rtype = self._get_stored_type(buffer, offset)
+            else:
+                rtype = self._rtypes[0]
+            return rtype._from_buffer(buffer, refoffset)
         else:
-            rtype = self._rtypes[0]
-        return rtype._from_buffer(buffer, refoffset)
+            raise ValueError("Return uninitialized member")
 
     def _to_buffer(self, buffer, offset, value, info=None):
 
@@ -82,11 +92,16 @@ class Ref(metaclass=MetaRef):
             refoffset = newobj._offset
         Int64._to_buffer(buffer, offset, refoffset)
 
-    def __call__(self, value=None):
-        if self._isunion:
-            return value
+    def __call__(self, *args):
+        if len(args) == 0:
+            return None
         else:
-            return self._rtypes[0](value)
+            if self._isunion:
+                name, value = args
+                return self._type_from_name(name)(value)
+            else:
+                (value,) = args
+                return self._rtypes[0](value)
 
     def _inspect_args(self, arg):
         return Info(size=self._size)

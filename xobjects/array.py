@@ -509,14 +509,14 @@ class Array(metaclass=MetaArray):
             cls._itemtype._to_buffer(self._buffer, offset, value)
 
     @classmethod
-    def _gen_method_specs(cls, base=None):
+    def _gen_data_paths(cls, base=None):
         methods = []
         if base is None:
             base = []
-        spec = base + [cls]
-        methods.append(spec)
-        if hasattr(cls._itemtype, "_gen_method_specs"):
-            methods.extend(cls._itemtype._gen_method_specs(spec))
+        part = base + [cls]
+        methods.append(part)
+        if hasattr(cls._itemtype, "_gen_data_paths"):
+            methods.extend(cls._itemtype._gen_data_paths(part))
         return methods
 
     def _get_offset(self, index):
@@ -554,10 +554,13 @@ class Array(metaclass=MetaArray):
     def _iter_index(self):
         return iter_index(self._shape, self._order)
 
+    def __len__(self):
+        return np.prod(self._shape)
+
     @classmethod
     def _gen_c_api(cls, conf={}):
-        specs_list = cls._gen_method_specs()
-        return capi.gen_code(cls, specs_list, conf)
+        paths = cls._gen_data_paths()
+        return capi.gen_code(cls, paths, conf)
 
     def to_nplike(self):
         shape = self._shape
@@ -566,7 +569,7 @@ class Array(metaclass=MetaArray):
             arr = self._buffer.to_nplike(
                 self._offset, self._itemtype.dtype, cshape
             ).transpose(self._order)
-            assert arr.strides == self.strides
+            assert arr.strides == self._strides
             return arr
         else:
             raise NotImplementedError

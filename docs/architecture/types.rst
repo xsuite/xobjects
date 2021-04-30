@@ -1,17 +1,16 @@
 Types
 =====
 
-Data Layout
+Introduction
 -------------
 
 
 Data layout and API can be defined by a composition of:
 *   Scalars: Int8, Int16, Int32, Int64, Float32, Float64
-*   Compounds: Struct, Array, Union, UnionRef, SOA, Ref
+*   Compounds: Struct, Array, Ref
 
 Types can have a fixed size (*static types*) or a variable size (*dynamic size*).
-The size of one instance cannot change, but their content can.
-
+The size of one instance cannot change after creation, but their content can.
 
 
 Data Layout
@@ -78,15 +77,14 @@ Ref
 Slots    Description
 =======  ======================================
 8        Offset from start of the buffer
+8        Optional: typeid
 =======  ======================================
 
 
 Python type interface
 ----------------------
 
-Generic interface
-^^^^^^^^^^^^^^^^^^
-
+The following describe the generic interface
 
 Class variables:
 
@@ -104,15 +102,15 @@ name          args           return                  Description
 _inspect_args *args,         Info         Return at least info.size and optionally
               *kwargs                     other metadata to build objects in memory
                                           from python objects. Args are propocessed
-                                          by _pre_init                                          _pre_init
-_pre_init     *args,         args,        Preprocess arguments
-              *kwargs        kwargs
+                                          by _pre_init
+_pre_init     *args,         args,        Preprocess arguments and generate standard
+              *kwargs        kwargs       values
 _to_buffer    buffer         None         Serialize python in buffer from offset.
               offset                      Assume sufficient size is available
               value
 _from_buffer  buffer         instance     Return Python instance from buffer and
               offset                      and offset
-_to_schema                   string       String representation of the type to
+_to_schema                   string       TODO String representation of the type to
                                           deserialize objects
 ============= ============== ============ ============================================
 
@@ -124,3 +122,58 @@ name           Description
 =============  ========================================
 _size          Optional: size in bytes for dynamic-size
 =============  ========================================
+
+
+Class methods:
+
+============= ============== ============ ============================================
+name          args           return                  Description
+============= ============== ============ ============================================
+_post_init                                Run after object creation in __init__
+copy          buffer or      None         TODO Return a copy into a buffer
+              context                      Assume sufficient size is available
+_update       value          instance     Update values of an exsiting objec
+_to_json                     json         TODO json
+============= ============== ============ ============================================
+
+
+
+**__init__**
+
+init is used to  create a new xobject by allocating memory on the buffer.
+Ref and Scalars cannot be initialized alone (maybe temporarily)
+
+Init can take by default:
+
+*  a json object:
+    *  dict for Struct
+    *  list for Array,
+    *  number of Scalars
+    *  String for String
+    *  Typename, {} for Ref of multiple types
+*  dimensions (for string or arrays)
+*  an xobject of the correct type
+*  None for Ref
+
+The data is dispatched to _pre_init using the following convetion:
+* a dict is passed with **
+* a tuple is passed with *
+* any other object is passed verbatim
+
+Init uses the following steps:
+
+*  pre_init to pre_process input
+*  inspect_args to calculate sizes and collect metadata
+*  get_a_buffer to allocate space
+*  _to_buffer to write to memory
+*  _from_buffer to build a python object
+*  post_init
+
+**_from_buffer**
+
+When accessing data inside compound object the _from_buffer method is used.
+For scalar and string, python data is returned. For coumpund object,
+XObjects are returned
+
+**setters**
+Setters uses to_buffer or _update to update existing data.

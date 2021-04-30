@@ -365,18 +365,18 @@ class Struct(metaclass=MetaStruct):
             return longform
 
     @classmethod
-    def _gen_method_specs(cls, base=None):
+    def _gen_data_paths(cls, base=None):
         methods = []
         if base is None:
             base = []
         for field in cls._fields:
             spec = base + [field]
             methods.append(spec)
-            if hasattr(field.ftype, "_gen_method_specs"):
-                methods.extend(field.ftype._gen_method_specs(spec))
+            if hasattr(field.ftype, "_gen_data_paths"):
+                methods.extend(field.ftype._gen_data_paths(spec))
         return methods
 
     @classmethod
     def _gen_c_api(cls, conf={}):
-        specs_list = cls._gen_method_specs()
+        specs_list = cls._gen_data_paths()
         return capi.gen_code(cls, specs_list, conf)

@@ -22,26 +22,11 @@ Buffer:
 - `allocate(self,size)`
 - `free(self,offset,size)`
 - `grow(self,capacity)`
-
 - `buffer`: low level buffer
-- `read(offset,size)` -> bytearray
-- `write(offset,size,data: python object with buffer protocol)`:
-
 - `_new_buffer`: lowlevel buffer
-- `copy_to(self, dest: bytearray)`
-- `copy_from(self,source, src_offset, dest_offset, byte_count)`: source must be of the same type
 
 Buffer review:
 
-write/copy use cases:
-1) store scalars
-2) copy xobjects bytes to another xobjects (needs looping)
-3) copy numpy/other array to xobjects (needs looping)
-
-read/expose use cases:
-1) get bytes for copy-based copy
-2) expose pointer to build arrays
-3) expose pointers for cffi
 
 
 1) write_from_array: any python object exposing the buffer protocol
@@ -57,7 +42,7 @@ read/expose use cases:
 
 Types can be composed of:
 - scalar: numbers, string
-- compound: struct, array, list, union
+- compound: struct, array, ref
 
 ### Scalars
 - examples: Float64, Int64, ...
@@ -205,12 +190,11 @@ Kernel convention:
 
 ## TODO
 
-- re-implement kernel
 - debug C getter and setter
-- implement Ref and UnionRef
-- implement custom init
+- implement Ref C setter and getter
+
+- add __del__ methods for Struct, Array, Ref
 - implement SOA
-- add __del__ methods for Struct, Array, Union, Unionref, SOA
 
 ### Later
 
@@ -218,5 +202,5 @@ Kernel convention:
 - Consider exposing XBuffer and moving specialization to XContext
 - Consider Buffer[offset] to creating XView and avoid _offset in type API
 - Consider mutable string class
-- Consider scalars to allows subclassing default and init for data validation this would avoid using field in structs
+- Consider scalar classes to allows subclassing default and init for data validation this would avoid using field in structs
 - Use __slots__ where possible

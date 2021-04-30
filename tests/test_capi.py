@@ -20,20 +20,21 @@ def gen_classes():
     return Field, Multipole
 
 
-def test_gen_method_spec():
+def test_gen_data_paths():
 
     Field, Multipole = gen_classes()
     Field_N = Multipole.field.ftype
 
-    meth = Field._gen_method_specs()
+    meth = Field._gen_data_paths()
     assert meth[0] == [Field.normal]
+    assert meth[1] == [Field.skew]
 
-    meth = Field_N._gen_method_specs()
+    meth = Field_N._gen_data_paths()
     meth[0] = [Field_N]
     meth[1] = [Field_N, Field.normal]
     meth[2] = [Field_N, Field.skew]
 
-    meth = Multipole._gen_method_specs()
+    meth = Multipole._gen_data_paths()
     assert meth[0] == [Multipole.order]
     assert meth[1] == [Multipole.angle]
     assert meth[2] == [Multipole.vlength]

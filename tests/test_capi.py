@@ -113,7 +113,7 @@ def test_gen_c_api():
     assert ctx.kernels.Multipole_get_field_normal(obj=m, i0=2) == 1.0
 
 
-def test_ref():
+def notest_ref():
     class StructA(xo.Struct):
         fa = xo.Float64
         sb = xo.Ref[xo.Int64][:]

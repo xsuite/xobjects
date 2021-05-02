@@ -150,7 +150,7 @@ Init can take by default:
     *  list for Array,
     *  number of Scalars
     *  String for String
-    *  Typename, {} for Ref of multiple types
+    *  (Typename, {}) for Ref of multiple types
 *  dimensions (for string or arrays)
 *  an xobject of the correct type
 *  None for Ref

@@ -113,157 +113,16 @@ def test_gen_c_api():
     assert ctx.kernels.Multipole_get_field_normal(obj=m, i0=2) == 1.0
 
 
-# def test_gen_method_get_declaration():
+def test_ref():
+    class StructA(xo.Struct):
+        fa = xo.Float64
+        sb = xo.Ref[xo.Int64][:]
 
-#     Field, Multipole = gen_classes()
+    ArrayB = xo.Float64[6, 6]
 
-#     methods = Field._gen_method_get_declaration()
+    class List(xo.Ref[StructA, ArrayB][:]):
+        pass
 
-#     assert methods[0] == "double Field_get_normal(Field* obj)"
-#     assert methods[1] == "double Field_get_skew(Field* obj)"
+    paths = List._gen_data_paths()
 
-#     methods = Multipole._gen_method_get_declaration()
-
-#     assert methods[0] == "int8_t Multipole_get_order(Multipole* obj)"
-#     assert methods[1] == "double Multipole_get_angle(Multipole* obj)"
-#     assert methods[2] == "double Multipole_get_vlength(Multipole* obj)"
-#     assert methods[3] == "Field_N* Multipole_get_field(Multipole* obj)"
-#     assert (
-#         methods[4] == "Field* Multipole_get_field(Multipole* obj, int64_t i0)"
-#     )
-#     assert (
-#         methods[5]
-#         == "double Multipole_get_field_normal(Multipole* obj, int64_t i0)"
-#     )
-#     assert (
-#         methods[6]
-#         == "double Multipole_get_field_skew(Multipole* obj, int64_t i0)"
-#     )
-
-
-# def test_get_method_offset():
-#     Field, Multipole = gen_classes()
-
-#     assert Field.normal._get_c_offset({}) == 0
-#     assert Field.skew._get_c_offset({}) == 8
-
-#     assert Multipole.order._get_c_offset({}) == 8
-
-#     Field_N = Multipole.field.ftype
-
-#     assert Field_N._get_c_offset({}) == ["  offset+=16+i0*16;"]
-
-
-# def test_gen_method_get_body():
-
-#     Field, Multipole = gen_classes()
-
-#     methods = Field._gen_method_get_definition()
-
-#     assert (
-#         methods[0]
-#         == """\
-# double Field_get_normal(Field* obj){
-#   int64_t offset=0;
-#   return *(double*)((char*) obj+offset);
-# }"""
-#     )
-#     assert (
-#         methods[1]
-#         == """\
-# double Field_get_skew(Field* obj){
-#   int64_t offset=0;
-#   offset+=8;
-#   return *(double*)((char*) obj+offset);
-# }"""
-#     )
-
-#     methods = Multipole._gen_method_get_definition()
-
-#     assert (
-#         methods[0]
-#         == """\
-# int8_t Multipole_get_order(Multipole* obj){
-#   int64_t offset=0;
-#   offset+=8;
-#   return *((int8_t*) obj+offset);
-# }"""
-#     )
-
-#     assert (
-#         methods[1]
-#         == """\
-# double Multipole_get_angle(Multipole* obj){
-#   int64_t offset=0;
-#   offset+=16;
-#   return *(double*)((char*) obj+offset);
-# }"""
-#     )
-
-#     assert (
-#         methods[2]
-#         == """\
-# double Multipole_get_vlength(Multipole* obj){
-#   int64_t offset=0;
-#   offset+=24;
-#   return *(double*)((char*) obj+offset);
-# }"""
-#     )
-
-#     assert (
-#         methods[3]
-#         == """\
-# Field_N* Multipole_get_field(Multipole* obj){
-#   int64_t offset=0;
-#   offset+=32;
-#   return (Field_N*)((char*) obj+offset);
-# }"""
-#     )
-
-#     assert (
-#         methods[4]
-#         == """\
-# Field* Multipole_get_field(Multipole* obj, int64_t i0){
-#   int64_t offset=0;
-#   offset+=32;
-#   offset+=16+i0*16;
-#   return (Field*)((char*) obj+offset);
-# }"""
-#     )
-
-#     assert (
-#         methods[5]
-#         == """\
-# double Multipole_get_field_normal(Multipole* obj, int64_t i0){
-#   int64_t offset=0;
-#   offset+=32;
-#   offset+=16+i0*16;
-#   return *(double*)((char*) obj+offset);
-# }"""
-#     )
-
-#     assert (
-#         methods[6]
-#         == """\
-# double Multipole_get_field_skew(Multipole* obj, int64_t i0){
-#   int64_t offset=0;
-#   offset+=32;
-#   offset+=16+i0*16;
-#   offset+=8;
-#   return *(double*)((char*) obj+offset);
-# }"""
-#     )
-
-
-# def test_struct_getter():
-#     class AStruct(xo.Struct):
-#         fa = xo.Int64
-#         fb = xo.Float64
-
-#     ctx = xo.ContextCpu()
-
-#     source = AStruct._get_c_api()
-
-#     ctx.add_kernels
-
-#     assert source == source
+    assert len(paths) == 3

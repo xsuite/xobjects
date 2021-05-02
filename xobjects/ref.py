@@ -17,10 +17,10 @@ class Ref(metaclass=MetaRef):
         self.__name__ = "Ref_" + "_".join(tt.__name__ for tt in self._rtypes)
 
         if len(rtypes) == 1:
-            self._isunion = False
+            self._is_union = False
             self._size = 8
         else:
-            self._isunion = True
+            self._is_union = True
             self._size = 16
 
     def _typeid_from_type(self, typ):
@@ -51,7 +51,7 @@ class Ref(metaclass=MetaRef):
     def _from_buffer(self, buffer, offset):
         refoffset = Int64._from_buffer(buffer, offset)
         if refoffset >= 0:
-            if self._isunion:
+            if self._is_union:
                 rtype = self._get_stored_type(buffer, offset)
             else:
                 rtype = self._rtypes[0]
@@ -62,7 +62,7 @@ class Ref(metaclass=MetaRef):
     def _to_buffer(self, buffer, offset, value, info=None):
 
         # Get/set reference type
-        if self._isunion:
+        if self._is_union:
             if value is None:
                 # Use the first type (default)
                 rtype = self._rtypes[0]
@@ -96,7 +96,7 @@ class Ref(metaclass=MetaRef):
         if len(args) == 0:
             return None
         else:
-            if self._isunion:
+            if self._is_union:
                 name, value = args
                 return self._type_from_name(name)(value)
             else:
@@ -108,3 +108,22 @@ class Ref(metaclass=MetaRef):
 
     def __getitem__(self, shape):
         return Array.mk_arrayclass(self, shape)
+
+    def _get_c_offset(self, conf):
+        itype = conf.get("itype", "int64_t")
+        doffset = f"offset"  # starts of data
+        return [f"  offset=(({itype}*) obj)[{doffset}]"]
+
+    def _gen_data_path(self, base=None):
+        paths = []
+        if base is None:
+            base = []
+        paths.append(base + [self])
+        if self._is_union:
+            for rtype in self._rtypes:
+                if hasattr(rtype, "_gen_data_paths"):
+                    paths.extend(rtype._gen_data_paths())
+        else:
+            rtype = self._rtypes[0]
+            paths.extend(rtype._gen_data_paths())
+        return paths

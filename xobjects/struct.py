@@ -366,15 +366,15 @@ class Struct(metaclass=MetaStruct):
 
     @classmethod
     def _gen_data_paths(cls, base=None):
-        methods = []
+        paths = []
         if base is None:
             base = []
         for field in cls._fields:
-            spec = base + [field]
-            methods.append(spec)
+            path = base + [field]
+            paths.append(path)
             if hasattr(field.ftype, "_gen_data_paths"):
-                methods.extend(field.ftype._gen_data_paths(spec))
-        return methods
+                paths.extend(field.ftype._gen_data_paths(path))
+        return paths
 
     @classmethod
     def _gen_c_api(cls, conf={}):

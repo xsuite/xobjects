@@ -510,14 +510,14 @@ class Array(metaclass=MetaArray):
 
     @classmethod
     def _gen_data_paths(cls, base=None):
-        methods = []
+        paths = []
         if base is None:
             base = []
-        part = base + [cls]
-        methods.append(part)
+        path = base + [cls]
+        paths.append(path)
         if hasattr(cls._itemtype, "_gen_data_paths"):
-            methods.extend(cls._itemtype._gen_data_paths(part))
-        return methods
+            paths.extend(cls._itemtype._gen_data_paths(path))
+        return paths
 
     def _get_offset(self, index):
         return sum(ii * ss for ii, ss in zip(index, self._strides))

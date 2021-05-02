@@ -201,3 +201,7 @@ def test_initialize_from_array():
     buf = sa._buffer
     sb = MyStruct(_buffer=buf)
     sa.a = sb.a
+
+def test_init_with_nparray():
+    a = xo.Float64[:](np.array([1,2,3], dtype=np.float64))
+    assert a[1] == 2.

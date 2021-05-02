@@ -413,7 +413,7 @@ class Array(metaclass=MetaArray):
         if hasattr(cls._itemtype, "_dtype") and hasattr(
             value, "dtype"
         ):  # is a scalar type:
-            buffer.update_from_nplike(offset, cls._itemtype._dtype, value)
+            buffer.update_from_nplike(coffset, cls._itemtype._dtype, value)
         elif isinstance(value, cls):
             if value._size == info.size:
                 buffer.update_from_xbuffer(

@@ -126,3 +126,48 @@ def notest_ref():
     paths = List._gen_data_paths()
 
     assert len(paths) == 3
+
+
+def test_repeated_defs():
+
+    class ParticlesData(xo.Struct):
+
+        num_particles = xo.Int64
+        q0 = xo.Float64
+        mass0 = xo.Float64
+        beta0 = xo.Float64
+        gamma0 = xo.Float64
+        p0c = xo.Float64
+        s = xo.Float64[:]
+        x = xo.Float64[:]
+        y = xo.Float64[:]
+
+    source, kernels, cdefs = ParticlesData._gen_c_api()
+
+    context = xo.ContextCpu()
+    context.add_kernels([source], kernels, extra_cdef=cdefs)
+
+def test_capi_naming():
+
+    class ParticlesData(xo.Struct):
+
+        num_particles = xo.Int64
+        q0 = xo.Float64
+        mass0 = xo.Float64
+        beta0 = xo.Float64
+        gamma0 = xo.Float64
+        p0c = xo.Float64
+        s = xo.Float64[:]
+        x = xo.Float64[:]
+        y = xo.Float64[:]
+
+    source, kernels, cdefs = ParticlesData._gen_c_api()
+    # PATCH = TODO: remove when solved
+    new_lines = []
+    for ll in cdefs.split('\n'):
+        if ll not in new_lines:
+            new_lines.append(ll)
+    cdefs = '\n'.join(new_lines)
+
+    context = xo.ContextCpu()
+    context.add_kernels([source], kernels, extra_cdef=cdefs)

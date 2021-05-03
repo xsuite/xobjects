@@ -1,6 +1,6 @@
 # pylint:disable=E1101
 
-
+import numpy as np
 import xobjects as xo
 
 from xobjects import capi
@@ -152,39 +152,21 @@ def test_ref():
     )
 
 
-def test_repeated_defs():
+def test_capi_call():
     class ParticlesData(xo.Struct):
-
-        num_particles = xo.Int64
-        q0 = xo.Float64
-        mass0 = xo.Float64
-        beta0 = xo.Float64
-        gamma0 = xo.Float64
-        p0c = xo.Float64
-        s = xo.Float64[:]
-        x = xo.Float64[:]
-        y = xo.Float64[:]
+        s = xo.Int64[:]
+        x = xo.Int64[:]
+        y = xo.Int64[:]
 
     source, kernels, cdefs = ParticlesData._gen_c_api()
 
     context = xo.ContextCpu()
     context.add_kernels([source], kernels, extra_cdef=cdefs)
 
+    particles = ParticlesData(
+        s=np.arange(10, 21, 10),
+        x=np.arange(10, 21, 10),
+        y=np.arange(10, 21, 10),
+        )
 
-def test_capi_naming():
-    class ParticlesData(xo.Struct):
-
-        num_particles = xo.Int64
-        q0 = xo.Float64
-        mass0 = xo.Float64
-        beta0 = xo.Float64
-        gamma0 = xo.Float64
-        p0c = xo.Float64
-        s = xo.Float64[:]
-        x = xo.Float64[:]
-        y = xo.Float64[:]
-
-    source, kernels, cdefs = ParticlesData._gen_c_api()
-
-    context = xo.ContextCpu()
-    context.add_kernels([source], kernels, extra_cdef=cdefs)
+    assert context.kernels.ParticlesData_get_x(obj=particles, i0=1) == particles.x[1]

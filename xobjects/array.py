@@ -192,8 +192,9 @@ class MetaArray(type):
 
             data["_size"] = _size
             data["_data_offset"] = _data_offset
-            if "_c_type" not in data:
-                data["_c_type"] = name
+        # need to applied to derived classes as well
+        if "_c_type" not in data:
+            data["_c_type"] = name
 
         return type.__new__(cls, name, bases, data)
 
@@ -208,6 +209,9 @@ class MetaArray(type):
             return np.prod(cls._shape)
         else:
             raise ValueError("Cannot get n items from dynamic shapes")
+
+    def __repr__(cls):
+        return f"<{cls.__name__}>"
 
 
 class Array(metaclass=MetaArray):
@@ -557,11 +561,6 @@ class Array(metaclass=MetaArray):
     def __len__(self):
         return np.prod(self._shape)
 
-    @classmethod
-    def _gen_c_api(cls, conf={}):
-        paths = cls._gen_data_paths()
-        return capi.gen_code(cls, paths, conf)
-
     def to_nplike(self):
         shape = self._shape
         cshape = [shape[ii] for ii in self._order]
@@ -573,3 +572,8 @@ class Array(metaclass=MetaArray):
             return arr
         else:
             raise NotImplementedError
+
+    @classmethod
+    def _gen_c_api(cls, conf={}):
+        specs_list = cls._gen_data_paths()
+        return capi.gen_code(cls, specs_list, conf)

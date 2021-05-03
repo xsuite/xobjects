@@ -1,4 +1,4 @@
-from typing import NamedTuple, List
+from typing import NamedTuple, List, Type
 from abc import ABC, abstractmethod
 from pathlib import Path
 import logging
@@ -274,7 +274,7 @@ class View(NamedTuple):
     size: int
 
 
-available: List[XContext] = []
+available: List[Type[XContext]] = []
 
 
 class Arg:

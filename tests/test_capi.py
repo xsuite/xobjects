@@ -95,15 +95,15 @@ void Multipole_set_order(Multipole obj, int8_t value){
 def test_gen_c_api():
     _, Multipole = gen_classes()
 
-    ctx = xo.ContextCpu()
-
     source, kernels, cdef = Multipole._gen_c_api()
+
+    ctx = xo.ContextCpu()
 
     ctx.add_kernels(
         sources=[source],
         kernels=kernels,
         extra_cdef=cdef,
-        save_source_as="test.c",
+        save_source_as="test_get_c_api.c",
     )
 
     m = Multipole(field=10)
@@ -113,10 +113,23 @@ def test_gen_c_api():
     assert ctx.kernels.Multipole_get_field_normal(obj=m, i0=2) == 1.0
 
 
-def notest_ref():
+def test_ref():
+    ctx = xo.ContextCpu()
+
     class StructA(xo.Struct):
         fa = xo.Float64
-        sb = xo.Ref[xo.Int64][:]
+        sb = xo.Ref[xo.Int64[:]]
+
+    paths = StructA._gen_data_paths()
+
+    source, kernels, cdef = StructA._gen_c_api()
+
+    ctx.add_kernels(
+        sources=[source],
+        kernels=kernels,
+        extra_cdef=cdef,
+        save_source_as="test_ref1.c",
+    )
 
     ArrayB = xo.Float64[6, 6]
 
@@ -125,4 +138,15 @@ def notest_ref():
 
     paths = List._gen_data_paths()
 
-    assert len(paths) == 3
+    assert len(paths) == 7
+
+    source, kernels, cdef = List._gen_c_api()
+
+    ctx = xo.ContextCpu()
+
+    ctx.add_kernels(
+        sources=[source],
+        kernels=kernels,
+        extra_cdef=cdef,
+        save_source_as="test_ref2.c",
+    )

@@ -1,6 +1,7 @@
 from .typeutils import Info
 from .scalar import Int64
 from .array import Array
+from . import capi
 
 
 class MetaRef(type):
@@ -14,7 +15,8 @@ class Ref(metaclass=MetaRef):
     def __init__(self, *rtypes):
         self._rtypes = rtypes
         self._rtypes_names = [tt.__name__ for tt in rtypes]
-        self.__name__ = "Ref_" + "_".join(tt.__name__ for tt in self._rtypes)
+        self.__name__ = "Ref" + "".join(tt.__name__ for tt in self._rtypes)
+        self._c_type = self.__name__
 
         if len(rtypes) == 1:
             self._is_union = False
@@ -112,18 +114,26 @@ class Ref(metaclass=MetaRef):
     def _get_c_offset(self, conf):
         itype = conf.get("itype", "int64_t")
         doffset = f"offset"  # starts of data
-        return [f"  offset=(({itype}*) obj)[{doffset}]"]
+        return [f"  offset=(({itype}*) obj)[{doffset}];"]
 
-    def _gen_data_path(self, base=None):
+    def _gen_data_paths(self, base=None):
         paths = []
         if base is None:
             base = []
-        paths.append(base + [self])
+        # paths.append(base + [self])
         if self._is_union:
             for rtype in self._rtypes:
                 if hasattr(rtype, "_gen_data_paths"):
                     paths.extend(rtype._gen_data_paths())
         else:
             rtype = self._rtypes[0]
-            paths.extend(rtype._gen_data_paths())
+            if hasattr(rtype, "_gen_data_paths"):
+                paths.extend(rtype._gen_data_paths(base))
         return paths
+
+    def _gen_c_api(self, conf={}):
+        paths = self._gen_data_paths()
+        return capi.gen_code(self, paths, conf)
+
+    def __repr__(self):
+        return f"<{self.__name__}>"

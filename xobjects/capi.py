@@ -24,12 +24,27 @@ def is_scalar(atype):
     return hasattr(atype, "_dtype")
 
 
+def is_ref(atype):
+    return hasattr(atype, "_rtypes")
+
+
+def is_single_ref(atype):
+    return hasattr(atype, "_rtypes") and len(atype._rtypes) == 1
+
+
 def get_inner_type(part):
     """type contained in a field or array"""
     if is_field(part):  # is a field
         return part.ftype
     elif is_array(part):  # is an array
         return part._itemtype
+    elif is_ref(part):
+        if len(part._rtypes) > 1:
+            return part
+        else:
+            return part._rtypes[0]
+    else:
+        raise ValueError(f"Cannot get inner type of {part}")
 
 
 def dress_pointer(ctype, conf):
@@ -86,17 +101,61 @@ def get_layers(parts):
     return layers
 
 
-def gen_method_offset(specs, conf):
+def Field_get_c_offset(self, conf):
+    itype = conf.get("itype", "int64_t")
+    if self.is_reference:
+        doffset = f"offset+{self.offset}"  # starts of data
+        return [f"  offset+=(({itype}*) obj)[{doffset}];"]  # WRONG
+    else:
+        return self.offset
+
+
+def Array_get_c_offset(cls, conf):
+    ctype = conf.get("ctype", "char")
+    itype = conf.get("itype", "int64_t")
+
+    out = []
+    if hasattr(cls, "_strides"):  # static shape or 1d dynamic shape
+        strides = cls._strides
+    else:
+        nd = len(cls._shape)
+        strides = []
+        stride_offset = 8 + nd * 8
+        for ii in range(nd):
+            sname = f"{itype} {cls.__name__}_s{ii}"
+            svalue = f"*({itype}*) (({ctype}*) obj+offset+{stride_offset})"
+            out.append(f"{sname}={svalue};")
+            strides.append(sname)
+
+    soffset = "+".join([f"i{ii}*{ss}" for ii, ss in enumerate(strides)])
+    if cls._data_offset > 0:
+        soffset = f"{cls._data_offset}+{soffset}"
+    if cls._is_static_type:
+        out.append(f"  offset+={soffset};")
+    else:
+        out.append(f"  offset+=*({itype}*) (({ctype}*) obj+offset+{soffset});")
+    return out
+
+
+def get_c_offset(atype, conf):
+    if is_array(atype):
+        return Array_get_c_offset(atype, conf)
+    elif is_field(atype):
+        return Field_get_c_offset(atype, conf)
+
+
+def gen_method_offset(path, conf):
     """return code to obtain offset of the target in bytes"""
     itype = conf.get("itype", "int64_t")
     lst = [f"  {itype} offset=0;"]
     offset = 0
-    for spec in specs:
-        soffset = spec._get_c_offset(conf)
+    for part in path:
+        soffset = part._get_c_offset(conf)
         if type(soffset) is int:
             offset += soffset
         else:
-            lst.append(f"  offset+={offset};")  # dump current offset
+            if offset > 0:
+                lst.append(f"  offset+={offset};")  # dump current offset
             lst.extend(soffset)  # update reference offset
             offset = 0
     if offset > 0:
@@ -282,19 +341,23 @@ def gen_method_size(cls, parts, conf):
     return "\n".join(lst), kernel
 
 
-def gen_method_dim(cls, parts, conf):
+def gen_method_shape(cls, parts, conf):
+    "return shape in an array"
     return None, None
 
 
-def gen_method_ndim(cls, parts, conf):
+def gen_method_nd(cls, parts, conf):
+    "return length of shape"
     return None, None
 
 
 def gen_method_strides(cls, parts, conf):
+    "return strides"
     return None, None
 
 
-def gen_method_iter(cls, parts, conf):
+def gen_method_getpos(cls, parts, conf):
+    "return slot position from index and strides"
     return None, None
 
 
@@ -304,18 +367,22 @@ def gen_typedef(cls):
 
 
 def gen_typedef_decl(cls):
-    # TODO: for Union add enums
+    # TODO: moce to class methods
     out = []
     typename = cls._c_type
-    if not is_scalar(cls):
-        out.append(
-            f"""
-#ifndef XOBJ_TYPEDEF_{typename}
-{gen_typedef(cls)}
-#define XOBJ_TYPEDEF_{typename}
-#endif
-"""
-        )
+    if is_struct(cls) or is_array(cls) or is_single_ref(cls):
+        out.append(f"#ifndef XOBJ_TYPEDEF_{typename}")
+        out.append(f"{gen_typedef(cls)}")
+        out.append(f"#define XOBJ_TYPEDEF_{typename}")
+        out.append("#endif")
+    elif is_ref(cls):
+        out.append(f"#ifndef XOBJ_TYPEDEF_{typename}")
+        # defining C union might have issues with GPU qualifiers
+        out.append(f"{gen_typedef(cls)}")
+        lst = ",".join(tt._c_type for tt in cls._rtypes)
+        out.append(f"enum {{{lst}}};")
+        out.append(f"#define XOBJ_TYPEDEF_{typename}")
+        out.append("#endif")
     return "\n".join(out)
 
 
@@ -357,10 +424,10 @@ def gen_code(cls, specs, conf):
             out.append(gen_method_size(cls, parts, conf))
         if is_array(lasttype):
             out.append(gen_method_len(cls, parts, conf))
-            out.append(gen_method_dim(cls, parts, conf))
-            out.append(gen_method_ndim(cls, parts, conf))
+            out.append(gen_method_shape(cls, parts, conf))
+            out.append(gen_method_nd(cls, parts, conf))
             out.append(gen_method_strides(cls, parts, conf))
-            out.append(gen_method_iter(cls, parts, conf))
+            out.append(gen_method_getpos(cls, parts, conf))
 
     sources = [gen_headers(cls, specs)]
     kernels = {}

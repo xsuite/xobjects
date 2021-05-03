@@ -124,6 +124,8 @@ def test_ref():
 
     source, kernels, cdef = StructA._gen_c_api()
 
+    return
+
     ctx.add_kernels(
         sources=[source],
         kernels=kernels,
@@ -142,11 +144,47 @@ def test_ref():
 
     source, kernels, cdef = List._gen_c_api()
 
-    ctx = xo.ContextCpu()
-
     ctx.add_kernels(
         sources=[source],
         kernels=kernels,
         extra_cdef=cdef,
         save_source_as="test_ref2.c",
     )
+
+
+def test_repeated_defs():
+    class ParticlesData(xo.Struct):
+
+        num_particles = xo.Int64
+        q0 = xo.Float64
+        mass0 = xo.Float64
+        beta0 = xo.Float64
+        gamma0 = xo.Float64
+        p0c = xo.Float64
+        s = xo.Float64[:]
+        x = xo.Float64[:]
+        y = xo.Float64[:]
+
+    source, kernels, cdefs = ParticlesData._gen_c_api()
+
+    context = xo.ContextCpu()
+    context.add_kernels([source], kernels, extra_cdef=cdefs)
+
+
+def test_capi_naming():
+    class ParticlesData(xo.Struct):
+
+        num_particles = xo.Int64
+        q0 = xo.Float64
+        mass0 = xo.Float64
+        beta0 = xo.Float64
+        gamma0 = xo.Float64
+        p0c = xo.Float64
+        s = xo.Float64[:]
+        x = xo.Float64[:]
+        y = xo.Float64[:]
+
+    source, kernels, cdefs = ParticlesData._gen_c_api()
+
+    context = xo.ContextCpu()
+    context.add_kernels([source], kernels, extra_cdef=cdefs)

@@ -245,7 +245,7 @@ def gen_method_getp(cls, parts, conf):
 
     action = "getp"
     layers = get_layers(parts)
-    if layers > 0 and not is_scalar(lasttype):
+    if layers > 0:
         action += str(layers)
 
     kernel = gen_fun_data(
@@ -399,13 +399,13 @@ def gen_headers(cls, specs):
 
 
 def gen_cdef(cls, specs):
-    types = set()
-    types.add(cls)
+    types = {cls._c_type: cls}
     out = []
     for parts in specs:
         for part in parts:
-            types.add(get_inner_type(part))
-    for tt in types:
+            lasttype = get_inner_type(part)
+            types[lasttype._c_type] = lasttype
+    for nn, tt in types.items():
         if not is_scalar(tt):
             out.append(gen_typedef(tt))
     return "\n".join(out)

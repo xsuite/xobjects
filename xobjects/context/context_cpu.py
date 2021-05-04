@@ -71,7 +71,7 @@ class ContextCpu(XContext):
         self.omp_num_threads = omp_num_threads
 
     def _make_buffer(self, capacity):
-        return BufferByteArray(capacity=capacity, context=self)
+        return BufferNumpy(capacity=capacity, context=self)
 
     def add_kernels(
         self,
@@ -380,11 +380,57 @@ class BufferByteArray(XBuffer):
         return self.buffer[offset : offset + nbytes]
 
 
-# One could implement something like this and choose
-# between Numpy and ByteArr when building the context
-class NumpyArrayBuffer(XBuffer):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError
+class BufferNumpy(XBuffer):
+    def _make_context(self):
+        return ContextCpu()
+
+    def _new_buffer(self, capacity):
+        return np.zeros(capacity, dtype="int8")
+
+    def update_from_native(self, offset, source, source_offset, nbytes):
+        """Copy data from native buffer into self.buffer starting from offset"""
+        self.buffer[offset : offset + nbytes] = source[
+            source_offset : source_offset + nbytes
+        ]
+
+    def copy_native(self, offset, nbytes):
+        """return native data with content at from offset and nbytes"""
+        return self.buffer[offset : offset + nbytes].copy()
+
+    def copy_to_native(self, dest, dest_offset, source_offset, nbytes):
+        """copy data from self.buffer into dest"""
+        dest[dest_offset : dest_offset + nbytes] = self.buffer[
+            source_offset : source_offset + nbytes
+        ]
+
+    def update_from_buffer(self, offset, source):
+        """Copy data from python buffer such as bytearray, bytes, memoryview, numpy array.data"""
+        nbytes = len(source)
+        self.buffer[offset : offset + nbytes] = bytearray(source)
+
+    def to_nplike(self, offset, dtype, shape):
+        """view in nplike"""
+        count = np.prod(shape)
+        # dtype=np.dtype(dtype)
+        # return self.buffer[offset:].view(dtype)[:count].reshape(*shape)
+        return np.frombuffer(
+            self.buffer, dtype=dtype, count=count, offset=offset
+        ).reshape(*shape)
+
+    def update_from_nplike(self, offset, dest_dtype, value):
+        value = nplike_to_numpy(value)
+        if dest_dtype != value.dtype:
+            value = value.astype(dtype=dest_dtype)  # make a copy
+        src = value.view("int8")
+        self.buffer[offset : offset + src.nbytes] = value.view("int8")
+
+    def to_bytearray(self, offset, nbytes):
+        """copy in byte array: used in update_from_xbuffer"""
+        return bytearray(self.buffer[offset : offset + nbytes])
+
+    def to_pointer_arg(self, offset, nbytes):
+        """return data that can be used as argument in kernel"""
+        return self.buffer[offset : offset + nbytes]
 
 
 class KernelCpu:

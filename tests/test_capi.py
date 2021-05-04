@@ -167,9 +167,13 @@ def test_capi_call():
         s=np.arange(10, 21, 10),
         x=np.arange(10, 21, 10),
         y=np.arange(10, 21, 10),
-        )
+    )
 
-    assert context.kernels.ParticlesData_get_x(obj=particles, i0=1) == particles.x[1]
+    assert (
+        context.kernels.ParticlesData_get_x(obj=particles, i0=1)
+        == particles.x[1]
+    )
+
 
 def test_2_particles():
     context = xo.ContextCpu()
@@ -180,11 +184,21 @@ def test_2_particles():
         x = xo.Float64[:]
 
     particles = ParticlesData(
-                    num_particles=2,
-                    s=np.array([1,2,]),
-                    x=np.array([7,8,]))
+        num_particles=2, s=np.array([1, 2]), x=np.array([7, 8])
+    )
 
     source, kernels, cdefs = ParticlesData._gen_c_api()
     context.add_kernels([source], kernels, extra_cdef=cdefs)
 
-    assert context.kernels.ParticlesData_get_x(obj=particles, i0=0) == particles.x[0]
+    ptr = particles._buffer.to_nplike(0, "int64", (11,)).ctypes.data
+    print(f"{ptr:x}")
+    assert (
+        context.kernels.ParticlesData_get_x(obj=particles, i0=0)
+        == particles.x[0]
+    )
+    assert (
+        context.kernels.ParticlesData_get_x(obj=particles, i0=1)
+        == particles.x[1]
+    )
+
+    return particles

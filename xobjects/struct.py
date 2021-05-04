@@ -280,14 +280,16 @@ class Struct(metaclass=MetaStruct):
                 offset, value._buffer, value._offset, value._size
             )
         else:  # value must be a dict, again potential disctructive
+            value = cls._pre_init(**value)
             if info is None:
                 info = cls._inspect_args(value)
+            if cls._size is None:
+                Int64._to_buffer(buffer, offset, info.size)
             if hasattr(
                 info, "_offsets"
             ):  # if it has a least two dynamic fields
                 cls._set_offsets(buffer, offset, info._offsets)
             extra = getattr(info, "extra", {})
-            value = cls._pre_init(**value)
             for field in cls._fields:
                 fvalue = field.value_from_args(value)
                 foffset = offset + field.get_offset(info)

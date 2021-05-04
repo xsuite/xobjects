@@ -101,12 +101,19 @@ def get_layers(parts):
     return layers
 
 
+def int_from_obj(offset, conf):
+    itype = conf.get("itype", "int64_t")
+    ctype = conf.get("ctype", "char")
+    return f"({itype})(({ctype}*) obj+{doffset})"
+
+
 def Field_get_c_offset(self, conf):
     itype = conf.get("itype", "int64_t")
+    ctype = conf.get("ctype", "char")
     if self.is_reference:
         doffset = f"offset+{self.offset}"  # starts of data
-        return [f"  offset+=(({itype}*) obj)[{doffset}];"]  # WRONG
     else:
+        return [f"  offset+={int_from_obj(doffest,)};"]  # WRONG
         return self.offset
 
 
@@ -209,6 +216,7 @@ def gen_method_get(cls, parts, conf):
     decl = gen_c_decl_from_kernel(kernel, conf)
 
     lst = [decl + "{"]
+    lst.append(r'  printf("Obj: %p\n", (void*) obj);')
     lst.append(gen_method_offset(parts, conf))
     pointed = gen_c_pointed(retarg, conf)
     lst.append(f"  return {pointed};")

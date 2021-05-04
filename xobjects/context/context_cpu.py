@@ -429,12 +429,11 @@ class KernelCpu:
                 return arg.atype(value)  # try to return a numpy scalar
             elif hasattr(arg.atype, "_size"):  # it is a compound xobject
                 # TODO: check context
+                buf = np.frombuffer(value._buffer.buffer, dtype="int8")
                 return self.ffi_interface.cast(
                     arg.atype._c_type,
                     self.ffi_interface.from_buffer(
-                        value._buffer.buffer[
-                            value._offset :
-                        ]  # fails for pyopencl, cuda
+                        buf[value._offset :]  # fails for pyopencl, cuda
                     ),
                 )
             else:

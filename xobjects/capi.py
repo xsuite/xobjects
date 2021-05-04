@@ -216,7 +216,7 @@ def gen_method_get(cls, parts, conf):
     decl = gen_c_decl_from_kernel(kernel, conf)
 
     lst = [decl + "{"]
-    lst.append(r'  printf("Obj: %p\n", (void*) obj);')
+    # lst.append(r'  printf("Obj:  %p\n", (void*) obj);')
     lst.append(gen_method_offset(parts, conf))
     pointed = gen_c_pointed(retarg, conf)
     lst.append(f"  return {pointed};")

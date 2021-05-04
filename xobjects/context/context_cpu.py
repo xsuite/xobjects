@@ -430,12 +430,8 @@ class KernelCpu:
             elif hasattr(arg.atype, "_size"):  # it is a compound xobject
                 # TODO: check context
                 buf = np.frombuffer(value._buffer.buffer, dtype="int8")
-                return self.ffi_interface.cast(
-                    arg.atype._c_type,
-                    self.ffi_interface.from_buffer(
-                        buf[value._offset :]  # fails for pyopencl, cuda
-                    ),
-                )
+                ptr = buf.ctypes.data + value._offset
+                return self.ffi_interface.cast(arg.atype._c_type, ptr)
             else:
                 raise ValueError(
                     f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}"

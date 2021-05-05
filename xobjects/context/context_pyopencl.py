@@ -90,6 +90,7 @@ class ContextPyopencl(XContext):
         kernels,
         specialize=True,
         save_source_as=None,
+        extra_cdef=None,
     ):
 
         """

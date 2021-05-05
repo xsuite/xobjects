@@ -397,10 +397,14 @@ class KernelPyopencl(object):
     def to_function_arg(self, arg, value):
         if arg.pointer:
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
-                if hasattr(value, "dtype"):  # nparray
+                if isinstance(value, cl.Buffer):
+                    return value
+                elif hasattr(value, "dtype"):  # nparray
                     assert isinstance(value, cla.Array)
                     return value.base_data[value.offset :]
                 elif hasattr(value, "_shape"):  # xobject array
+                    raise NotImplementedError
+                else:
                     raise NotImplementedError
             else:
                 raise ValueError(

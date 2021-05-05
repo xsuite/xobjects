@@ -60,7 +60,6 @@ class XContext(ABC):
     def __init__(self):
         self._kernels = MinimalDotDict()
         self._buffers = []
-        self.kernels_v2 = MinimalDotDict()
 
     def new_buffer(self, capacity=1048576):
         buf = self._make_buffer(capacity=capacity)

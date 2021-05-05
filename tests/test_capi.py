@@ -57,7 +57,7 @@ def test_gen_get():
 int8_t Multipole_get_order(const Multipole obj){
   int64_t offset=0;
   offset+=8;
-  return *((int8_t*) obj+offset);
+  return *((/*gpuglmem*/ int8_t*) obj+offset);
 }"""
     )
 
@@ -71,7 +71,7 @@ double Multipole_get_field_skew(const Multipole obj, int64_t i0){
   offset+=32;
   offset+=16+i0*16;
   offset+=8;
-  return *(double*)((char*) obj+offset);
+  return *(/*gpuglmem*/ double*)((/*gpuglmem*/ char*) obj+offset);
 }"""
     )
 
@@ -87,7 +87,7 @@ def test_gen_set():
 void Multipole_set_order(Multipole obj, int8_t value){
   int64_t offset=0;
   offset+=8;
-  *((int8_t*) obj+offset)=value;
+  *((/*gpuglmem*/ int8_t*) obj+offset)=value;
 }"""
     )
 

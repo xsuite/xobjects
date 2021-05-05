@@ -199,7 +199,7 @@ def gen_c_pointed(target: Arg, conf):
         if size == 1:
             return f"*((/*gpuglmem*/ {ret}*) obj+offset)"
         else:
-            return f"*(/*gpuglmem*/{ret}*)((/*gpuglmem*/char*) obj+offset)"
+            return f"*(/*gpuglmem*/ {ret}*)((/*gpuglmem*/ char*) obj+offset)"
 
 
 def gen_method_get(cls, parts, conf):

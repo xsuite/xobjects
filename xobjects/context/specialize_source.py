@@ -88,7 +88,7 @@ def specialize_source(source, specialize_for, search_in_folders=[]):
     newfilecontent = newfilecontent.replace(
         "/*gpufun*/",
         {"cpu_serial": " ", "cpu_openmp": " ",
-            "opencl": " ", "cuda": "__device__"}[
+            "opencl": " ", "cuda": " __device__ "}[
             specialize_for
         ],
     )

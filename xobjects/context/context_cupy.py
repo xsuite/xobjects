@@ -322,7 +322,7 @@ class KernelCupy(object):
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 return arg.atype(value)  # try to return a numpy scalar
             elif hasattr(arg.atype, "_size"):  # it is a compound xobject
-                raise NotImplementedError
+                return value._buffer.buffer[value._offset:]
             else:
                 raise ValueError(
                     f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}"

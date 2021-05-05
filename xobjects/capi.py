@@ -61,7 +61,7 @@ def gen_c_type_from_arg(arg: Arg, conf):
         if arg.pointer:
             cdec = dress_pointer(cdec + "*", conf)
         if is_compound(arg.atype):
-            cdec = dress_pointer(cdec, conf)
+            cdec = cdec
         if arg.const:
             cdec = "const " + cdec
         return cdec
@@ -304,7 +304,7 @@ def gen_method_len(cls, parts, conf):
         lst.append(gen_method_offset(parts, conf))
         arrarg = Arg(Int64, pointer=True)
         pointed = gen_c_pointed(arrarg, conf)
-        lst.append(f"  int64_t* arr= {pointed};")
+        lst.append(f"/*gpuglmem*/  int64_t* arr= {pointed};")
         terms = []
         ii = 1
         for sh in lasttype._shape:
@@ -371,7 +371,7 @@ def gen_method_getpos(cls, parts, conf):
 
 def gen_typedef(cls):
     typename = cls._c_type
-    return f"typedef void* {typename};"
+    return f"typedef /*gpuglmem*/ void* {typename};"
 
 
 def gen_typedef_decl(cls):

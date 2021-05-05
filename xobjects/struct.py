@@ -130,7 +130,7 @@ class Field:
         itype = conf.get("itype", "int64_t")
         if self.is_reference:
             doffset = f"offset+{self.offset}"  # starts of data
-            return [f"  offset+= *({itype}*)((char*) obj + {doffset});"]
+            return [f"  offset+= *(/*gpuglmem*/{itype}*)((/*gpuglmem*/char*) obj + {doffset});"]
         else:
             return self.offset
 

@@ -60,6 +60,7 @@ class ContextCupy(XContext):
         kernels,
         specialize=True,
         save_source_as=None,
+        extra_cdef=None,
     ):
 
         """
@@ -275,10 +276,11 @@ class BufferCupy(XBuffer):
             .reshape(*shape)
         )
 
-    def update_from_nplike(self, offset, dest_dtype, arr):
-        if arr.dtype != dest_dtype:
-            arr = arr.astype(dest_dtype)
-        self.update_from_native(offset, arr.data, 0, arr.nbytes)
+    def update_from_nplike(self, offset, dest_dtype, value):
+        if dest_dtype != value.dtype:
+            value = value.astype(dtype=dest_dtype)  # make a copy
+        src = value.view("int8")
+        self.buffer[offset : offset + src.nbytes] = value.view("int8")
 
     def to_bytearray(self, offset, nbytes):
         """copy in byte array: used in update_from_xbuffer"""

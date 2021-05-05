@@ -194,12 +194,12 @@ def gen_c_pointed(target: Arg, conf):
     size = gen_c_size_from_arg(target, conf)
     ret = gen_c_type_from_arg(target, conf)
     if target.pointer or is_compound(target.atype):
-        return f"({ret})((char*) obj+offset)"
+        return f"({ret})((/*gpuglmem*/ char*) obj+offset)"
     else:
         if size == 1:
-            return f"*(({ret}*) obj+offset)"
+            return f"*((/*gpuglmem*/ {ret}*) obj+offset)"
         else:
-            return f"*({ret}*)((char*) obj+offset)"
+            return f"*(/*gpuglmem*/{ret}*)((/*gpuglmem*/char*) obj+offset)"
 
 
 def gen_method_get(cls, parts, conf):

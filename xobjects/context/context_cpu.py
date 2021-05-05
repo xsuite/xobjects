@@ -40,8 +40,9 @@ except ImportError:
 dtype_dict = {
     "float64": "double",
     "float32": "float",
-    "int64": "int64_t",
-    "int32": "int32_t",
+    "int64":  "int64_t",
+    "int32":  "int32_t",
+    "int8":   "int8_t",
     "uint64": "uint64_t",
     "uint32": "uint32_t",
 }

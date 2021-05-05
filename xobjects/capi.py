@@ -371,7 +371,7 @@ def gen_method_getpos(cls, parts, conf):
 
 def gen_typedef(cls):
     typename = cls._c_type
-    return f"typedef struct {typename} * {typename};"
+    return f"typedef void* {typename};"
 
 
 def gen_typedef_decl(cls):

@@ -395,7 +395,12 @@ def gen_typedef_decl(cls):
 
 
 def gen_headers(cls, specs):
-    out = ["#include <stdint.h>"]
+    out = ["#include <stdint.h> //only_for_context cpu_serial cpu_openmp"]
+    out.append('typedef signed long long int64_t; //only_for_context cuda')
+    out.append('typedef signed char      int8_t;  //only_for_context cuda')
+    out.append('typedef long int64_t; //only_for_context opencl')
+    out.append('typedef char int8_t;  //only_for_context opencl')
+
     types = set()
     types.add(cls)
     for parts in specs:

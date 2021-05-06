@@ -376,7 +376,7 @@ def gen_method_getpos(cls, parts, conf):
 
 def gen_typedef(cls):
     typename = cls._c_type
-    return f"typedef /*gpuglmem*/ void* {typename};"
+    return f"typedef /*gpuglmem*/ struct {typename}_s * {typename};"
 
 
 def gen_typedef_decl(cls):
@@ -402,12 +402,12 @@ def gen_typedef_decl(cls):
 def gen_headers(cls, specs):
     out = []
 
-    types = set()
-    types.add(cls)
+    types = {cls._c_type: cls}
     for parts in specs:
         for part in parts:
-            types.add(get_inner_type(part))
-    for tt in types:
+            lasttype = get_inner_type(part)
+            types[lasttype._c_type] = lasttype
+    for nn, tt in types.items():
         out.append(gen_typedef_decl(tt))
     return "\n".join(out)
 

@@ -90,7 +90,7 @@ def gen_c_decl_from_kernel(kernel: Kernel, conf):
         ret = "void"
     else:
         ret = gen_c_type_from_arg(kernel.ret, conf)
-    return f"/*gpufun*/ {ret} {kernel.c_name}({args})"
+    return f"{ret} {kernel.c_name}({args})"
 
 
 def get_layers(parts):
@@ -396,10 +396,10 @@ def gen_typedef_decl(cls):
 
 def gen_headers(cls, specs):
     out = ["#include <stdint.h> //only_for_context cpu_serial cpu_openmp"]
-    out.append('typedef signed long long int64_t; //only_for_context cuda')
-    out.append('typedef signed char      int8_t;  //only_for_context cuda')
-    out.append('typedef long int64_t; //only_for_context opencl')
-    out.append('typedef char int8_t;  //only_for_context opencl')
+    out.append("typedef signed long long int64_t; //only_for_context cuda")
+    out.append("typedef signed char      int8_t;  //only_for_context cuda")
+    out.append("typedef long int64_t; //only_for_context opencl")
+    out.append("typedef char int8_t;  //only_for_context opencl")
 
     types = set()
     types.add(cls)

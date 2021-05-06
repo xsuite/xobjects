@@ -199,12 +199,14 @@ def gen_c_pointed(target: Arg, conf):
     ret = gen_c_type_from_arg(target, conf)
     if target.pointer or is_compound(target.atype):
         chartype = dress_pointer(conf.get("chartype", "char") + "*", conf)
-        return f"({ret})((/*gpuglmem*/ char*) obj+offset)"
+        return f"({ret})(({chartype}) obj+offset)"
     else:
+        rettype = dress_pointer(ret + "*", conf)
         if size == 1:
-            return f"*((/*gpuglmem*/ {ret}*) obj+offset)"
+            return f"*(({rettype}) obj+offset)"
         else:
-            return f"*(/*gpuglmem*/ {ret}*)((/*gpuglmem*/ char*) obj+offset)"
+            chartype = dress_pointer(conf.get("chartype", "char") + "*", conf)
+            return f"*({rettype})(({chartype}) obj+offset)"
 
 
 def gen_method_get(cls, parts, conf):
@@ -309,7 +311,8 @@ def gen_method_len(cls, parts, conf):
         lst.append(gen_method_offset(parts, conf))
         arrarg = Arg(Int64, pointer=True)
         pointed = gen_c_pointed(arrarg, conf)
-        lst.append(f"/*gpuglmem*/  int64_t* arr= {pointed};")
+        typearr = dress_pointer("int64_t*", conf)
+        lst.append(f"{typearr} arr= {pointed};")
         terms = []
         ii = 1
         for sh in lasttype._shape:
@@ -374,24 +377,25 @@ def gen_method_getpos(cls, parts, conf):
     return None, None
 
 
-def gen_typedef(cls):
+def gen_typedef(cls, conf):
+    prepointer = conf.get("prepointer", "")
     typename = cls._c_type
-    return f"typedef /*gpuglmem*/ struct {typename}_s * {typename};"
+    return f"typedef {prepointer} struct {typename}_s * {typename};"
 
 
-def gen_typedef_decl(cls):
+def gen_typedef_decl(cls, conf):
     # TODO: moce to class methods
     out = []
     typename = cls._c_type
     if is_struct(cls) or is_array(cls) or is_single_ref(cls):
         out.append(f"#ifndef XOBJ_TYPEDEF_{typename}")
-        out.append(f"{gen_typedef(cls)}")
+        out.append(f"{gen_typedef(cls,conf)}")
         out.append(f"#define XOBJ_TYPEDEF_{typename}")
         out.append("#endif")
     elif is_ref(cls):
         out.append(f"#ifndef XOBJ_TYPEDEF_{typename}")
         # defining C union might have issues with GPU qualifiers
-        out.append(f"{gen_typedef(cls)}")
+        out.append(f"{gen_typedef(cls,conf)}")
         lst = ",".join(tt._c_type for tt in cls._rtypes)
         out.append(f"enum {{{lst}}};")
         out.append(f"#define XOBJ_TYPEDEF_{typename}")
@@ -399,7 +403,7 @@ def gen_typedef_decl(cls):
     return "\n".join(out)
 
 
-def gen_headers(cls, specs):
+def gen_headers(cls, specs, conf):
     out = []
 
     types = {cls._c_type: cls}
@@ -408,11 +412,11 @@ def gen_headers(cls, specs):
             lasttype = get_inner_type(part)
             types[lasttype._c_type] = lasttype
     for nn, tt in types.items():
-        out.append(gen_typedef_decl(tt))
+        out.append(gen_typedef_decl(tt, conf))
     return "\n".join(out)
 
 
-def gen_cdef(cls, specs):
+def gen_cdef(cls, specs, conf):
     types = {cls._c_type: cls}
     out = []
     for parts in specs:
@@ -421,7 +425,7 @@ def gen_cdef(cls, specs):
             types[lasttype._c_type] = lasttype
     for nn, tt in types.items():
         if not is_scalar(tt):
-            out.append(gen_typedef(tt))
+            out.append(gen_typedef(tt, conf))
     return "\n".join(out)
 
 
@@ -443,7 +447,7 @@ def gen_code(cls, specs, conf):
             out.append(gen_method_strides(cls, parts, conf))
             out.append(gen_method_getpos(cls, parts, conf))
 
-    sources = [gen_headers(cls, specs)]
+    sources = [gen_headers(cls, specs, conf)]
     kernels = {}
     for source, kernel in out:
         if source is not None:
@@ -453,5 +457,5 @@ def gen_code(cls, specs, conf):
 
     source = "\n".join(sources)
 
-    cdef = gen_cdef(cls, specs)
+    cdef = gen_cdef(cls, specs, conf)
     return source, kernels, cdef

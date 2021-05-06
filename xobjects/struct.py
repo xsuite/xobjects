@@ -52,6 +52,7 @@ from .typeutils import (
     Info,
     _to_slot_size,
     _is_dynamic,
+    default_conf,
 )
 
 from .scalar import Int64
@@ -130,7 +131,9 @@ class Field:
         itype = conf.get("itype", "int64_t")
         if self.is_reference:
             doffset = f"offset+{self.offset}"  # starts of data
-            return [f"  offset+= *(/*gpuglmem*/{itype}*)((/*gpuglmem*/char*) obj + {doffset});"]
+            return [
+                f"  offset+= *(/*gpuglmem*/{itype}*)((/*gpuglmem*/char*) obj + {doffset});"
+            ]
         else:
             return self.offset
 
@@ -379,6 +382,6 @@ class Struct(metaclass=MetaStruct):
         return paths
 
     @classmethod
-    def _gen_c_api(cls, conf={}):
+    def _gen_c_api(cls, conf=default_conf):
         specs_list = cls._gen_data_paths()
         return capi.gen_code(cls, specs_list, conf)

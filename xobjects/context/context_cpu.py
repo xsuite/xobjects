@@ -40,9 +40,9 @@ except ImportError:
 dtype_dict = {
     "float64": "double",
     "float32": "float",
-    "int64":  "int64_t",
-    "int32":  "int32_t",
-    "int8":   "int8_t",
+    "int64": "int64_t",
+    "int32": "int32_t",
+    "int8": "int8_t",
     "uint64": "uint64_t",
     "uint32": "uint32_t",
 }
@@ -144,10 +144,11 @@ class ContextCpu(XContext):
             ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
         """
 
-        source, folders = _concatenate_sources(sources)
-
+        sources = ["#include <stdint.h>"] + sources
         if self.omp_num_threads > 0:
-            source = "#include <omp.h>\n" + source
+            sources = ["#include <omp.h>"] + sources
+
+        source, folders = _concatenate_sources(sources)
 
         if specialize:
             if self.omp_num_threads > 0:

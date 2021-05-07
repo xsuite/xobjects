@@ -52,6 +52,14 @@ def is_integer(i):
 float2c = {2: "half", 4: "float", 8: "double", 16: "double[2]"}
 
 
+default_conf = {
+    "prepointer": "/*gpuglmem*/",
+    "postpointer": "/*restrict*/",
+    "inttype": "int64_t",
+    "chartype": "char",
+}
+
+
 def get_c_type(typ):
     if hasattr(typ, "dtype"):
         ss = typ.dtype.str

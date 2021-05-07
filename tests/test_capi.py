@@ -49,8 +49,9 @@ def test_gen_get():
     Field_N = Multipole.field.ftype
 
     parts = [Multipole.order]
+    conf = {"prepointer": "/*gpuglmem*/ "}
 
-    source, _ = capi.gen_method_get(Multipole, parts, {})
+    source, _ = capi.gen_method_get(Multipole, parts, conf)
     assert (
         source
         == """\
@@ -62,7 +63,7 @@ int8_t Multipole_get_order(const Multipole obj){
     )
 
     parts = [Multipole.field, Field_N, Field.skew]
-    source, _ = capi.gen_method_get(Multipole, parts, {})
+    source, _ = capi.gen_method_get(Multipole, parts, conf)
     assert (
         source
         == """\
@@ -79,8 +80,9 @@ double Multipole_get_field_skew(const Multipole obj, int64_t i0){
 def test_gen_set():
     _, Multipole = gen_classes()
     parts = [Multipole.order]
+    conf = {"prepointer": "/*gpuglmem*/ "}
 
-    source, _ = capi.gen_method_set(Multipole, parts, {})
+    source, _ = capi.gen_method_set(Multipole, parts, conf)
     assert (
         source
         == """\

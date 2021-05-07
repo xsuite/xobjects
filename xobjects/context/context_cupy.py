@@ -21,6 +21,14 @@ except ImportError:
     _enabled = False
 
 
+cudaheader = [
+    """\
+typedef signed long long int64_t; //only_for_context cuda
+typedef signed char      int8_t;  //only_for_context cuda
+"""
+]
+
+
 def nplike_to_cupy(arr):
     return cupy.array(arr)
 
@@ -121,6 +129,8 @@ class ContextCupy(XContext):
             # can be called as follows:
             ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
         """
+
+        sources = cudaheader + sources
 
         source, folders = _concatenate_sources(sources)
         source = "\n".join(['extern "C"{', source, "}"])
@@ -322,7 +332,7 @@ class KernelCupy(object):
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 return arg.atype(value)  # try to return a numpy scalar
             elif hasattr(arg.atype, "_size"):  # it is a compound xobject
-                return value._buffer.buffer[value._offset:]
+                return value._buffer.buffer[value._offset :]
             else:
                 raise ValueError(
                     f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}"

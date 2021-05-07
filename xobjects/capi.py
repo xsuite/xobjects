@@ -47,10 +47,10 @@ def get_inner_type(part):
         raise ValueError(f"Cannot get inner type of {part}")
 
 
-def dress_pointer(ctype, conf):
+def dress_pointer(chartype, conf):
     prepointer = conf.get("prepointer", "")
     postpointer = conf.get("postpointer", "")
-    return f"{prepointer}{ctype}{postpointer}"
+    return f"{prepointer}{chartype}{postpointer}"
 
 
 def gen_c_type_from_arg(arg: Arg, conf):
@@ -90,7 +90,7 @@ def gen_c_decl_from_kernel(kernel: Kernel, conf):
         ret = "void"
     else:
         ret = gen_c_type_from_arg(kernel.ret, conf)
-    return f"/*gpufun*/ {ret} {kernel.c_name}({args})"
+    return f"{ret} {kernel.c_name}({args})"
 
 
 def get_layers(parts):
@@ -102,14 +102,14 @@ def get_layers(parts):
 
 
 def int_from_obj(offset, conf):
-    itype = conf.get("itype", "int64_t")
-    ctype = conf.get("ctype", "char")
-    return f"({itype})(({ctype}*) obj+{doffset})"
+    inttype = dress_pointer(conf.get("inttype", "int64_t") + "*")
+    chartype = dress_pointer(conf.get("chartype", "char") + "*")
+    return f"({inttype})(({chartype}) obj+{offset})"
 
 
 def Field_get_c_offset(self, conf):
-    itype = conf.get("itype", "int64_t")
-    ctype = conf.get("ctype", "char")
+    inttype = conf.get("inttype", "int64_t")
+    chartype = conf.get("chartype", "char")
     if self.is_reference:
         doffset = f"offset+{self.offset}"  # starts of data
     else:
@@ -118,8 +118,8 @@ def Field_get_c_offset(self, conf):
 
 
 def Array_get_c_offset(cls, conf):
-    ctype = conf.get("ctype", "char")
-    itype = conf.get("itype", "int64_t")
+    chartype = conf.get("chartype", "char")
+    inttype = conf.get("inttype", "int64_t")
 
     out = []
     if hasattr(cls, "_strides"):  # static shape or 1d dynamic shape
@@ -129,8 +129,10 @@ def Array_get_c_offset(cls, conf):
         strides = []
         stride_offset = 8 + nd * 8
         for ii in range(nd):
-            sname = f"{itype} {cls.__name__}_s{ii}"
-            svalue = f"*({itype}*) (({ctype}*) obj+offset+{stride_offset})"
+            sname = f"{inttype} {cls.__name__}_s{ii}"
+            svalue = (
+                f"*({inttype}*) (({chartype}*) obj+offset+{stride_offset})"
+            )
             out.append(f"{sname}={svalue};")
             strides.append(sname)
 
@@ -140,7 +142,9 @@ def Array_get_c_offset(cls, conf):
     if cls._is_static_type:
         out.append(f"  offset+={soffset};")
     else:
-        out.append(f"  offset+=*({itype}*) (({ctype}*) obj+offset+{soffset});")
+        out.append(
+            f"  offset+=*({inttype}*) (({chartype}*) obj+offset+{soffset});"
+        )
     return out
 
 
@@ -153,8 +157,8 @@ def get_c_offset(atype, conf):
 
 def gen_method_offset(path, conf):
     """return code to obtain offset of the target in bytes"""
-    itype = conf.get("itype", "int64_t")
-    lst = [f"  {itype} offset=0;"]
+    inttype = conf.get("inttype", "int64_t")
+    lst = [f"  {inttype} offset=0;"]
     offset = 0
     for part in path:
         soffset = part._get_c_offset(conf)
@@ -194,12 +198,15 @@ def gen_c_pointed(target: Arg, conf):
     size = gen_c_size_from_arg(target, conf)
     ret = gen_c_type_from_arg(target, conf)
     if target.pointer or is_compound(target.atype):
-        return f"({ret})((/*gpuglmem*/ char*) obj+offset)"
+        chartype = dress_pointer(conf.get("chartype", "char") + "*", conf)
+        return f"({ret})(({chartype}) obj+offset)"
     else:
+        rettype = dress_pointer(ret + "*", conf)
         if size == 1:
-            return f"*((/*gpuglmem*/ {ret}*) obj+offset)"
+            return f"*(({rettype}) obj+offset)"
         else:
-            return f"*(/*gpuglmem*/ {ret}*)((/*gpuglmem*/ char*) obj+offset)"
+            chartype = dress_pointer(conf.get("chartype", "char") + "*", conf)
+            return f"*({rettype})(({chartype}) obj+offset)"
 
 
 def gen_method_get(cls, parts, conf):
@@ -304,7 +311,8 @@ def gen_method_len(cls, parts, conf):
         lst.append(gen_method_offset(parts, conf))
         arrarg = Arg(Int64, pointer=True)
         pointed = gen_c_pointed(arrarg, conf)
-        lst.append(f"/*gpuglmem*/  int64_t* arr= {pointed};")
+        typearr = dress_pointer("int64_t*", conf)
+        lst.append(f"{typearr} arr= {pointed};")
         terms = []
         ii = 1
         for sh in lasttype._shape:
@@ -369,24 +377,25 @@ def gen_method_getpos(cls, parts, conf):
     return None, None
 
 
-def gen_typedef(cls):
+def gen_typedef(cls, conf):
+    prepointer = conf.get("prepointer", "")
     typename = cls._c_type
-    return f"typedef /*gpuglmem*/ void* {typename};"
+    return f"typedef {prepointer} struct {typename}_s * {typename};"
 
 
-def gen_typedef_decl(cls):
+def gen_typedef_decl(cls, conf):
     # TODO: moce to class methods
     out = []
     typename = cls._c_type
     if is_struct(cls) or is_array(cls) or is_single_ref(cls):
         out.append(f"#ifndef XOBJ_TYPEDEF_{typename}")
-        out.append(f"{gen_typedef(cls)}")
+        out.append(f"{gen_typedef(cls,conf)}")
         out.append(f"#define XOBJ_TYPEDEF_{typename}")
         out.append("#endif")
     elif is_ref(cls):
         out.append(f"#ifndef XOBJ_TYPEDEF_{typename}")
         # defining C union might have issues with GPU qualifiers
-        out.append(f"{gen_typedef(cls)}")
+        out.append(f"{gen_typedef(cls,conf)}")
         lst = ",".join(tt._c_type for tt in cls._rtypes)
         out.append(f"enum {{{lst}}};")
         out.append(f"#define XOBJ_TYPEDEF_{typename}")
@@ -394,24 +403,20 @@ def gen_typedef_decl(cls):
     return "\n".join(out)
 
 
-def gen_headers(cls, specs):
-    out = ["#include <stdint.h> //only_for_context cpu_serial cpu_openmp"]
-    out.append('typedef signed long long int64_t; //only_for_context cuda')
-    out.append('typedef signed char      int8_t;  //only_for_context cuda')
-    out.append('typedef long int64_t; //only_for_context opencl')
-    out.append('typedef char int8_t;  //only_for_context opencl')
+def gen_headers(cls, specs, conf):
+    out = []
 
-    types = set()
-    types.add(cls)
+    types = {cls._c_type: cls}
     for parts in specs:
         for part in parts:
-            types.add(get_inner_type(part))
-    for tt in types:
-        out.append(gen_typedef_decl(tt))
+            lasttype = get_inner_type(part)
+            types[lasttype._c_type] = lasttype
+    for nn, tt in types.items():
+        out.append(gen_typedef_decl(tt, conf))
     return "\n".join(out)
 
 
-def gen_cdef(cls, specs):
+def gen_cdef(cls, specs, conf):
     types = {cls._c_type: cls}
     out = []
     for parts in specs:
@@ -420,7 +425,7 @@ def gen_cdef(cls, specs):
             types[lasttype._c_type] = lasttype
     for nn, tt in types.items():
         if not is_scalar(tt):
-            out.append(gen_typedef(tt))
+            out.append(gen_typedef(tt, conf))
     return "\n".join(out)
 
 
@@ -442,7 +447,7 @@ def gen_code(cls, specs, conf):
             out.append(gen_method_strides(cls, parts, conf))
             out.append(gen_method_getpos(cls, parts, conf))
 
-    sources = [gen_headers(cls, specs)]
+    sources = [gen_headers(cls, specs, conf)]
     kernels = {}
     for source, kernel in out:
         if source is not None:
@@ -452,5 +457,5 @@ def gen_code(cls, specs, conf):
 
     source = "\n".join(sources)
 
-    cdef = gen_cdef(cls, specs)
+    cdef = gen_cdef(cls, specs, conf)
     return source, kernels, cdef

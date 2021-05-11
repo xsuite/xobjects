@@ -126,14 +126,13 @@ def test_ref():
 
     source, kernels, cdef = StructA._gen_c_api()
 
-    return
-
     ctx.add_kernels(
         sources=[source],
         kernels=kernels,
         extra_cdef=cdef,
         save_source_as="test_ref1.c",
     )
+    return
 
     ArrayB = xo.Float64[6, 6]
 

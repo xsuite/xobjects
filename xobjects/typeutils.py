@@ -79,3 +79,8 @@ def get_c_type(typ):
         return typ._c_type
     else:
         raise ValueError(f"Cannot find C type for type {typ}")
+
+
+class Register:
+    def __init__(self):
+        self.classes = {}

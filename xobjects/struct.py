@@ -17,7 +17,6 @@ Layout:
 
 Current implementation:
     1) instance stores the actual offsets for dynamic offset. Although it is wasteful for memory, it avoids a double round trip. This hinges on the structure being frozen at initializations.
-    2) cache mechanism in place, but not used so far
 
 Struct class:
 - _size: class size, None if not static
@@ -28,7 +27,6 @@ Struct class:
 Struct instance:
 - _offsets: cached offsets of dynamic fields dict indexed by field.index
 - _sizes: cached sizes of dynamic fields dict indexed by field.index
-- _cache: cached python objects for __get__
 
 Field instance:
 - ftype
@@ -76,6 +74,7 @@ class Field:
         self.is_reference = None  # filled by class creation
         self.has_update = False  # filled by class creation
         self.readonly = readonly
+        self.is_union = None  # filled by class creation
 
     def __repr__(self):
         return f"<Field{self.index} {self.name} at {self.offset}>"
@@ -84,11 +83,8 @@ class Field:
         if instance is None:
             return self
         else:
-            if self.index in instance._cache:
-                return instance._cache[self.index]
-            else:
-                offset = instance._offset + self.get_offset(instance)
-                return self.ftype._from_buffer(instance._buffer, offset)
+            ftype, offset = self.get_offset(instance)
+            return ftype._from_buffer(instance._buffer, offset)
 
     def __set__(self, instance, value):
         """
@@ -103,14 +99,23 @@ class Field:
         if hasattr(self.ftype, "_update"):
             self.__get__(instance)._update(value)
         else:  # TODO check if below is really needed
-            offset = instance._offset + self.get_offset(instance)
-            self.ftype._to_buffer(instance._buffer, offset, value)
+            ftype, offset = self.get_offset(instance)
+            ftype._to_buffer(instance._buffer, offset, value)
 
     def get_offset(self, instance):  # compatible with info
         if self.is_reference:
-            return instance._offsets[self.index]
+            reloffset = instance._offsets[self.index]
+            if self.is_union:
+                absoffset = instance._offset + reloffset
+                ftype = self.ftype._get_stored_type(
+                    instance._buffer, absoffset
+                )
+            else:
+                ftype = self.ftype
         else:
-            return self.offset
+            reloffset = self.offset
+            ftype = self.ftype
+        return ftype, instance._offset + reloffset
 
     def get_default(self):
         if self.default_factory is None:
@@ -272,7 +277,6 @@ class Struct(metaclass=MetaStruct):
             val = Int64._from_buffer(self._buffer, offset)
             _offsets[field.index] = val
         self._offsets = _offsets
-        self._cache = {}
         self._post_init()
         return self
 
@@ -295,7 +299,10 @@ class Struct(metaclass=MetaStruct):
             extra = getattr(info, "extra", {})
             for field in cls._fields:
                 fvalue = field.value_from_args(value)
-                foffset = offset + field.get_offset(info)
+                if field.is_reference:
+                    foffset = offset + info._offsets[field.index]
+                else:
+                    foffset = offset + field.offset
                 finfo = extra.get(field.index)
                 field.ftype._to_buffer(buffer, foffset, fvalue, finfo)
 
@@ -327,7 +334,6 @@ class Struct(metaclass=MetaStruct):
         if hasattr(info, "_offsets"):
             self._offsets = info._offsets  # struct offsets
         cls._to_buffer(self._buffer, self._offset, kwargs, info)
-        self._cache = {}
         self._post_init()
 
     @classmethod

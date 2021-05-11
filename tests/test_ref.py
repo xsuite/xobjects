@@ -24,6 +24,7 @@ def test_ref_to_static_type():
         assert MyStructRef._size == 8
 
         mystructref = MyStructRef(a=arr2, _buffer=buff)
+
         assert mystructref._size == 8
         assert (
             mystructref.a._offset == arr2._offset
@@ -120,7 +121,7 @@ def test_array_of_unionrefs():
     class MyStructB(xo.Struct):
         a = xo.Int32
 
-    Element = xo.Ref(MyStructA, MyStructB)
+    Element = xo.Ref[MyStructA, MyStructB]
     ArrOfUnionRefs = Element[:]
 
     for CTX in xo.ContextCupy, xo.ContextPyopencl, xo.ContextCpu:
@@ -138,7 +139,7 @@ def test_array_of_unionrefs():
                 temp = MyStructA()
             else:
                 # Odd elements
-                temp = MyStructB(a=10, _biffer=aoref._buffer)
+                temp = MyStructB(a=10, _buffer=aoref._buffer)
             aoref[ii] = temp
 
         for ii in range(10):

@@ -102,23 +102,26 @@ def get_layers(parts):
 
 
 def int_from_obj(offset, conf):
-    inttype = dress_pointer(conf.get("inttype", "int64_t") + "*")
-    chartype = dress_pointer(conf.get("chartype", "char") + "*")
+    inttype = dress_pointer(conf.get("inttype", "int64_t") + "*", conf)
+    chartype = dress_pointer(conf.get("chartype", "char") + "*", conf)
     return f"({inttype})(({chartype}) obj+{offset})"
 
 
 def Field_get_c_offset(self, conf):
-    inttype = conf.get("inttype", "int64_t")
-    chartype = conf.get("chartype", "char")
     if self.is_reference:
         doffset = f"offset+{self.offset}"  # starts of data
+        refoffset = int_from_obj(doffset, conf)
+        return [f"  offset+={refoffset};"]
     else:
-        return [f"  offset+={int_from_obj(doffest,)};"]  # WRONG
         return self.offset
 
 
+def Ref_get_c_offset(self, conf):
+    refoffset = int_from_obj("offest", conf)
+    return [f"  offset+={refoffset};"]
+
+
 def Array_get_c_offset(cls, conf):
-    chartype = conf.get("chartype", "char")
     inttype = conf.get("inttype", "int64_t")
 
     out = []
@@ -130,9 +133,7 @@ def Array_get_c_offset(cls, conf):
         stride_offset = 8 + nd * 8
         for ii in range(nd):
             sname = f"{inttype} {cls.__name__}_s{ii}"
-            svalue = (
-                f"*({inttype}*) (({chartype}*) obj+offset+{stride_offset})"
-            )
+            svalue = int_from_obj(f"offset+{stride_offset}", conf)
             out.append(f"{sname}={svalue};")
             strides.append(sname)
 
@@ -142,9 +143,7 @@ def Array_get_c_offset(cls, conf):
     if cls._is_static_type:
         out.append(f"  offset+={soffset};")
     else:
-        out.append(
-            f"  offset+=*({inttype}*) (({chartype}*) obj+offset+{soffset});"
-        )
+        out.append(int_from_obj(f"offset+{soffset}", conf))
     return out
 
 
@@ -153,6 +152,8 @@ def get_c_offset(atype, conf):
         return Array_get_c_offset(atype, conf)
     elif is_field(atype):
         return Field_get_c_offset(atype, conf)
+    elif is_ref(atype):
+        return Ref_get_c_offset(atype, conf)
 
 
 def gen_method_offset(path, conf):
@@ -411,7 +412,7 @@ def gen_headers(cls, specs, conf):
         for part in parts:
             lasttype = get_inner_type(part)
             types[lasttype._c_type] = lasttype
-    for nn, tt in types.items():
+    for _, tt in types.items():
         out.append(gen_typedef_decl(tt, conf))
     return "\n".join(out)
 
@@ -423,7 +424,7 @@ def gen_cdef(cls, specs, conf):
         for part in parts:
             lasttype = get_inner_type(part)
             types[lasttype._c_type] = lasttype
-    for nn, tt in types.items():
+    for _, tt in types.items():
         if not is_scalar(tt):
             out.append(gen_typedef(tt, conf))
     return "\n".join(out)

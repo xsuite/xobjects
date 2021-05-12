@@ -1,5 +1,6 @@
 import os
 
+
 def specialize_source(source, specialize_for, search_in_folders=[]):
 
     assert specialize_for in ["cpu_serial", "cpu_openmp", "opencl", "cuda"]
@@ -8,27 +9,28 @@ def specialize_source(source, specialize_for, search_in_folders=[]):
 
     lines = []
     for ll in source_lines:
-        if '//include_file' in ll:
-            assert ' for_context ' in ll
-            fname = ll.split('//include_file')[-1].split('for_context')[0].strip()
+        if "//include_file" in ll:
+            assert " for_context " in ll
+            fname = (
+                ll.split("//include_file")[-1].split("for_context")[0].strip()
+            )
             temp_contexts = ll.split("for_context")[-1].split()
             temp_contexts = [ss.strip() for ss in temp_contexts]
             if specialize_for in temp_contexts:
-                for fold in ['./'] + search_in_folders:
-                    fpath = fold + '/' + fname
+                for fold in ["./"] + search_in_folders:
+                    fpath = fold + "/" + fname
                     if os.path.isfile(fpath):
                         break
                 else:
-                    raise IOError(f'File {fname} not found')
-                with open(fpath, 'r') as fid:
+                    raise IOError(f"File {fname} not found")
+                with open(fpath, "r") as fid:
                     flines = fid.readlines()
-                lines.append('\n//from file: ' + fname + '\n')
+                lines.append("\n//from file: " + fname + "\n")
                 for fll in flines:
                     lines.append(fll.rstrip())
-                lines.append('\n//end file: ' + fname + '\n')
+                lines.append("\n//end file: " + fname + "\n")
         else:
-            lines += ll.split('\n')
-
+            lines += ll.split("\n")
 
     indent = False
     new_lines = []
@@ -55,7 +57,7 @@ def specialize_source(source, specialize_for, search_in_folders=[]):
                 new_lines.append(
                     f"{varname}=blockDim.x * blockIdx.x + threadIdx.x;"
                     "//autovectorized\n"
-                    f"if ({varname}<{limname})"+"{"
+                    f"if ({varname}<{limname})" + "{"
                 )
         elif "//end_vectorize" in ll:
             if specialize_for.startswith("cpu"):
@@ -80,22 +82,39 @@ def specialize_source(source, specialize_for, search_in_folders=[]):
     newfilecontent = "\n".join(new_lines)
     newfilecontent = newfilecontent.replace(
         "/*gpukern*/",
-        {"cpu_serial": " ", "cpu_openmp": " ",
-            "opencl": " __kernel ", "cuda": "__global__"}[
-            specialize_for
-        ],
+        {
+            "cpu_serial": " ",
+            "cpu_openmp": " ",
+            "opencl": " __kernel ",
+            "cuda": "__global__",
+        }[specialize_for],
     )
     newfilecontent = newfilecontent.replace(
         "/*gpufun*/",
-        {"cpu_serial": " ", "cpu_openmp": " ",
-            "opencl": " ", "cuda": " __device__ "}[
-            specialize_for
-        ],
+        {
+            "cpu_serial": " ",
+            "cpu_openmp": " ",
+            "opencl": " ",
+            "cuda": " __device__ ",
+        }[specialize_for],
     )
     newfilecontent = newfilecontent.replace(
         "/*gpuglmem*/",
-        {"cpu_serial": " ", "cpu_openmp": " ",
-         "opencl": " __global ", "cuda": " "}[specialize_for],
+        {
+            "cpu_serial": " ",
+            "cpu_openmp": " ",
+            "opencl": " __global ",
+            "cuda": " ",
+        }[specialize_for],
+    )
+    newfilecontent = newfilecontent.replace(
+        "/*restrict*/",
+        {
+            "cpu_serial": " restrict ",
+            "cpu_openmp": " restrict ",
+            "opencl": "",
+            "cuda": "",
+        }[specialize_for],
     )
 
     return newfilecontent

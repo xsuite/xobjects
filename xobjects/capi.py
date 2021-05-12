@@ -66,20 +66,30 @@ def gen_pointer(chartype, conf):
 
 def gen_c_type_from_arg(arg: Arg, conf):
     if arg is None:
-        return "void"
+        cdec = "void"
     else:
         cdec = arg.atype._c_type
         if arg.pointer:
-            cdec = arg_pointer(cdec + "*", conf)
+            cdec = gen_pointer(cdec + "*", conf)
         if is_compound(arg.atype):
-            cdec = arg_pointer(cdec, conf)
+            cdec = gen_pointer(cdec, conf)
         if arg.const:
             cdec = "const " + cdec
-        return cdec
+    return cdec
 
 
 def gen_c_arg_from_arg(arg: Arg, conf):
-    cdec = gen_c_type_from_arg(arg, conf)
+    if arg is None:
+        cdec = "void"
+    else:
+        cdec = arg.atype._c_type
+        if arg.pointer:
+            cdec = gen_pointer(cdec + "*", conf)
+        if is_compound(arg.atype):
+            cdec = gen_pointer(cdec, conf)
+        if arg.const:
+            cdec = "const " + cdec
+    # cdec = gen_c_type_from_arg(arg, conf)
     return f"{cdec} {arg.name}"
 
 
@@ -211,14 +221,14 @@ def gen_c_pointed(target: Arg, conf):
     size = gen_c_size_from_arg(target, conf)
     ret = gen_c_type_from_arg(target, conf)
     if target.pointer or is_compound(target.atype):
-        chartype = dress_pointer(conf.get("chartype", "char") + "*", conf)
+        chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
         return f"({ret})(({chartype}) obj+offset)"
     else:
-        rettype = dress_pointer(ret + "*", conf)
+        rettype = gen_pointer(ret + "*", conf)
         if size == 1:
             return f"*(({rettype}) obj+offset)"
         else:
-            chartype = dress_pointer(conf.get("chartype", "char") + "*", conf)
+            chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
             return f"*({rettype})(({chartype}) obj+offset)"
 
 

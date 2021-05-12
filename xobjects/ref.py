@@ -148,7 +148,7 @@ class Ref(metaclass=MetaRef):
         else:
             rtype = self._rtypes[0]
             if hasattr(rtype, "_gen_data_paths"):
-                paths.extend(rtype._gen_data_paths(base))
+                paths.extend(rtype._gen_data_paths(base + [self]))
         return paths
 
     def _gen_c_api(self, conf={}):

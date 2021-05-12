@@ -75,22 +75,22 @@ def test_class_mk_array():
     ArrayA = xo.Float64[3, 6]
     assert ArrayA._shape == (3, 6)
     assert ArrayA._order == (0, 1)
-    assert ArrayA.__name__ == "Float64_3x6"
+    assert ArrayA.__name__ == "Arr3x6Float64"
 
     ArrayA = xo.Float64[None, 6]
     assert ArrayA._shape == (None, 6)
-    assert ArrayA.__name__ == "Float64_Nx6"
+    assert ArrayA.__name__ == "ArrNx6Float64"
 
     ArrayA = xo.String[3:1, 4:0, 5:2]
     assert ArrayA._shape == (3, 4, 5)
-    assert ArrayA.__name__ == "String_3x4x5"
+    assert ArrayA.__name__ == "Arr3x4x5String"
 
     class StructA(xo.Struct):
         a = xo.Float64
 
     ArrayA = StructA[10]
 
-    assert ArrayA.__name__ == "StructA_10"
+    assert ArrayA.__name__ == "Arr10StructA"
 
 
 def test_inspect_args():
@@ -202,6 +202,7 @@ def test_initialize_from_array():
     sb = MyStruct(_buffer=buf)
     sa.a = sb.a
 
+
 def test_init_with_nparray():
-    a = xo.Float64[:](np.array([1,2,3], dtype=np.float64))
-    assert a[1] == 2.
+    a = xo.Float64[:](np.array([1, 2, 3], dtype=np.float64))
+    assert a[1] == 2.0

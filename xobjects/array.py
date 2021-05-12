@@ -45,6 +45,7 @@ def get_suffix(shape):
     sshape = []
     ilst = 0
     lst = "NMOPQRSTUVWXYZABCDEFGHIJKLM"
+    # lst = "nmopqrstuvwxyzabcdefghijklm"
     for dd in shape:
         if dd is None:
             sshape.append(lst[ilst])
@@ -241,7 +242,7 @@ class Array(metaclass=MetaArray):
 
         suffix = get_suffix(nshape)
 
-        name = itemtype.__name__ + "_" + suffix
+        name = f"Arr{suffix}{itemtype.__name__}"
 
         data = {
             "_itemtype": itemtype,

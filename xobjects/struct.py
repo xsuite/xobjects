@@ -41,7 +41,7 @@ Field instance:
 
 """
 import logging
-from typing import Callable
+from typing import Callable, Optional
 
 
 from .typeutils import (
@@ -258,6 +258,7 @@ class Struct(metaclass=MetaStruct):
     _fields: list
     _d_fields: list
     _inspect_args: Callable
+    _size: Optional[int]
 
     @classmethod
     def _pre_init(cls, *arg, **kwargs):

@@ -53,8 +53,8 @@ float2c = {2: "half", 4: "float", 8: "double", 16: "double[2]"}
 
 
 default_conf = {
-    "prepointer": "/*gpuglmem*/",
-    "postpointer": "/*restrict*/",
+    "gpumem": "/*gpuglmem*/",
+    "cpurestrict": "/*restrict*/",
     "inttype": "int64_t",
     "chartype": "char",
 }

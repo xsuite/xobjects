@@ -11,11 +11,6 @@ def is_struct(atype):
     return hasattr(atype, "_fields")
 
 
-def is_compound(atype):
-    """Types that are referenced in C with an opaque pointer"""
-    return is_array(atype) or is_struct(atype)
-
-
 def is_array(atype):
     return hasattr(atype, "_shape")
 
@@ -30,6 +25,11 @@ def is_ref(atype):
 
 def is_single_ref(atype):
     return hasattr(atype, "_rtypes") and len(atype._rtypes) == 1
+
+
+def is_compound(atype):
+    """Types that are referenced in C with an opaque pointer"""
+    return is_array(atype) or is_struct(atype) or is_ref(atype)
 
 
 def get_inner_type(part):
@@ -48,9 +48,20 @@ def get_inner_type(part):
 
 
 def dress_pointer(chartype, conf):
-    prepointer = conf.get("prepointer", "")
-    postpointer = conf.get("postpointer", "")
-    return f"{prepointer}{chartype}{postpointer}"
+    gpumem = conf.get("gpumem", "")
+    cpurestrict = conf.get("cpurestrict", "")
+    return f"{gpumem}{chartype}{cpurestrict}"
+
+
+def arg_pointer(chartype, conf):
+    gpumem = conf.get("gpumem", "")
+    cpurestrict = conf.get("cpurestrict", "")
+    return f"{gpumem}{chartype}{cpurestrict}"
+
+
+def gen_pointer(chartype, conf):
+    gpumem = conf.get("gpumem", "")
+    return f"{gpumem}{chartype}"
 
 
 def gen_c_type_from_arg(arg: Arg, conf):
@@ -59,9 +70,9 @@ def gen_c_type_from_arg(arg: Arg, conf):
     else:
         cdec = arg.atype._c_type
         if arg.pointer:
-            cdec = dress_pointer(cdec + "*", conf)
+            cdec = arg_pointer(cdec + "*", conf)
         if is_compound(arg.atype):
-            cdec = cdec
+            cdec = arg_pointer(cdec, conf)
         if arg.const:
             cdec = "const " + cdec
         return cdec
@@ -102,9 +113,9 @@ def get_layers(parts):
 
 
 def int_from_obj(offset, conf):
-    inttype = dress_pointer(conf.get("inttype", "int64_t") + "*", conf)
-    chartype = dress_pointer(conf.get("chartype", "char") + "*", conf)
-    return f"({inttype})(({chartype}) obj+{offset})"
+    inttype = gen_pointer(conf.get("inttype", "int64_t") + "*", conf)
+    chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
+    return f"*({inttype})(({chartype}) obj+{offset})"
 
 
 def Field_get_c_offset(self, conf):
@@ -117,7 +128,7 @@ def Field_get_c_offset(self, conf):
 
 
 def Ref_get_c_offset(self, conf):
-    refoffset = int_from_obj("offest", conf)
+    refoffset = int_from_obj("offset", conf)
     return [f"  offset+={refoffset};"]
 
 
@@ -162,7 +173,8 @@ def gen_method_offset(path, conf):
     lst = [f"  {inttype} offset=0;"]
     offset = 0
     for part in path:
-        soffset = part._get_c_offset(conf)
+        # soffset = part._get_c_offset(conf)
+        soffset = get_c_offset(part, conf)
         if type(soffset) is int:
             offset += soffset
         else:
@@ -379,9 +391,9 @@ def gen_method_getpos(cls, parts, conf):
 
 
 def gen_typedef(cls, conf):
-    prepointer = conf.get("prepointer", "")
+    gpumem = conf.get("gpumem", "")
     typename = cls._c_type
-    return f"typedef {prepointer} struct {typename}_s * {typename};"
+    return f"typedef {gpumem} struct {typename}_s * {typename};"
 
 
 def gen_typedef_decl(cls, conf):

@@ -212,7 +212,7 @@ class MetaArray(type):
             raise ValueError("Cannot get n items from dynamic shapes")
 
     def __repr__(cls):
-        return f"<{cls.__name__}>"
+        return f"<array {cls.__name__}>"
 
 
 class Array(metaclass=MetaArray):
@@ -513,17 +513,6 @@ class Array(metaclass=MetaArray):
                 )
             cls._itemtype._to_buffer(self._buffer, offset, value)
 
-    @classmethod
-    def _gen_data_paths(cls, base=None):
-        paths = []
-        if base is None:
-            base = []
-        path = base + [cls]
-        paths.append(path)
-        if hasattr(cls._itemtype, "_gen_data_paths"):
-            paths.extend(cls._itemtype._gen_data_paths(path))
-        return paths
-
     def _get_offset(self, index):
         return sum(ii * ss for ii, ss in zip(index, self._strides))
 
@@ -575,6 +564,17 @@ class Array(metaclass=MetaArray):
             raise NotImplementedError
 
     @classmethod
+    def _gen_data_paths(cls, base=None):
+        paths = []
+        if base is None:
+            base = [cls]
+        path = base + [cls]
+        paths.append(path)
+        if hasattr(cls._itemtype, "_gen_data_paths"):
+            paths.extend(cls._itemtype._gen_data_paths(path))
+        return paths
+
+    @classmethod
     def _gen_c_api(cls, conf={}):
         specs_list = cls._gen_data_paths()
-        return capi.gen_code(cls, specs_list, conf)
+        return capi.gen_code(specs_list, conf)

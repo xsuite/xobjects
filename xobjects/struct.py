@@ -77,7 +77,7 @@ class Field:
         self.is_union = None  # filled by class creation
 
     def __repr__(self):
-        return f"<Field{self.index} {self.name} at {self.offset}>"
+        return f"<field{self.index} {self.name} at {self.offset}>"
 
     def __get__(self, instance, cls=None):
         if instance is None:
@@ -253,6 +253,9 @@ class MetaStruct(type):
     def __getitem__(cls, shape):
         return Array.mk_arrayclass(cls, shape)
 
+    def __repr__(cls):
+        return f"<struct {cls.__name__}>"
+
 
 class Struct(metaclass=MetaStruct):
     _fields: list
@@ -380,7 +383,7 @@ class Struct(metaclass=MetaStruct):
     def _gen_data_paths(cls, base=None):
         paths = []
         if base is None:
-            base = []
+            base = [cls]
         for field in cls._fields:
             path = base + [field]
             paths.append(path)
@@ -391,4 +394,4 @@ class Struct(metaclass=MetaStruct):
     @classmethod
     def _gen_c_api(cls, conf=default_conf):
         specs_list = cls._gen_data_paths()
-        return capi.gen_code(cls, specs_list, conf)
+        return capi.gen_code(specs_list, conf)

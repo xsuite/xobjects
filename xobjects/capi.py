@@ -47,49 +47,37 @@ def get_inner_type(part):
         raise ValueError(f"Cannot get inner type of {part}")
 
 
-def dress_pointer(chartype, conf):
+def gen_pointer(ctype, conf):
     gpumem = conf.get("gpumem", "")
-    cpurestrict = conf.get("cpurestrict", "")
-    return f"{gpumem}{chartype}{cpurestrict}"
-
-
-def arg_pointer(chartype, conf):
-    gpumem = conf.get("gpumem", "")
-    cpurestrict = conf.get("cpurestrict", "")
-    return f"{gpumem}{chartype}{cpurestrict}"
-
-
-def gen_pointer(chartype, conf):
-    gpumem = conf.get("gpumem", "")
-    return f"{gpumem}{chartype}"
+    return f"{gpumem}{ctype}"
 
 
 def gen_c_type_from_arg(arg: Arg, conf):
+    gpumem = conf.get("gpumem", "")
     if arg is None:
         cdec = "void"
     else:
         cdec = arg.atype._c_type
         if arg.pointer:
-            cdec = gen_pointer(cdec + "*", conf)
-        if is_compound(arg.atype):
-            cdec = gen_pointer(cdec, conf)
+            cdec = f"{gpumem}{cdec}*"
         if arg.const:
             cdec = "const " + cdec
     return cdec
 
 
 def gen_c_arg_from_arg(arg: Arg, conf):
+    gpumem = conf.get("gpumem", "")
+    cpurestrict = conf.get("cpurestrict", "")
     if arg is None:
         cdec = "void"
     else:
         cdec = arg.atype._c_type
         if arg.pointer:
-            cdec = gen_pointer(cdec + "*", conf)
-        if is_compound(arg.atype):
-            cdec = gen_pointer(cdec, conf)
+            cdec = f"{gpumem}{cdec}*{cpurestrict}"
+        elif is_compound(arg.atype):
+            cdec = f"{cdec}{cpurestrict}"
         if arg.const:
             cdec = "const " + cdec
-    # cdec = gen_c_type_from_arg(arg, conf)
     return f"{cdec} {arg.name}"
 
 
@@ -199,15 +187,17 @@ def gen_method_offset(path, conf):
 
 def gen_fun_data(cls, parts, action, const, extra, ret):
     typename = cls._c_type
-    nparts = []
+    fields = []
     indices = 0
     for part in parts:
-        if hasattr(part, "name"):  # is field
-            nparts.append(part.name)
-        elif hasattr(part, "_shape"):  # is array
+        if is_field(part):  # is field
+            fields.append(part.name)
+        elif is_array(part):  # is array
             indices += len(part._shape)
-    npart = "_".join(nparts)
-    fun_name = f"{typename}_{action}_{npart}"
+    fun_name = [typename, action]
+    if len(fields) > 0:
+        fun_name.append("_".join(fields))
+    fun_name = "_".join(fun_name)
     args = [Arg(cls, pointer=False, const=const, name="obj")]
     for ii in range(indices):
         args.append(Arg(Int64, name=f"i{ii}"))
@@ -232,12 +222,14 @@ def gen_c_pointed(target: Arg, conf):
             return f"*({rettype})(({chartype}) obj+offset)"
 
 
-def gen_method_get(cls, parts, conf):
-    lasttype = get_inner_type(parts[-1])
+def gen_method_get(path, conf):
+    cls = path[0]
+    path = path[1:]
+    lasttype = get_inner_type(path[-1])
     retarg = Arg(lasttype)
     kernel = gen_fun_data(
         cls,
-        parts,
+        path,
         const=True,
         action="get",
         extra=[],
@@ -247,19 +239,21 @@ def gen_method_get(cls, parts, conf):
 
     lst = [decl + "{"]
     # lst.append(r'  printf("Obj:  %p\n", (void*) obj);')
-    lst.append(gen_method_offset(parts, conf))
+    lst.append(gen_method_offset(path, conf))
     pointed = gen_c_pointed(retarg, conf)
     lst.append(f"  return {pointed};")
     lst.append("}")
     return "\n".join(lst), kernel
 
 
-def gen_method_set(cls, parts, conf):
-    lasttype = get_inner_type(parts[-1])
+def gen_method_set(path, conf):
+    cls = path[0]
+    path = path[1:]
+    lasttype = get_inner_type(path[-1])
     valarg = Arg(lasttype, name="value")
     kernel = gen_fun_data(
         cls,
-        parts,
+        path,
         const=False,
         action="set",
         extra=[valarg],
@@ -268,27 +262,31 @@ def gen_method_set(cls, parts, conf):
     decl = gen_c_decl_from_kernel(kernel, conf)
 
     lst = [decl + "{"]
-    lst.append(gen_method_offset(parts, conf))
+    lst.append(gen_method_offset(path, conf))
     pointed = gen_c_pointed(valarg, conf)
     lst.append(f"  {pointed}=value;")
     lst.append("}")
     return "\n".join(lst), kernel
 
 
-def gen_method_getp(cls, parts, conf):
-    lasttype = get_inner_type(parts[-1])
+def gen_method_getp(path, conf):
+    cls = path[0]
+    path = path[1:]
+    lasttype = get_inner_type(path[-1])
     retarg = Arg(lasttype)
     if is_scalar(lasttype):
         retarg.pointer = True
 
     action = "getp"
-    layers = get_layers(parts)
+    if is_ref(lasttype):
+        action += "ref"
+    layers = get_layers(path)
     if layers > 0:
         action += str(layers)
 
     kernel = gen_fun_data(
         cls,
-        parts,
+        path,
         const=False,
         action=action,
         extra=[],
@@ -297,27 +295,29 @@ def gen_method_getp(cls, parts, conf):
     decl = gen_c_decl_from_kernel(kernel, conf)
 
     lst = [decl + "{"]
-    lst.append(gen_method_offset(parts, conf))
+    lst.append(gen_method_offset(path, conf))
     pointed = gen_c_pointed(retarg, conf)
     lst.append(f"  return {pointed};")
     lst.append("}")
     return "\n".join(lst), kernel
 
 
-def gen_method_len(cls, parts, conf):
-    lasttype = get_inner_type(parts[-1])
+def gen_method_len(path, conf):
+    cls = path[0]
+    path = path[1:]
+    lasttype = get_inner_type(path[-1])
     assert is_array(lasttype)
 
     retarg = Arg(Int64)
 
     action = "len"
-    layers = get_layers(parts)
+    layers = get_layers(path)
     if layers > 0 and not is_scalar(lasttype):
         action += str(layers)
 
     kernel = gen_fun_data(
         cls,
-        parts,
+        path,
         const=False,
         action=action,
         extra=[],
@@ -331,10 +331,10 @@ def gen_method_len(cls, parts, conf):
         ll = lasttype._get_n_items()
         lst.append(f"  return {ll};"), kernel
     else:
-        lst.append(gen_method_offset(parts, conf))
+        lst.append(gen_method_offset(path, conf))
         arrarg = Arg(Int64, pointer=True)
         pointed = gen_c_pointed(arrarg, conf)
-        typearr = dress_pointer("int64_t*", conf)
+        typearr = gen_pointer("int64_t*", conf)
         lst.append(f"{typearr} arr= {pointed};")
         terms = []
         ii = 1
@@ -349,18 +349,20 @@ def gen_method_len(cls, parts, conf):
     return "\n".join(lst), kernel
 
 
-def gen_method_size(cls, parts, conf):
-    lasttype = get_inner_type(parts[-1])
+def gen_method_size(path, conf):
+    cls = path[0]
+    path = path[1:]
+    lasttype = get_inner_type(path[-1])
     retarg = Arg(Int64)
 
     action = "size"
-    layers = get_layers(parts)
+    layers = get_layers(path)
     if layers > 0 and not is_scalar(lasttype):
         action += str(layers)
 
     kernel = gen_fun_data(
         cls,
-        parts,
+        path,
         const=False,
         action=action,
         extra=[],
@@ -371,7 +373,7 @@ def gen_method_size(cls, parts, conf):
     lst = [decl + "{"]
 
     if lasttype._size is None:
-        lst.append(gen_method_offset(parts, conf))
+        lst.append(gen_method_offset(path, conf))
         pointed = gen_c_pointed(retarg, conf)
         lst.append(f"  return {pointed};")
     else:
@@ -380,22 +382,22 @@ def gen_method_size(cls, parts, conf):
     return "\n".join(lst), kernel
 
 
-def gen_method_shape(cls, parts, conf):
+def gen_method_shape(path, conf):
     "return shape in an array"
     return None, None
 
 
-def gen_method_nd(cls, parts, conf):
+def gen_method_nd(path, conf):
     "return length of shape"
     return None, None
 
 
-def gen_method_strides(cls, parts, conf):
+def gen_method_strides(path, conf):
     "return strides"
     return None, None
 
 
-def gen_method_getpos(cls, parts, conf):
+def gen_method_getpos(path, conf):
     "return slot position from index and strides"
     return None, None
 
@@ -407,7 +409,6 @@ def gen_typedef(cls, conf):
 
 
 def gen_typedef_decl(cls, conf):
-    # TODO: moce to class methods
     out = []
     typename = cls._c_type
     if is_struct(cls) or is_array(cls) or is_single_ref(cls):
@@ -420,18 +421,19 @@ def gen_typedef_decl(cls, conf):
         # defining C union might have issues with GPU qualifiers
         out.append(f"{gen_typedef(cls,conf)}")
         lst = ",".join(tt._c_type for tt in cls._rtypes)
-        out.append(f"enum {{{lst}}};")
+        out.append(f"enum {typename}_e{{{lst}}};")
         out.append(f"#define XOBJ_TYPEDEF_{typename}")
         out.append("#endif")
     return "\n".join(out)
 
 
-def gen_headers(cls, specs, conf):
+def gen_headers(paths, conf):
     out = []
 
-    types = {cls._c_type: cls}
-    for parts in specs:
-        for part in parts:
+    types = {}
+    for path in paths:
+        types[path[0]._c_type] = path[0]
+        for part in path[1:]:
             lasttype = get_inner_type(part)
             types[lasttype._c_type] = lasttype
     for _, tt in types.items():
@@ -439,11 +441,12 @@ def gen_headers(cls, specs, conf):
     return "\n".join(out)
 
 
-def gen_cdef(cls, specs, conf):
-    types = {cls._c_type: cls}
+def gen_cdef(paths, conf):
+    types = {}
     out = []
-    for parts in specs:
-        for part in parts:
+    for path in paths:
+        types[path[0]._c_type] = path[0]
+        for part in path[1:]:
             lasttype = get_inner_type(part)
             types[lasttype._c_type] = lasttype
     for _, tt in types.items():
@@ -452,25 +455,31 @@ def gen_cdef(cls, specs, conf):
     return "\n".join(out)
 
 
-def gen_code(cls, specs, conf):
+def methods_from_path(path, conf):
     out = []
-    for parts in specs:
-        out.append(gen_method_getp(cls, parts, conf))
-        lasttype = get_inner_type(parts[-1])
+    out.append(gen_method_getp(path, conf))
+    lasttype = get_inner_type(path[-1])
 
-        if is_scalar(lasttype):
-            out.append(gen_method_get(cls, parts, conf))
-            out.append(gen_method_set(cls, parts, conf))
-        else:
-            out.append(gen_method_size(cls, parts, conf))
-        if is_array(lasttype):
-            out.append(gen_method_len(cls, parts, conf))
-            out.append(gen_method_shape(cls, parts, conf))
-            out.append(gen_method_nd(cls, parts, conf))
-            out.append(gen_method_strides(cls, parts, conf))
-            out.append(gen_method_getpos(cls, parts, conf))
+    if is_scalar(lasttype):
+        out.append(gen_method_get(path, conf))
+        out.append(gen_method_set(path, conf))
+    else:
+        out.append(gen_method_size(path, conf))
+    if is_array(lasttype):
+        out.append(gen_method_len(path, conf))
+        out.append(gen_method_shape(path, conf))
+        out.append(gen_method_nd(path, conf))
+        out.append(gen_method_strides(path, conf))
+        out.append(gen_method_getpos(path, conf))
+    return out
 
-    sources = [gen_headers(cls, specs, conf)]
+
+def gen_code(paths, conf):
+    out = []
+    for path in paths:
+        out.extend(methods_from_path(path, conf))
+
+    sources = [gen_headers(paths, conf)]
     kernels = {}
     for source, kernel in out:
         if source is not None:
@@ -480,5 +489,5 @@ def gen_code(cls, specs, conf):
 
     source = "\n".join(sources)
 
-    cdef = gen_cdef(cls, specs, conf)
+    cdef = gen_cdef(paths, conf)
     return source, kernels, cdef

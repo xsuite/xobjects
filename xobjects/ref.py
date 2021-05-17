@@ -140,8 +140,8 @@ class Ref(metaclass=MetaRef):
         paths = []
         if base is None:
             base = []
-        # paths.append(base + [self])
         if self._is_union:
+            paths.append(base + [self])
             for rtype in self._rtypes:
                 if hasattr(rtype, "_gen_data_paths"):
                     paths.extend(rtype._gen_data_paths())
@@ -156,4 +156,4 @@ class Ref(metaclass=MetaRef):
         return capi.gen_code(self, paths, conf)
 
     def __repr__(self):
-        return f"<{self.__name__}>"
+        return f"<ref {self.__name__}>"

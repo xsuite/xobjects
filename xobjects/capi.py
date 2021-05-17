@@ -1,6 +1,6 @@
 from .context import Kernel, Arg
 
-from .scalar import Int64
+from .scalar import Int64, Void
 
 
 def is_field(part):
@@ -40,7 +40,7 @@ def get_inner_type(part):
         return part._itemtype
     elif is_ref(part):
         if len(part._rtypes) > 1:
-            return part
+            return None
         else:
             return part._rtypes[0]
     else:
@@ -273,7 +273,10 @@ def gen_method_getp(path, conf):
     cls = path[0]
     path = path[1:]
     lasttype = get_inner_type(path[-1])
-    retarg = Arg(lasttype)
+    if lasttype is None:
+        retarg = Arg(Void, pointer="True")
+    else:
+        retarg = Arg(lasttype)
     if is_scalar(lasttype):
         retarg.pointer = True
 
@@ -353,6 +356,8 @@ def gen_method_size(path, conf):
     cls = path[0]
     path = path[1:]
     lasttype = get_inner_type(path[-1])
+    if lasttype is None:  # no size return for union ref
+        return None, None
     retarg = Arg(Int64)
 
     action = "size"
@@ -420,7 +425,7 @@ def gen_typedef_decl(cls, conf):
         out.append(f"#ifndef XOBJ_TYPEDEF_{typename}")
         # defining C union might have issues with GPU qualifiers
         out.append(f"{gen_typedef(cls,conf)}")
-        lst = ",".join(tt._c_type for tt in cls._rtypes)
+        lst = ",".join(f"{tt._c_type}_t" for tt in cls._rtypes)
         out.append(f"enum {typename}_e{{{lst}}};")
         out.append(f"#define XOBJ_TYPEDEF_{typename}")
         out.append("#endif")
@@ -435,7 +440,8 @@ def gen_headers(paths, conf):
         types[path[0]._c_type] = path[0]
         for part in path[1:]:
             lasttype = get_inner_type(part)
-            types[lasttype._c_type] = lasttype
+            if lasttype is not None:
+                types[lasttype._c_type] = lasttype
     for _, tt in types.items():
         out.append(gen_typedef_decl(tt, conf))
     return "\n".join(out)
@@ -448,7 +454,8 @@ def gen_cdef(paths, conf):
         types[path[0]._c_type] = path[0]
         for part in path[1:]:
             lasttype = get_inner_type(part)
-            types[lasttype._c_type] = lasttype
+            if lasttype is not None:
+                types[lasttype._c_type] = lasttype
     for _, tt in types.items():
         if not is_scalar(tt):
             out.append(gen_typedef(tt, conf))

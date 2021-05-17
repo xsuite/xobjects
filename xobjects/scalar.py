@@ -65,3 +65,8 @@ UInt8 = NumpyScalar("uint8", "uint8_t")
 Complex64 = NumpyScalar("complex64", "float[2]")
 Complex128 = NumpyScalar("complex128", "double[2]")
 Complex256 = NumpyScalar("complex256", "double[4]")
+
+
+class Void:
+    _c_type = "void"
+    _size = None

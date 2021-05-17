@@ -153,7 +153,7 @@ class Ref(metaclass=MetaRef):
 
     def _gen_c_api(self, conf={}):
         paths = self._gen_data_paths()
-        return capi.gen_code(self, paths, conf)
+        return capi.gen_code(paths, conf)
 
     def __repr__(self):
         return f"<ref {self.__name__}>"

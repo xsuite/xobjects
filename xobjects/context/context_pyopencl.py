@@ -350,9 +350,10 @@ class BufferPyopencl(XBuffer):
         """view in nplike"""
         return cl.array.Array(
             self.context.queue,
-            base_data=self.buffer,
+            data=self.buffer,
             offset=offset,
-            shape=shape,
+            dtype=dtype,
+            shape=tuple(shape),
         )
 
     def update_from_nplike(self, offset, dest_dtype, arr):

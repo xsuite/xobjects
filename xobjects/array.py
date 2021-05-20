@@ -556,7 +556,7 @@ class Array(metaclass=MetaArray):
         cshape = [shape[ii] for ii in self._order]
         if hasattr(self._itemtype, "_dtype"):
             arr = self._buffer.to_nplike(
-                self._offset + self._data_offset, self._itemtype.dtype, cshape
+                self._offset + self._data_offset, self._itemtype._dtype, cshape
             ).transpose(self._order)
             assert arr.strides == self._strides
             return arr

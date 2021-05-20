@@ -272,7 +272,7 @@ class BufferCupy(XBuffer):
         nbytes = np.prod(shape) * dtype.itemsize
         return (
             self.buffer[offset : offset + nbytes]
-            .asarray(dtype=dtype)
+            .view(dtype=dtype)
             .reshape(*shape)
         )
 

@@ -83,3 +83,35 @@ def test_slicing():
             assert np.isclose(a_dev[:].sum(), a_host[:].sum())
             assert np.isclose(c_dev.sum(), c_host.sum())
             assert np.isclose(c_dev[:].sum(), c_host[:].sum())
+
+def test_nplike_from_xoarray():
+    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
+        if CTX not in available:
+            continue
+
+        print(f"Test {CTX}")
+        ctx = CTX()
+
+        Array = xo.Float64[:]
+        a_xo = Array(10, _context=ctx)
+        a_nl = a_xo.to_nplike()
+        a_nl[2] = 5
+        assert a_xo[2] == 5
+
+        Array = xo.Float64[10]
+        a_xo = Array(_context=ctx)
+        a_nl = a_xo.to_nplike()
+        a_nl[2] = 5
+        assert a_xo[2] == 5
+
+        Array = xo.Float64[:,:]
+        a_xo = Array(10, 20, _context=ctx)
+        a_nl = a_xo.to_nplike()
+        a_nl[2, 3] = 5
+        assert a_xo[2,3] == 5
+
+        Array = xo.Float64[10, 20]
+        a_xo = Array(_context=ctx)
+        a_nl = a_xo.to_nplike()
+        a_nl[2, 3] = 5
+        assert a_xo[2, 3] == 5

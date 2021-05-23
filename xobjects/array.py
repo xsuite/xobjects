@@ -436,14 +436,18 @@ class Array(metaclass=MetaArray):
                     )
             else:
                 # TODO shortcuts for simple arrays
-                value = cls._itemtype()
-                for idx in iter_index(info.shape, cls._order):
-                    cls._itemtype._to_buffer(
-                        buffer,
-                        offset + info.offsets[idx],
-                        value,
-                        info.extra.get(idx),
-                    )
+                if hasattr(cls._itemtype, '_dtype'):
+                    # Scalar type
+                    pass # Leave not initialized
+                else:
+                    value = cls._itemtype()
+                    for idx in iter_index(info.shape, cls._order):
+                        cls._itemtype._to_buffer(
+                            buffer,
+                            offset + info.offsets[idx],
+                            value,
+                            info.extra.get(idx),
+                        )
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
         # determin resources

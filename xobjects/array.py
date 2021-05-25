@@ -1,8 +1,13 @@
+import logging
+
 import numpy as np
+
 
 from .typeutils import get_a_buffer, Info, is_integer, _to_slot_size
 from .scalar import Int64, is_scalar
 from . import capi
+
+log = logging.getLogger(__name__)
 
 
 """
@@ -260,6 +265,7 @@ class Array(metaclass=MetaArray):
         - offsets
         - value: None if args contains dimensions else args[0]
         """
+        log.debug(f"get size for {cls} from {args}")
         info = Info()
         extra = {}
         if cls._size is not None:
@@ -331,11 +337,13 @@ class Array(metaclass=MetaArray):
 
             # needs items, order, shape, value
             if cls._is_static_type:
-                offsets = np.empty(shape, dtype="int64")
-                for idx in iter_index(shape, order):
-                    offsets[idx] = offset
-                    offset += cls._itemtype._size
+                # offsets = np.empty(shape, dtype="int64")
+                # for idx in iter_index(shape, order):
+                #    offsets[idx] = offset
+                #    offset += cls._itemtype._size
+                offset += cls._itemtype._size * items
                 size = _to_slot_size(offset)
+
             else:
                 # args must be an array of correct dimensions
                 offsets = np.empty(shape, dtype="int64")
@@ -345,14 +353,15 @@ class Array(metaclass=MetaArray):
                     offsets[idx] = offset
                     offset += extra[idx].size
                 size = _to_slot_size(offset)
+                info.offsets = offsets
+                info.extra = extra
 
-        info.extra = extra
-        info.offsets = offsets
         info.shape = shape
         info.strides = strides
         info.size = size
         info.order = order
         info.value = value
+        info.items = np.prod(shape)
         return info
 
     @classmethod
@@ -426,8 +435,33 @@ class Array(metaclass=MetaArray):
                 )
             else:
                 raise ValueError("Value {value} not compatible size")
-        else:
-            if value is not None:
+        elif value is None:  # no value to initialize
+            if is_scalar(cls._itemtype):
+                pass  # leave uninitialized
+            else:
+                value = cls._itemtype()  # use default type
+                if cls._is_static_type:
+                    ioffset = offset + cls._data_offset
+                    for idx in range(info.items):
+                        cls._itemtype._to_buffer(buffer, ioffset, value, None)
+                        ioffset += cls._itemtype._size
+                else:
+                    for idx in iter_index(info.shape, cls._order):
+                        cls._itemtype._to_buffer(
+                            buffer,
+                            offset + info.offsets[idx],
+                            value[idx],
+                            info.extra.get(idx),
+                        )
+        else:  # there is a value for initialization
+            if cls._is_static_type:
+                ioffset = offset + cls._data_offset
+                for idx in iter_index(info.shape, cls._order):
+                    cls._itemtype._to_buffer(
+                        buffer, ioffset, value[idx], info=None
+                    )
+                    ioffset += cls._itemtype._size
+            else:
                 for idx in iter_index(info.shape, cls._order):
                     cls._itemtype._to_buffer(
                         buffer,
@@ -435,18 +469,6 @@ class Array(metaclass=MetaArray):
                         value[idx],
                         info.extra.get(idx),
                     )
-            else:
-                if is_scalar(cls._itemtype):
-                    pass  # leave uninitialized
-                else:
-                    value = cls._itemtype()
-                    for idx in iter_index(info.shape, cls._order):
-                        cls._itemtype._to_buffer(
-                            buffer,
-                            offset + info.offsets[idx],
-                            value,
-                            info.extra.get(idx),
-                        )
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
         # determin resources

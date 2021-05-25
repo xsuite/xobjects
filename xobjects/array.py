@@ -435,15 +435,18 @@ class Array(metaclass=MetaArray):
                         value[idx],
                         info.extra.get(idx),
                     )
-            elif not is_scalar(cls._itemtype):
-                value = cls._itemtype()
-                for idx in iter_index(info.shape, cls._order):
-                    cls._itemtype._to_buffer(
-                        buffer,
-                        offset + info.offsets[idx],
-                        value,
-                        info.extra.get(idx),
-                    )
+            else:
+                if is_scalar(cls._itemtype):
+                    pass  # leave uninitialized
+                else:
+                    value = cls._itemtype()
+                    for idx in iter_index(info.shape, cls._order):
+                        cls._itemtype._to_buffer(
+                            buffer,
+                            offset + info.offsets[idx],
+                            value,
+                            info.extra.get(idx),
+                        )
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
         # determin resources

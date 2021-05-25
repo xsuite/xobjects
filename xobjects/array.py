@@ -1,7 +1,7 @@
 import numpy as np
 
 from .typeutils import get_a_buffer, Info, is_integer, _to_slot_size
-from .scalar import Int64
+from .scalar import Int64, is_scalar
 from . import capi
 
 
@@ -435,8 +435,7 @@ class Array(metaclass=MetaArray):
                         value[idx],
                         info.extra.get(idx),
                     )
-            else:
-                # TODO shortcuts for simple arrays
+            elif not is_scalar(cls._itemtype):
                 value = cls._itemtype()
                 for idx in iter_index(info.shape, cls._order):
                     cls._itemtype._to_buffer(

@@ -67,12 +67,13 @@ class Ref(metaclass=MetaRef):
         return self._type_from_typeid(typeid)
 
     def _from_buffer(self, buffer, offset):
-        refoffset = Int64._from_buffer(buffer, offset) + offset
+        refoffset = Int64._from_buffer(buffer, offset)
         if refoffset == NULLVALUE:
             return None
         else:
+            refoffset += offset
             if self._is_union:
-                rtype = self._get_stored_type(buffer, offset)
+                rtype = self._get_stored_type(buffer, refoffset)
             else:
                 rtype = self._rtypes[0]
             return rtype._from_buffer(buffer, refoffset)
@@ -157,3 +158,32 @@ class Ref(metaclass=MetaRef):
 
     def __repr__(self):
         return f"<ref {self.__name__}>"
+
+
+class MetaUnionRef(type):
+    _rtypes: list
+
+    def __getitem__(cls, shape):
+        return Array.mk_arrayclass(cls, shape)
+
+    @classmethod
+    def _pre_init(cls, *arg, **kwargs):
+        return kwargs
+
+    def _post_init(self):
+        pass
+
+    def _from_buffer(cls, buffer, offset):
+        refoffset, typeid = Int64._array_buffer(buffer, offset, 2)
+        if refoffset == NULLVALUE:
+            return None
+        else:
+            rtype = cls._type_from_typeind(typeid)
+            return rtype._from_buffer(buffer, offset + refoffset)
+
+    def _to_buffer(cls, buffer, offset, value, info=None):
+        pass
+
+
+class UnionRef(metaclass=MetaUnionRef):
+    pass

@@ -202,7 +202,9 @@ class MetaStruct(type):
                 if len(args) == 1:
                     arg = args[0]
                     if isinstance(arg, dict):
-                        arg = cls._pre_init(**arg)
+                        arg = dispatch_arg(
+                                cls._pre_init,
+                                arg)
                         offsets = {}  # offset of dynamic data
                         extra = {}
                         offset = d_fields[
@@ -280,7 +282,7 @@ class Struct(metaclass=MetaStruct):
                 offset, value._buffer, value._offset, value._size
             )
         else:  # value must be a dict, again potential disctructive
-            value = cls._pre_init(**value)
+            value = dispatch_arg(cls._pre_init, value)
             if info is None:
                 info = cls._inspect_args(value)
             if cls._size is None:

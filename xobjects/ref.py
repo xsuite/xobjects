@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-from .typeutils import Info, dispatch_arg
+from .typeutils import Info, dispatch_arg, get_a_buffer
 from .scalar import Int64
 from .array import Array
 from . import capi
@@ -223,17 +223,17 @@ class MetaUnionRef(type):
     def _to_buffer(cls, buffer, offset, value, info=None):
         if value is None:
             xobj = None
-            typeid = None
         elif isinstance(value, tuple):
             if len(value) == 0:
                 xobj = None
                 typeid = None
-            elif len(value) == 1:  # must be XObject
+            elif len(value) == 1:  # must be XObject or None
                 xobj = value[0]
-                typ = xobj.__class__
-                typeid = cls._typeid_from_type(typ)
-                if xobj._buffer != buffer:
-                    xobj = typ(xobj, _buffer=buffer)
+                if xobj is not None:
+                    typ = xobj.__class__
+                    typeid = cls._typeid_from_type(typ)
+                    if xobj._buffer != buffer:
+                        xobj = typ(xobj, _buffer=buffer)
             elif len(value) == 2:  # must be (str,dict)
                 tname, data = value
                 typ = cls._type_from_name(tname)
@@ -255,39 +255,36 @@ class MetaUnionRef(type):
 class UnionRef(metaclass=MetaUnionRef):
     _size = 16
 
-    def __init__(self, *args, _context=None, _buffer=None, _offset=None):
-        if len(args) == 0:
-            self._offset = None
-            self._buffer = None
-            self._type = None
-        elif len(args) == 1:
-            value = args[0]
-            typ = value.__class__
-            if value._buffer != _buffer:
-                value = typ(value, _buffer=_buffer)
-            self._offset = value._offset
-            self._buffer = value._buffer
-            self._type = typ
-        elif len(args) == 2:
-            name, value = args
-            cls = self.__class__
-            typ = cls._type_from_name(name)
-            dct = dict(_context=None, _buffer=None, _offset=None)
-            dct.update(value)
-            value = dispatch_arg(typ, dct)
-            self._offset = value._offset
-            self._buffer = value._buffer
-            self._type = typ
+    def __init__(
+        self, *args, _context=None, _buffer=None, _offset=None, **kwargs
+    ):
+        cls = self.__class__
+
+        args, _ = self._pre_init(*args, **kwargs)
+
+        self._buffer, self._offset = get_a_buffer(
+            cls._size, _context, _buffer, _offset
+        )
+
+        cls._to_buffer(self._buffer, self._offset, args)
+
+        self._post_init()
 
     def get(self):
-        if self._type is None:
+        reloffset, typeid = Int64._array_from_buffer(
+            self._buffer, self._offset, 2
+        )
+        if reloffset == NULLVALUE:
             return None
         else:
-            return self._type._from_buffer(self._buffer, self._offset)
+            cls = self.__class__
+            typ = cls._type_from_typeid(typeid)
+            offset = self._offset + reloffset
+            return typ._from_buffer(self._buffer, offset)
 
     @classmethod
-    def _pre_init(cls, *arg, **kwargs):
-        return arg, kwargs
+    def _pre_init(cls, *args, **kwargs):
+        return args, kwargs
 
     def _post_init(self):
         pass

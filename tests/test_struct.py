@@ -108,7 +108,8 @@ def test_dynamic_nested_struct():
         c = xo.Field(xo.Int8, default=-1)
 
     info = StructE._inspect_args(b="this is a test")
-    assert info == Info(size=48, _offsets={1: 24}, extra={})
+    assert info.size == 48
+    assert info._offsets == {1: 24}
 
     class StructF(xo.Struct):
         e = xo.Field(xo.Float64, default=3.5)
@@ -120,11 +121,8 @@ def test_dynamic_nested_struct():
     assert StructF._size is None
 
     info = StructF._inspect_args(g={"b": "this is a test"})
-    assert info == Info(
-        size=80,
-        _offsets={2: 32},
-        extra={2: Info(size=48, _offsets={1: 24}, extra={})},
-    )
+    assert info.size == 80
+    assert info._offsets == {2: 32}
 
     for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
         if CTX not in available:
@@ -182,9 +180,11 @@ def test_preinit():
         sx = xo.Float64
 
         @classmethod
-        def _pre_init(cls, angle=0):
+        def _pre_init(cls, angle=0, **kwargs):
             rad = np.deg2rad(angle)
-            return {"cx": np.cos(rad), "sx": np.sin(rad)}
+            kwargs["cx"] = np.cos(rad)
+            kwargs["sx"] = np.sin(rad)
+            return (), kwargs
 
         def _post_init(self):
             assert self.cx ** 2 + self.sx ** 2 == 1
@@ -195,3 +195,16 @@ def test_preinit():
     rot = Rotation(angle=90)
 
     assert rot.sx == 1.0
+
+
+def test_init_from_xobj():
+    class StructA(xo.Struct):
+        a = xo.Float64
+        b = xo.Float64
+
+    s1 = StructA(a=1.3, b=2.4)
+    s2 = StructA(s1)
+    s3 = StructA(s1, _buffer=s1._buffer)
+
+    assert s2.a == s1.a
+    assert s3.b == s1.b

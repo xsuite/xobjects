@@ -46,9 +46,7 @@ class NumpyScalar:
         return buffer.update_from_buffer(offset, value.tobytes())
 
     def _array_from_buffer(self, buffer, offset, count):
-        return np.frombuffer(
-            buffer, dtype=self._dtype, offset=offset, count=count
-        )
+        return buffer.to_nplike(offset, self._dtype, (count,))
 
 
 Float128 = NumpyScalar("float128", "double[2]")

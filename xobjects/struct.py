@@ -183,7 +183,12 @@ class MetaStruct(type):
                 return self.__class__._size
 
             def _inspect_args(cls, *args, **kwargs):
-                return Info(size=cls._size, is_static_size=True)
+                info = Info(size=cls._size, is_static_size=True)
+                if len(args) == 1:
+                    info.value = args[0]
+                else:
+                    info.value = kwargs
+                return info
 
         else:
             size = None
@@ -207,10 +212,11 @@ class MetaStruct(type):
 
             def _inspect_args(cls, *args, **kwargs):
                 log.debug(f"get size for {cls} from {args} {kwargs}")
-                if len(args) == 1:
+                info = Info()
+                if len(args) == 1:  # is a dict or xobj
                     arg = args[0]
+                    info.value = arg
                     if isinstance(arg, dict):
-                        arg = cls._pre_init(**arg)
                         offsets = {}  # offset of dynamic data
                         extra = {}
                         offset = d_fields[
@@ -230,17 +236,17 @@ class MetaStruct(type):
                             offsets[field.index] = offset
                             offset += _to_slot_size(finfo.size)
                         # _offsets is used to because of field.get_offset(info)
-                        info = Info(size=offset, _offsets=offsets)
+                        info.size = offset
+                        info._offsets = offsets
                         if len(extra) > 0:
                             info.extra = extra
-                        return Info(size=offset, _offsets=offsets, extra=extra)
                     elif isinstance(arg, cls):
-                        size = arg._get_size()
-                        return Info(size=size)
+                        info.size = arg._get_size()
                     else:
                         raise ValueError(f"{arg} Not valid type for {cls}")
                 else:  # python argument
                     return cls._inspect_args(kwargs)
+                return info
 
         data["_size"] = size
         data["_get_size"] = _get_size
@@ -264,8 +270,8 @@ class Struct(metaclass=MetaStruct):
     _size: Optional[int]
 
     @classmethod
-    def _pre_init(cls, *arg, **kwargs):
-        return kwargs
+    def _pre_init(cls, *args, **kwargs):
+        return args, kwargs
 
     def _post_init(self):
         pass
@@ -291,7 +297,6 @@ class Struct(metaclass=MetaStruct):
                 offset, value._buffer, value._offset, value._size
             )
         else:  # value must be a dict, again potential disctructive
-            value = cls._pre_init(**value)
             if info is None:
                 info = cls._inspect_args(value)
             if cls._size is None:
@@ -321,14 +326,17 @@ class Struct(metaclass=MetaStruct):
                 if field.name in value:
                     field.__set__(self, value[field.name])
 
-    def __init__(self, _context=None, _buffer=None, _offset=None, **kwargs):
+    def __init__(
+        self, *args, _context=None, _buffer=None, _offset=None, **kwargs
+    ):
         """
         Create new struct in buffer from offset.
         If offset not provide
         """
         cls = self.__class__
+        args, kwargs = cls._pre_init(*args, **kwargs)
         # compute resources
-        info = cls._inspect_args(**kwargs)
+        info = cls._inspect_args(*args, **kwargs)
         self._size = info.size
         # acquire buffer
         self._buffer, self._offset = get_a_buffer(
@@ -337,7 +345,7 @@ class Struct(metaclass=MetaStruct):
         # if dynamic struct store dynamic offsets
         if hasattr(info, "_offsets"):
             self._offsets = info._offsets  # struct offsets
-        cls._to_buffer(self._buffer, self._offset, kwargs, info)
+        cls._to_buffer(self._buffer, self._offset, info.value, info)
         self._post_init()
 
     @classmethod

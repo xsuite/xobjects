@@ -84,7 +84,7 @@ def test_ref_to_dynamic_type():
             assert mystructref.a[ii] == [7, 8, 9][ii]
 
 
-def test_unionref():
+def no_test_unionref():
 
     for CTX in xo.ContextCupy, xo.ContextPyopencl, xo.ContextCpu:
         if CTX not in available:
@@ -114,7 +114,7 @@ def test_unionref():
         assert mystructref.a == "Test"
 
 
-def test_array_of_unionrefs():
+def no_test_array_of_unionrefs():
     class MyStructA(xo.Struct):
         a = xo.Float64
 

@@ -15,9 +15,6 @@ from .scalar import (
 from .array import Array
 from .string import String
 from .struct import Struct, Field
-from .union import Union
-from .unionref import UnionRef
-from .ref import Ref
+from .ref import Ref, UnionRef
 
-
-# from .capi import Function, Method, Property, Arg, Kernel
+# from .union import Union

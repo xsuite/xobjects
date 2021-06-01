@@ -1,7 +1,17 @@
-from .typeutils import Info
+import logging
+
+import numpy as np
+
+from .typeutils import Info, dispatch_arg
 from .scalar import Int64
 from .array import Array
 from . import capi
+
+log = logging.getLogger(__name__)
+
+NULLVALUE = -(2 ** 63)
+NULLTYPE = -1
+NULLREF = np.array([NULLVALUE, NULLTYPE], dtype="int64")
 
 
 class MetaRef(type):
@@ -9,9 +19,6 @@ class MetaRef(type):
         if not isinstance(rtypes, tuple):
             rtypes = (rtypes,)
         return cls(*rtypes)
-
-
-NULLVALUE = -(2 ** 63)
 
 
 class Ref(metaclass=MetaRef):
@@ -161,29 +168,126 @@ class Ref(metaclass=MetaRef):
 
 
 class MetaUnionRef(type):
-    _rtypes: list
+    _reftypes: list
+
+    def _typeid_from_type(cls, typ):
+        for ii, tt in enumerate(cls._reftypes):
+            if tt.__name__ == typ.__name__:
+                return ii
+        # If no match found:
+        raise TypeError(f"{typ} is not memberof {cls}!")
+
+    def _typeid_from_name(cls, name):
+        for ii, tt in enumerate(cls._reftypes):
+            if tt.__name__ == name:
+                return ii
+        # If no match found:
+        raise TypeError(f"{name} is not memberof {cls}")
+
+    def _type_from_name(cls, name):
+        for tt in cls._reftypes:
+            if tt.__name__ == name:
+                return tt
+        # If no match found:
+        raise TypeError(f"{name} is not memberof {cls}")
+
+    def _type_from_typeid(cls, typeid):
+        for ii, tt in enumerate(cls._reftypes):
+            if ii == typeid:
+                return tt
+        # If no match found:
+        raise TypeError(f"Invalid id: {typeid}!")
+
+    def _from_buffer(cls, buffer, offset):
+        refoffset, typeid = Int64._array_from_buffer(buffer, offset, 2)
+        if refoffset == NULLVALUE:
+            return None
+        else:
+            rtype = cls._type_from_typeid(typeid)
+            return rtype._from_buffer(buffer, offset + refoffset)
+
+    def _inspect_args(cls, *args):
+        """
+        A unionref can be initialized with an instance of the classes in reftypes or
+        a tuple (typename, dictionary)
+
+        Input:
+        - None
+        - XObject
+        - typename, dict
+        """
+        log.debug(f"get info for {cls} from {args}")
+        info = Info(size=cls._size)
+        return info
+
+    def _to_buffer(cls, buffer, offset, value, info=None):
+        if value is None:
+            xobj = None
+            typeid = None
+        elif isinstance(value, tuple):
+            if len(value) == 0:
+                xobj = None
+                typeid = None
+            elif len(value) == 1:  # must be XObject
+                xobj = value[0]
+                typ = xobj.__class__
+                typeid = cls._typeid_from_type(typ)
+                if xobj._buffer != buffer:
+                    xobj = typ(xobj, _buffer=buffer)
+            elif len(value) == 2:  # must be (str,dict)
+                tname, data = value
+                typ = cls._type_from_name(tname)
+                typeid = cls._typeid_from_name(tname)
+                xobj = typ(data, _buffer=buffer)
+        if xobj is None:
+            Int64._array_to_buffer(buffer, offset, NULLREF)
+        else:
+            ref = np.array([xobj._offset - offset, typeid])
+            Int64._array_to_buffer(buffer, offset, ref)
 
     def __getitem__(cls, shape):
         return Array.mk_arrayclass(cls, shape)
 
-    @classmethod
     def _pre_init(cls, *arg, **kwargs):
         return kwargs
 
-    def _post_init(self):
-        pass
-
-    def _from_buffer(cls, buffer, offset):
-        refoffset, typeid = Int64._array_buffer(buffer, offset, 2)
-        if refoffset == NULLVALUE:
-            return None
-        else:
-            rtype = cls._type_from_typeind(typeid)
-            return rtype._from_buffer(buffer, offset + refoffset)
-
-    def _to_buffer(cls, buffer, offset, value, info=None):
-        pass
-
 
 class UnionRef(metaclass=MetaUnionRef):
-    pass
+    _size = 16
+
+    def __init__(self, *args, _context=None, _buffer=None, _offset=None):
+        if len(args) == 0:
+            self._offset = None
+            self._buffer = None
+            self._type = None
+        elif len(args) == 1:
+            value = args[0]
+            typ = value.__class__
+            if value._buffer != _buffer:
+                value = typ(value, _buffer=_buffer)
+            self._offset = value._offset
+            self._buffer = value._buffer
+            self._type = typ
+        elif len(args) == 2:
+            name, value = args
+            cls = self.__class__
+            typ = cls._type_from_name(name)
+            dct = dict(_context=None, _buffer=None, _offset=None)
+            dct.update(value)
+            value = dispatch_arg(typ, dct)
+            self._offset = value._offset
+            self._buffer = value._buffer
+            self._type = typ
+
+    def get(self):
+        if self._type is None:
+            return None
+        else:
+            return self._type._from_buffer(self._buffer, self._offset)
+
+    @classmethod
+    def _pre_init(cls, *arg, **kwargs):
+        return arg, kwargs
+
+    def _post_init(self):
+        pass

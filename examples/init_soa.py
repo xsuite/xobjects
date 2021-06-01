@@ -54,9 +54,9 @@ dic = {
 t1 = time.time()
 MyStruct._inspect_args(**dic)
 t2 = time.time()
-print(f"Time 'MyStruct._inspect_args(**dic)': {t2-t1:.2f} s")
+print(f"Time 'MyStruct._inspect_args(**dic)': {t2-t1:.9f} s")
 
 t1 = time.time()
 struct = MyStruct(**dic)
 t2 = time.time()
-print(f"Time to allocate the object: {t2-t1:.2f} s")
+print(f"Time to allocate the object: {t2-t1:.9f} s")

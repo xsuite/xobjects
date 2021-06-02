@@ -215,3 +215,24 @@ def test_2_particles():
     )
 
     return particles
+
+
+def test_unionref():
+    class StructA(xo.Struct):
+        fa = xo.Float64
+
+    class ArrayB(xo.Float64[5]):
+        pass
+
+    class RefA(xo.UnionRef):
+        _reftypes = (StructA, ArrayB)
+
+    ArrNRefA = RefA[:]
+
+    assert RefA._c_type == "RefA"
+
+    paths = ArrNRefA._gen_data_paths()
+
+    source, kernels, cdefs = ArrNRefA._gen_c_api()
+
+    open("test_capi_unionref.c", "w").write(source)

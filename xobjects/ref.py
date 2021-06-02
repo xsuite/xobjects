@@ -170,6 +170,19 @@ class Ref(metaclass=MetaRef):
 class MetaUnionRef(type):
     _reftypes: list
 
+    def __new__(cls, name, bases, data):
+        if "_c_type" not in data:
+            data["_c_type"] = name
+
+        return type.__new__(cls, name, bases, data)
+
+    def _is_member(cls, value):
+        typ = value.__class__
+        for tt in cls._reftypes:
+            if tt.__name__ == typ.__name__:
+                return True
+        return False
+
     def _typeid_from_type(cls, typ):
         for ii, tt in enumerate(cls._reftypes):
             if tt.__name__ == typ.__name__:
@@ -221,29 +234,42 @@ class MetaUnionRef(type):
         return info
 
     def _to_buffer(cls, buffer, offset, value, info=None):
-        if value is None:
-            xobj = None
-        elif isinstance(value, tuple):
-            if len(value) == 0:
-                xobj = None
-                typeid = None
-            elif len(value) == 1:  # must be XObject or None
-                xobj = value[0]
-                if xobj is not None:
-                    typ = xobj.__class__
-                    typeid = cls._typeid_from_type(typ)
-                    if xobj._buffer != buffer:
-                        xobj = typ(xobj, _buffer=buffer)
-            elif len(value) == 2:  # must be (str,dict)
-                tname, data = value
-                typ = cls._type_from_name(tname)
-                typeid = cls._typeid_from_name(tname)
-                xobj = typ(data, _buffer=buffer)
-        if xobj is None:
-            Int64._array_to_buffer(buffer, offset, NULLREF)
+        if isinstance(value, cls):  # binary copy
+            buffer.update_from_xbuffer(
+                offset, value._buffer, value._offset, value._size
+            )
         else:
-            ref = np.array([xobj._offset - offset, typeid])
-            Int64._array_to_buffer(buffer, offset, ref)
+            if value is None:
+                xobj = None
+            elif isinstance(value, tuple):
+                if len(value) == 0:
+                    xobj = None
+                    typeid = None
+                elif len(value) == 1:  # must be XObject or None
+                    xobj = value[0]
+                    if xobj is not None:
+                        typ = xobj.__class__
+                        typeid = cls._typeid_from_type(typ)
+                        if xobj._buffer != buffer:
+                            xobj = typ(xobj, _buffer=buffer)
+                elif len(value) == 2:  # must be (str,dict)
+                    tname, data = value
+                    typ = cls._type_from_name(tname)
+                    typeid = cls._typeid_from_name(tname)
+                    xobj = typ(data, _buffer=buffer)
+            elif cls._is_member(value):
+                xobj = value
+                typ = xobj.__class__
+                typeid = cls._typeid_from_type(typ)
+                if xobj._buffer != buffer:
+                    xobj = typ(xobj, _buffer=buffer)
+            else:
+                raise ValueError(f"{value} not handled")
+            if xobj is None:
+                Int64._array_to_buffer(buffer, offset, NULLREF)
+            else:
+                ref = np.array([xobj._offset - offset, typeid])
+                Int64._array_to_buffer(buffer, offset, ref)
 
     def __getitem__(cls, shape):
         return Array.mk_arrayclass(cls, shape)
@@ -288,3 +314,19 @@ class UnionRef(metaclass=MetaUnionRef):
 
     def _post_init(self):
         pass
+
+    @classmethod
+    def _gen_data_paths(cls, base=None):
+        paths = []
+        if base is None:
+            base = []
+        paths.append(base + [cls])
+        for rtype in cls._reftypes:
+            if hasattr(rtype, "_gen_data_paths"):
+                paths.extend(rtype._gen_data_paths())
+        return paths
+
+    @classmethod
+    def _gen_c_api(cls, conf={}):
+        paths = cls._gen_data_paths()
+        return capi.gen_code(paths, conf)

@@ -1,6 +1,6 @@
 from .context import Kernel, Arg
 
-from .scalar import Int64, Void
+from .scalar import Int64, Void, Int8
 
 
 def is_field(part):
@@ -23,6 +23,10 @@ def is_ref(atype):
     return hasattr(atype, "_rtypes")
 
 
+def is_unionref(atype):
+    return hasattr(atype, "_reftypes")
+
+
 def is_single_ref(atype):
     return hasattr(atype, "_rtypes") and len(atype._rtypes) == 1
 
@@ -43,6 +47,8 @@ def get_inner_type(part):
             return None
         else:
             return part._rtypes[0]
+    elif is_unionref(part):
+        return None
     else:
         raise ValueError(f"Cannot get inner type of {part}")
 
@@ -85,10 +91,8 @@ def gen_c_size_from_arg(arg: Arg, conf):
     if arg is None:
         return None
     else:
-        if arg.pointer:
-            return conf.get("pointersize", 64)
-        elif is_compound(arg.atype):
-            return conf.get("pointersize", 64)
+        if is_compound(arg.atype):
+            return conf.get("pointersize", 8)
         else:
             return arg.atype._size
 
@@ -407,6 +411,65 @@ def gen_method_getpos(path, conf):
     return None, None
 
 
+def gen_method_typeid(path, conf):
+    "return typeid of a unionref"
+    cls = path[0]
+    path = path[1:]
+    retarg = Arg(Int64)
+
+    action = "typeid"
+
+    kernel = gen_fun_data(
+        cls,
+        path,
+        const=True,
+        action=action,
+        extra=[],
+        ret=retarg,
+    )
+    decl = gen_c_decl_from_kernel(kernel, conf)
+
+    lst = [decl + "{"]
+
+    lst.append(gen_method_offset(path, conf))
+    pointed = gen_c_pointed(retarg, conf)
+    lst.append("  offset+=8;")
+    lst.append(f"  return {pointed};")
+    lst.append("}")
+    return "\n".join(lst), kernel
+
+
+def gen_method_member(path, conf):
+    "return typeid of a unionref"
+    cls = path[0]
+    path = path[1:]
+    retarg = Arg(Void, pointer=True)
+
+    action = "member"
+
+    kernel = gen_fun_data(
+        cls,
+        path,
+        const=True,
+        action=action,
+        extra=[],
+        ret=retarg,
+    )
+    decl = gen_c_decl_from_kernel(kernel, conf)
+
+    lst = [decl + "{"]
+
+    lst.append(gen_method_offset(path, conf))
+
+    # pointed = gen_c_pointed(Arg(Int8, pointer=True), conf)
+    # GPU not handled
+    lst.append("  char *reloff_p = (char *) obj + offset;")
+    lst.append("  int64_t  reloff= *(int64_t *) reloff_p;")
+    lst.append("  return (void *) (reloff_p + reloff);")
+    lst.append("}")
+    return "\n".join(lst), kernel
+
+
 def gen_typedef(cls, conf):
     gpumem = conf.get("gpumem", "")
     typename = cls._c_type
@@ -421,11 +484,11 @@ def gen_typedef_decl(cls, conf):
         out.append(f"{gen_typedef(cls,conf)}")
         out.append(f"#define XOBJ_TYPEDEF_{typename}")
         out.append("#endif")
-    elif is_ref(cls):
+    elif is_unionref(cls):
         out.append(f"#ifndef XOBJ_TYPEDEF_{typename}")
         # defining C union might have issues with GPU qualifiers
         out.append(f"{gen_typedef(cls,conf)}")
-        lst = ",".join(f"{tt._c_type}_t" for tt in cls._rtypes)
+        lst = ",".join(f"{tt._c_type}_t" for tt in cls._reftypes)
         out.append(f"enum {typename}_e{{{lst}}};")
         out.append(f"#define XOBJ_TYPEDEF_{typename}")
         out.append("#endif")
@@ -464,7 +527,6 @@ def gen_cdef(paths, conf):
 
 def methods_from_path(path, conf):
     out = []
-    out.append(gen_method_getp(path, conf))
     lasttype = get_inner_type(path[-1])
 
     if is_scalar(lasttype):
@@ -478,6 +540,9 @@ def methods_from_path(path, conf):
         out.append(gen_method_nd(path, conf))
         out.append(gen_method_strides(path, conf))
         out.append(gen_method_getpos(path, conf))
+    if is_unionref(lasttype):
+        out.append(gen_method_typeid(path, conf))
+        out.append(gen_method_member(path, conf))
     return out
 
 

@@ -403,3 +403,8 @@ class Struct(metaclass=MetaStruct):
     def _gen_c_api(cls, conf=default_conf):
         specs_list = cls._gen_data_paths()
         return capi.gen_code(specs_list, conf)
+
+    def _get_offset(self, fieldname):
+        for ff in self._fields:
+            if ff.name == fieldname:
+                return ff.get_offset(self)[1]

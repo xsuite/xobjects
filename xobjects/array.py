@@ -538,7 +538,22 @@ class Array(metaclass=MetaArray):
             cls._itemtype._to_buffer(self._buffer, offset, value)
 
     def _get_offset(self, index):
-        return sum(ii * ss for ii, ss in zip(index, self._strides))
+        if isinstance(index, (int, np.integer)):
+            index = (index,)
+        cls = self.__class__
+        if hasattr(self, "_offsets"):
+            offset = self._offset + self._offsets[index]
+        else:
+            bound_check(index, self._shape)
+            offset = (
+                self._offset
+                + cls._data_offset
+                + get_offset(index, self._strides)
+            )
+        return offset
+
+    # def _get_offset(self, index):
+    #    return sum(ii * ss for ii, ss in zip(index, self._strides))
 
     @classmethod
     def _get_c_offset(cls, conf):

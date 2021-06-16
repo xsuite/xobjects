@@ -57,6 +57,7 @@ default_conf = {
     "cpurestrict": "/*restrict*/",
     "inttype": "int64_t",
     "chartype": "char",
+    "gpufun": "/*gpufun*/"
 }
 
 

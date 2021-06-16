@@ -103,7 +103,11 @@ def gen_c_decl_from_kernel(kernel: Kernel, conf):
         ret = "void"
     else:
         ret = gen_c_type_from_arg(kernel.ret, conf)
-    return f"{ret} {kernel.c_name}({args})"
+    gpufun=conf.get("gpufun")
+    if gpufun is None:
+       return f"{ret} {kernel.c_name}({args})"
+    else:
+       return f"{gpufun} {ret} {kernel.c_name}({args})"
 
 
 def get_layers(parts):

@@ -37,7 +37,7 @@ def is_compound(atype):
 
 
 def get_inner_type(part):
-    """type contained in a field or array"""
+    """type contained in a field, array or ref, else None"""
     if is_field(part):  # is a field
         return part.ftype
     elif is_array(part):  # is an array
@@ -359,14 +359,14 @@ def gen_method_len(path, conf):
 def gen_method_size(path, conf):
     cls = path[0]
     path = path[1:]
-    lasttype = get_inner_type(path[-1])
-    if lasttype is None:  # no size return for union ref
-        return None, None
+    innertype = get_inner_type(path[-1])
+    if innertype is None:  # cannot determine size
+        return (None, None)
     retarg = Arg(Int64)
 
     action = "size"
     layers = get_layers(path)
-    if layers > 0 and not is_scalar(lasttype):
+    if layers > 0 and not is_scalar(innertype):
         action += str(layers)
 
     kernel = gen_fun_data(
@@ -381,12 +381,12 @@ def gen_method_size(path, conf):
 
     lst = [decl + "{"]
 
-    if lasttype._size is None:
+    if innertype._size is None:
         lst.append(gen_method_offset(path, conf))
         pointed = gen_c_pointed(retarg, conf)
         lst.append(f"  return {pointed};")
     else:
-        lst.append(f"  return {lasttype._size};")
+        lst.append(f"  return {innertype._size};")
     lst.append("}")
     return "\n".join(lst), kernel
 
@@ -526,23 +526,38 @@ def gen_cdef(paths, conf):
 
 
 def methods_from_path(path, conf):
-    out = []
-    lasttype = get_inner_type(path[-1])
+    """
+    size: all
+    get,set: innertype is scalar
+    getp: all but union ref as innertype or lasttype
 
-    if is_scalar(lasttype):
+
+
+    """
+    out = []
+    lasttype = path[-1]
+    innertype = get_inner_type(lasttype)
+
+    if is_scalar(innertype):
         out.append(gen_method_get(path, conf))
         out.append(gen_method_set(path, conf))
     else:
         out.append(gen_method_size(path, conf))
-    if is_array(lasttype):
+
+    if is_array(innertype):
         out.append(gen_method_len(path, conf))
         out.append(gen_method_shape(path, conf))
         out.append(gen_method_nd(path, conf))
         out.append(gen_method_strides(path, conf))
         out.append(gen_method_getpos(path, conf))
-    if is_unionref(lasttype):
+
+    if is_unionref(innertype):
         out.append(gen_method_typeid(path, conf))
         out.append(gen_method_member(path, conf))
+
+    if not (is_unionref(lasttype) or is_unionref(lasttype)):
+        out.append(gen_method_getp(path, conf))
+
     return out
 
 

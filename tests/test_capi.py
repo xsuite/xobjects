@@ -137,7 +137,7 @@ def test_ref():
     )
 
 
-def test_ref_union():
+def notest_ref_union():
     ctx = xo.ContextCpu()
 
     class StructA(xo.Struct):

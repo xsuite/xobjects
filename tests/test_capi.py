@@ -227,12 +227,14 @@ def test_unionref():
     class RefA(xo.UnionRef):
         _reftypes = (StructA, ArrayB)
 
-    ArrNRefA = RefA[:]
+    class StructB(xo.Struct):
+        fielda = RefA
+        fieldb = RefA[:]
 
     assert RefA._c_type == "RefA"
 
-    paths = ArrNRefA._gen_data_paths()
+    paths = StructB._gen_data_paths()
 
-    source, kernels, cdefs = ArrNRefA._gen_c_api()
+    source, kernels, cdefs = StructB._gen_c_api()
 
     open("test_capi_unionref.c", "w").write(source)

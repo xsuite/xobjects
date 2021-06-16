@@ -52,6 +52,15 @@ def is_integer(i):
 float2c = {2: "half", 4: "float", 8: "double", 16: "double[2]"}
 
 
+default_conf = {
+    "gpumem": "/*gpuglmem*/",
+    "cpurestrict": "/*restrict*/",
+    "inttype": "int64_t",
+    "chartype": "char",
+    "gpufun": "/*gpufun*/"
+}
+
+
 def get_c_type(typ):
     if hasattr(typ, "dtype"):
         ss = typ.dtype.str
@@ -71,3 +80,8 @@ def get_c_type(typ):
         return typ._c_type
     else:
         raise ValueError(f"Cannot find C type for type {typ}")
+
+
+class Register:
+    def __init__(self):
+        self.classes = {}

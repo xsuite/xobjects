@@ -46,9 +46,7 @@ class NumpyScalar:
         return buffer.update_from_buffer(offset, value.tobytes())
 
     def _array_from_buffer(self, buffer, offset, count):
-        return np.frombuffer(
-            buffer, dtype=self._dtype, offset=offset, count=count
-        )
+        return buffer.to_nplike(offset, self._dtype, (count,))
 
 
 Float128 = NumpyScalar("float128", "double[2]")
@@ -65,3 +63,12 @@ UInt8 = NumpyScalar("uint8", "uint8_t")
 Complex64 = NumpyScalar("complex64", "float[2]")
 Complex128 = NumpyScalar("complex128", "double[2]")
 Complex256 = NumpyScalar("complex256", "double[4]")
+
+
+def is_scalar(cls):
+    return isinstance(cls, NumpyScalar)
+
+
+class Void:
+    _c_type = "void"
+    _size = None

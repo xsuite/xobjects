@@ -26,47 +26,48 @@ def test_gen_data_paths():
     Field_N = Multipole.field.ftype
 
     meth = Field._gen_data_paths()
-    assert meth[0] == [Field.normal]
-    assert meth[1] == [Field.skew]
+    assert meth[0] == [Field, Field.normal]
+    assert meth[1] == [Field, Field.skew]
 
     meth = Field_N._gen_data_paths()
-    meth[0] = [Field_N]
-    meth[1] = [Field_N, Field.normal]
-    meth[2] = [Field_N, Field.skew]
+    meth[0] = [Field_N, Field_N]
+    meth[1] = [Field_N, Field_N, Field.normal]
+    meth[2] = [Field_N, Field_N, Field.skew]
 
     meth = Multipole._gen_data_paths()
-    assert meth[0] == [Multipole.order]
-    assert meth[1] == [Multipole.angle]
-    assert meth[2] == [Multipole.vlength]
-    assert meth[3] == [Multipole.field]
-    assert meth[4] == [Multipole.field, Field_N]
-    assert meth[5] == [Multipole.field, Field_N, Field.normal]
-    assert meth[6] == [Multipole.field, Field_N, Field.skew]
+    assert meth[0] == [Multipole, Multipole.order]
+    assert meth[1] == [Multipole, Multipole.angle]
+    assert meth[2] == [Multipole, Multipole.vlength]
+    assert meth[3] == [Multipole, Multipole.field]
+    assert meth[4] == [Multipole, Multipole.field, Field_N]
+    assert meth[5] == [Multipole, Multipole.field, Field_N, Field.normal]
+    assert meth[6] == [Multipole, Multipole.field, Field_N, Field.skew]
 
 
 def test_gen_get():
     Field, Multipole = gen_classes()
     Field_N = Multipole.field.ftype
 
-    parts = [Multipole.order]
+    path = [Multipole, Multipole.order]
+    conf = {"gpumem": "/*gpuglmem*/ "}
 
-    source, _ = capi.gen_method_get(Multipole, parts, {})
+    source, _ = capi.gen_method_get(path, conf)
     assert (
         source
         == """\
-/*gpufun*/ int8_t Multipole_get_order(const Multipole obj){
+int8_t Multipole_get_order(const Multipole obj){
   int64_t offset=0;
   offset+=8;
   return *((/*gpuglmem*/ int8_t*) obj+offset);
 }"""
     )
 
-    parts = [Multipole.field, Field_N, Field.skew]
-    source, _ = capi.gen_method_get(Multipole, parts, {})
+    path = [Multipole, Multipole.field, Field_N, Field.skew]
+    source, _ = capi.gen_method_get(path, conf)
     assert (
         source
         == """\
-/*gpufun*/ double Multipole_get_field_skew(const Multipole obj, int64_t i0){
+double Multipole_get_field_skew(const Multipole obj, int64_t i0){
   int64_t offset=0;
   offset+=32;
   offset+=16+i0*16;
@@ -78,13 +79,14 @@ def test_gen_get():
 
 def test_gen_set():
     _, Multipole = gen_classes()
-    parts = [Multipole.order]
+    path = [Multipole, Multipole.order]
+    conf = {"gpumem": "/*gpuglmem*/ "}
 
-    source, _ = capi.gen_method_set(Multipole, parts, {})
+    source, _ = capi.gen_method_set(path, conf)
     assert (
         source
         == """\
-/*gpufun*/ void Multipole_set_order(Multipole obj, int8_t value){
+void Multipole_set_order(Multipole obj, int8_t value){
   int64_t offset=0;
   offset+=8;
   *((/*gpuglmem*/ int8_t*) obj+offset)=value;
@@ -122,33 +124,42 @@ def test_ref():
 
     paths = StructA._gen_data_paths()
 
-    source, kernels, cdef = StructA._gen_c_api()
+    assert len(paths) == 3
 
-    return
+    source, kernels, cdef = StructA._gen_c_api()
 
     ctx.add_kernels(
         sources=[source],
         kernels=kernels,
         extra_cdef=cdef,
-        save_source_as="test_ref1.c",
+        specialize=True,
+        save_source_as="test_ref.c",
     )
+
+
+def notest_ref_union():
+    ctx = xo.ContextCpu()
+
+    class StructA(xo.Struct):
+        fa = xo.Float64
 
     ArrayB = xo.Float64[6, 6]
 
-    class List(xo.Ref[StructA, ArrayB][:]):
+    class MyArray(xo.Ref[StructA, ArrayB][:]):
         pass
 
-    paths = List._gen_data_paths()
+    paths = MyArray._gen_data_paths()
 
-    assert len(paths) == 7
+    assert len(paths) == 4
 
-    source, kernels, cdef = List._gen_c_api()
+    source, kernels, cdef = MyArray._gen_c_api()
 
     ctx.add_kernels(
         sources=[source],
         kernels=kernels,
         extra_cdef=cdef,
-        save_source_as="test_ref2.c",
+        specialize=True,
+        save_source_as="test_ref_union.c",
     )
 
 
@@ -161,7 +172,9 @@ def test_capi_call():
     source, kernels, cdefs = ParticlesData._gen_c_api()
 
     context = xo.ContextCpu()
-    context.add_kernels([source], kernels, extra_cdef=cdefs)
+    context.add_kernels(
+        [source], kernels, extra_cdef=cdefs, save_source_as="test_capi_call.c"
+    )
 
     particles = ParticlesData(
         s=np.arange(10, 21, 10),
@@ -202,3 +215,26 @@ def test_2_particles():
     )
 
     return particles
+
+
+def test_unionref():
+    class StructA(xo.Struct):
+        fa = xo.Float64
+
+    class ArrayB(xo.Float64[5]):
+        pass
+
+    class RefA(xo.UnionRef):
+        _reftypes = (StructA, ArrayB)
+
+    class StructB(xo.Struct):
+        fielda = RefA
+        fieldb = RefA[:]
+
+    assert RefA._c_type == "RefA"
+
+    paths = StructB._gen_data_paths()
+
+    source, kernels, cdefs = StructB._gen_c_api()
+
+    open("test_capi_unionref.c", "w").write(source)

@@ -1,8 +1,13 @@
+import logging
+
 import numpy as np
 
+
 from .typeutils import get_a_buffer, Info, is_integer, _to_slot_size
-from .scalar import Int64
+from .scalar import Int64, is_scalar
 from . import capi
+
+log = logging.getLogger(__name__)
 
 
 """
@@ -45,6 +50,7 @@ def get_suffix(shape):
     sshape = []
     ilst = 0
     lst = "NMOPQRSTUVWXYZABCDEFGHIJKLM"
+    # lst = "nmopqrstuvwxyzabcdefghijklm"
     for dd in shape:
         if dd is None:
             sshape.append(lst[ilst])
@@ -211,7 +217,7 @@ class MetaArray(type):
             raise ValueError("Cannot get n items from dynamic shapes")
 
     def __repr__(cls):
-        return f"<{cls.__name__}>"
+        return f"<array {cls.__name__}>"
 
 
 class Array(metaclass=MetaArray):
@@ -241,7 +247,7 @@ class Array(metaclass=MetaArray):
 
         suffix = get_suffix(nshape)
 
-        name = itemtype.__name__ + "_" + suffix
+        name = f"Arr{suffix}{itemtype.__name__}"
 
         data = {
             "_itemtype": itemtype,
@@ -259,6 +265,7 @@ class Array(metaclass=MetaArray):
         - offsets
         - value: None if args contains dimensions else args[0]
         """
+        log.debug(f"get size for {cls} from {args}")
         info = Info()
         extra = {}
         if cls._size is not None:
@@ -330,11 +337,13 @@ class Array(metaclass=MetaArray):
 
             # needs items, order, shape, value
             if cls._is_static_type:
-                offsets = np.empty(shape, dtype="int64")
-                for idx in iter_index(shape, order):
-                    offsets[idx] = offset
-                    offset += cls._itemtype._size
+                # offsets = np.empty(shape, dtype="int64")
+                # for idx in iter_index(shape, order):
+                #    offsets[idx] = offset
+                #    offset += cls._itemtype._size
+                offset += cls._itemtype._size * items
                 size = _to_slot_size(offset)
+
             else:
                 # args must be an array of correct dimensions
                 offsets = np.empty(shape, dtype="int64")
@@ -344,14 +353,15 @@ class Array(metaclass=MetaArray):
                     offsets[idx] = offset
                     offset += extra[idx].size
                 size = _to_slot_size(offset)
+                info.offsets = offsets
+                info.extra = extra
 
-        info.extra = extra
-        info.offsets = offsets
         info.shape = shape
         info.strides = strides
         info.size = size
         info.order = order
         info.value = value
+        info.items = np.prod(shape)
         return info
 
     @classmethod
@@ -425,8 +435,33 @@ class Array(metaclass=MetaArray):
                 )
             else:
                 raise ValueError("Value {value} not compatible size")
-        else:
-            if value is not None:
+        elif value is None:  # no value to initialize
+            if is_scalar(cls._itemtype):
+                pass  # leave uninitialized
+            else:
+                value = cls._itemtype()  # use default type
+                if cls._is_static_type:
+                    ioffset = offset + cls._data_offset
+                    for idx in range(info.items):
+                        cls._itemtype._to_buffer(buffer, ioffset, value, None)
+                        ioffset += cls._itemtype._size
+                else:
+                    for idx in iter_index(info.shape, cls._order):
+                        cls._itemtype._to_buffer(
+                            buffer,
+                            offset + info.offsets[idx],
+                            value[idx],
+                            info.extra.get(idx),
+                        )
+        else:  # there is a value for initialization
+            if cls._is_static_type:
+                ioffset = offset + cls._data_offset
+                for idx in iter_index(info.shape, cls._order):
+                    cls._itemtype._to_buffer(
+                        buffer, ioffset, value[idx], info=None
+                    )
+                    ioffset += cls._itemtype._size
+            else:
                 for idx in iter_index(info.shape, cls._order):
                     cls._itemtype._to_buffer(
                         buffer,
@@ -434,20 +469,6 @@ class Array(metaclass=MetaArray):
                         value[idx],
                         info.extra.get(idx),
                     )
-            else:
-                # TODO shortcuts for simple arrays
-                if hasattr(cls._itemtype, '_dtype'):
-                    # Scalar type
-                    pass # Leave not initialized
-                else:
-                    value = cls._itemtype()
-                    for idx in iter_index(info.shape, cls._order):
-                        cls._itemtype._to_buffer(
-                            buffer,
-                            offset + info.offsets[idx],
-                            value,
-                            info.extra.get(idx),
-                        )
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
         # determin resources
@@ -516,19 +537,23 @@ class Array(metaclass=MetaArray):
                 )
             cls._itemtype._to_buffer(self._buffer, offset, value)
 
-    @classmethod
-    def _gen_data_paths(cls, base=None):
-        paths = []
-        if base is None:
-            base = []
-        path = base + [cls]
-        paths.append(path)
-        if hasattr(cls._itemtype, "_gen_data_paths"):
-            paths.extend(cls._itemtype._gen_data_paths(path))
-        return paths
-
     def _get_offset(self, index):
-        return sum(ii * ss for ii, ss in zip(index, self._strides))
+        if isinstance(index, (int, np.integer)):
+            index = (index,)
+        cls = self.__class__
+        if hasattr(self, "_offsets"):
+            offset = self._offset + self._offsets[index]
+        else:
+            bound_check(index, self._shape)
+            offset = (
+                self._offset
+                + cls._data_offset
+                + get_offset(index, self._strides)
+            )
+        return offset
+
+    # def _get_offset(self, index):
+    #    return sum(ii * ss for ii, ss in zip(index, self._strides))
 
     @classmethod
     def _get_c_offset(cls, conf):
@@ -578,6 +603,17 @@ class Array(metaclass=MetaArray):
             raise NotImplementedError
 
     @classmethod
+    def _gen_data_paths(cls, base=None):
+        paths = []
+        if base is None:
+            base = [cls]
+        path = base + [cls]
+        paths.append(path)
+        if hasattr(cls._itemtype, "_gen_data_paths"):
+            paths.extend(cls._itemtype._gen_data_paths(path))
+        return paths
+
+    @classmethod
     def _gen_c_api(cls, conf={}):
         specs_list = cls._gen_data_paths()
-        return capi.gen_code(cls, specs_list, conf)
+        return capi.gen_code(specs_list, conf)

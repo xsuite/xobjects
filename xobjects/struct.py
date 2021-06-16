@@ -17,7 +17,6 @@ Layout:
 
 Current implementation:
     1) instance stores the actual offsets for dynamic offset. Although it is wasteful for memory, it avoids a double round trip. This hinges on the structure being frozen at initializations.
-    2) cache mechanism in place, but not used so far
 
 Struct class:
 - _size: class size, None if not static
@@ -28,7 +27,6 @@ Struct class:
 Struct instance:
 - _offsets: cached offsets of dynamic fields dict indexed by field.index
 - _sizes: cached sizes of dynamic fields dict indexed by field.index
-- _cache: cached python objects for __get__
 
 Field instance:
 - ftype
@@ -43,7 +41,7 @@ Field instance:
 
 """
 import logging
-from typing import Callable
+from typing import Callable, Optional
 
 
 from .typeutils import (
@@ -52,6 +50,7 @@ from .typeutils import (
     Info,
     _to_slot_size,
     _is_dynamic,
+    default_conf,
 )
 
 from .scalar import Int64
@@ -75,19 +74,17 @@ class Field:
         self.is_reference = None  # filled by class creation
         self.has_update = False  # filled by class creation
         self.readonly = readonly
+        self.is_union = None  # filled by class creation
 
     def __repr__(self):
-        return f"<Field{self.index} {self.name} at {self.offset}>"
+        return f"<field{self.index} {self.name} at {self.offset}>"
 
     def __get__(self, instance, cls=None):
         if instance is None:
             return self
         else:
-            if self.index in instance._cache:
-                return instance._cache[self.index]
-            else:
-                offset = instance._offset + self.get_offset(instance)
-                return self.ftype._from_buffer(instance._buffer, offset)
+            ftype, offset = self.get_offset(instance)
+            return ftype._from_buffer(instance._buffer, offset)
 
     def __set__(self, instance, value):
         """
@@ -102,14 +99,23 @@ class Field:
         if hasattr(self.ftype, "_update"):
             self.__get__(instance)._update(value)
         else:  # TODO check if below is really needed
-            offset = instance._offset + self.get_offset(instance)
-            self.ftype._to_buffer(instance._buffer, offset, value)
+            ftype, offset = self.get_offset(instance)
+            ftype._to_buffer(instance._buffer, offset, value)
 
     def get_offset(self, instance):  # compatible with info
         if self.is_reference:
-            return instance._offsets[self.index]
+            reloffset = instance._offsets[self.index]
+            if self.is_union:
+                absoffset = instance._offset + reloffset
+                ftype = self.ftype._get_stored_type(
+                    instance._buffer, absoffset
+                )
+            else:
+                ftype = self.ftype
         else:
-            return self.offset
+            reloffset = self.offset
+            ftype = self.ftype
+        return ftype, instance._offset + reloffset
 
     def get_default(self):
         if self.default_factory is None:
@@ -130,7 +136,9 @@ class Field:
         itype = conf.get("itype", "int64_t")
         if self.is_reference:
             doffset = f"offset+{self.offset}"  # starts of data
-            return [f"  offset+= *(/*gpuglmem*/{itype}*)((/*gpuglmem*/char*) obj + {doffset});"]
+            return [
+                f"  offset+= *(/*gpuglmem*/{itype}*)((/*gpuglmem*/char*) obj + {doffset});"
+            ]
         else:
             return self.offset
 
@@ -175,7 +183,12 @@ class MetaStruct(type):
                 return self.__class__._size
 
             def _inspect_args(cls, *args, **kwargs):
-                return Info(size=cls._size, is_static_size=True)
+                info = Info(size=cls._size, is_static_size=True)
+                if len(args) == 1:
+                    info.value = args[0]
+                else:
+                    info.value = kwargs
+                return info
 
         else:
             size = None
@@ -199,12 +212,11 @@ class MetaStruct(type):
 
             def _inspect_args(cls, *args, **kwargs):
                 log.debug(f"get size for {cls} from {args} {kwargs}")
-                if len(args) == 1:
+                info = Info()
+                if len(args) == 1:  # is a dict or xobj
                     arg = args[0]
+                    info.value = arg
                     if isinstance(arg, dict):
-                        arg = dispatch_arg(
-                                cls._pre_init,
-                                arg)
                         offsets = {}  # offset of dynamic data
                         extra = {}
                         offset = d_fields[
@@ -224,17 +236,17 @@ class MetaStruct(type):
                             offsets[field.index] = offset
                             offset += _to_slot_size(finfo.size)
                         # _offsets is used to because of field.get_offset(info)
-                        info = Info(size=offset, _offsets=offsets)
+                        info.size = offset
+                        info._offsets = offsets
                         if len(extra) > 0:
                             info.extra = extra
-                        return Info(size=offset, _offsets=offsets, extra=extra)
                     elif isinstance(arg, cls):
-                        size = arg._get_size()
-                        return Info(size=size)
+                        info.size = arg._get_size()
                     else:
                         raise ValueError(f"{arg} Not valid type for {cls}")
                 else:  # python argument
                     return cls._inspect_args(kwargs)
+                return info
 
         data["_size"] = size
         data["_get_size"] = _get_size
@@ -247,15 +259,19 @@ class MetaStruct(type):
     def __getitem__(cls, shape):
         return Array.mk_arrayclass(cls, shape)
 
+    def __repr__(cls):
+        return f"<struct {cls.__name__}>"
+
 
 class Struct(metaclass=MetaStruct):
     _fields: list
     _d_fields: list
     _inspect_args: Callable
+    _size: Optional[int]
 
     @classmethod
-    def _pre_init(cls, *arg, **kwargs):
-        return kwargs
+    def _pre_init(cls, *args, **kwargs):
+        return args, kwargs
 
     def _post_init(self):
         pass
@@ -271,7 +287,6 @@ class Struct(metaclass=MetaStruct):
             val = Int64._from_buffer(self._buffer, offset)
             _offsets[field.index] = val
         self._offsets = _offsets
-        self._cache = {}
         self._post_init()
         return self
 
@@ -282,7 +297,6 @@ class Struct(metaclass=MetaStruct):
                 offset, value._buffer, value._offset, value._size
             )
         else:  # value must be a dict, again potential disctructive
-            value = dispatch_arg(cls._pre_init, value)
             if info is None:
                 info = cls._inspect_args(value)
             if cls._size is None:
@@ -294,7 +308,10 @@ class Struct(metaclass=MetaStruct):
             extra = getattr(info, "extra", {})
             for field in cls._fields:
                 fvalue = field.value_from_args(value)
-                foffset = offset + field.get_offset(info)
+                if field.is_reference:
+                    foffset = offset + info._offsets[field.index]
+                else:
+                    foffset = offset + field.offset
                 finfo = extra.get(field.index)
                 field.ftype._to_buffer(buffer, foffset, fvalue, finfo)
 
@@ -309,14 +326,17 @@ class Struct(metaclass=MetaStruct):
                 if field.name in value:
                     field.__set__(self, value[field.name])
 
-    def __init__(self, _context=None, _buffer=None, _offset=None, **kwargs):
+    def __init__(
+        self, *args, _context=None, _buffer=None, _offset=None, **kwargs
+    ):
         """
         Create new struct in buffer from offset.
         If offset not provide
         """
         cls = self.__class__
+        args, kwargs = cls._pre_init(*args, **kwargs)
         # compute resources
-        info = cls._inspect_args(**kwargs)
+        info = cls._inspect_args(*args, **kwargs)
         self._size = info.size
         # acquire buffer
         self._buffer, self._offset = get_a_buffer(
@@ -325,8 +345,7 @@ class Struct(metaclass=MetaStruct):
         # if dynamic struct store dynamic offsets
         if hasattr(info, "_offsets"):
             self._offsets = info._offsets  # struct offsets
-        cls._to_buffer(self._buffer, self._offset, kwargs, info)
-        self._cache = {}
+        cls._to_buffer(self._buffer, self._offset, info.value, info)
         self._post_init()
 
     @classmethod
@@ -372,7 +391,7 @@ class Struct(metaclass=MetaStruct):
     def _gen_data_paths(cls, base=None):
         paths = []
         if base is None:
-            base = []
+            base = [cls]
         for field in cls._fields:
             path = base + [field]
             paths.append(path)
@@ -381,6 +400,11 @@ class Struct(metaclass=MetaStruct):
         return paths
 
     @classmethod
-    def _gen_c_api(cls, conf={}):
+    def _gen_c_api(cls, conf=default_conf):
         specs_list = cls._gen_data_paths()
-        return capi.gen_code(cls, specs_list, conf)
+        return capi.gen_code(specs_list, conf)
+
+    def _get_offset(self, fieldname):
+        for ff in self._fields:
+            if ff.name == fieldname:
+                return ff.get_offset(self)[1]

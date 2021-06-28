@@ -14,11 +14,11 @@ try:
     _enabled = True
 except ImportError:
     print(
-        "WARNING: pyopencl is not installed, this context will not be available"
+        "WARNING: pyopencl is not installed, ContextPyopencl will not be available"
     )
     cl = ModuleNotAvailable(
         message=(
-            "pyopencl is not installed. " "this context is not available!"
+            "pyopencl is not installed. " "ContextPyopencl is not available!"
         )
     )
     cl.Buffer = cl

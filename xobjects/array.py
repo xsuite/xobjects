@@ -3,7 +3,13 @@ import logging
 import numpy as np
 
 
-from .typeutils import get_a_buffer, Info, is_integer, _to_slot_size
+from .typeutils import (
+    get_a_buffer,
+    Info,
+    is_integer,
+    _to_slot_size,
+    default_conf,
+)
 from .scalar import Int64, is_scalar
 from . import capi
 
@@ -552,38 +558,6 @@ class Array(metaclass=MetaArray):
             )
         return offset
 
-    # def _get_offset(self, index):
-    #    return sum(ii * ss for ii, ss in zip(index, self._strides))
-
-    @classmethod
-    def _get_c_offset(cls, conf):
-        ctype = conf.get("ctype", "char")
-        itype = conf.get("itype", "int64_t")
-
-        out = []
-        if hasattr(cls, "_strides"):  # static shape or 1d dynamic shape
-            strides = cls._strides
-        else:
-            nd = len(cls._shape)
-            strides = []
-            stride_offset = 8 + nd * 8
-            for ii in range(nd):
-                sname = f"{itype} {cls.__name__}_s{ii}"
-                svalue = f"*({itype}*) (({ctype}*) obj+offset+{stride_offset})"
-                out.append(f"{sname}={svalue};")
-                strides.append(sname)
-
-        soffset = "+".join([f"i{ii}*{ss}" for ii, ss in enumerate(strides)])
-        if cls._data_offset > 0:
-            soffset = f"{cls._data_offset}+{soffset}"
-        if cls._is_static_type:
-            out.append(f"  offset+={soffset};")
-        else:
-            out.append(
-                f"  offset+=*({itype}*) (({ctype}*) obj+offset+{soffset});"
-            )
-        return out
-
     def _iter_index(self):
         return iter_index(self._shape, self._order)
 
@@ -606,7 +580,7 @@ class Array(metaclass=MetaArray):
     def _gen_data_paths(cls, base=None):
         paths = []
         if base is None:
-            base = [cls]
+            base = []
         path = base + [cls]
         paths.append(path)
         if hasattr(cls._itemtype, "_gen_data_paths"):
@@ -614,6 +588,18 @@ class Array(metaclass=MetaArray):
         return paths
 
     @classmethod
-    def _gen_c_api(cls, conf={}):
-        specs_list = cls._gen_data_paths()
-        return capi.gen_code(specs_list, conf)
+    def _gen_c_api(cls, conf=default_conf):
+        paths = cls._gen_data_paths()
+        return capi.gen_code(cls, paths, conf)
+
+    @classmethod
+    def _gen_c_decl(cls, conf=default_conf):
+        paths = cls._gen_data_paths()
+        return capi.gen_cdefs(cls, paths, conf)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} at {self._offset}>"
+
+    @classmethod
+    def _get_inner_types(cls):
+        return [cls._itemtype]

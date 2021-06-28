@@ -132,16 +132,6 @@ class Field:
         else:
             return self.get_default()
 
-    def _get_c_offset(self, conf):
-        itype = conf.get("itype", "int64_t")
-        if self.is_reference:
-            doffset = f"offset+{self.offset}"  # starts of data
-            return [
-                f"  offset+= *(/*gpuglmem*/{itype}*)((/*gpuglmem*/char*) obj + {doffset});"
-            ]
-        else:
-            return self.offset
-
 
 class MetaStruct(type):
     def __new__(cls, name, bases, data):
@@ -391,7 +381,7 @@ class Struct(metaclass=MetaStruct):
     def _gen_data_paths(cls, base=None):
         paths = []
         if base is None:
-            base = [cls]
+            base = []
         for field in cls._fields:
             path = base + [field]
             paths.append(path)
@@ -401,10 +391,19 @@ class Struct(metaclass=MetaStruct):
 
     @classmethod
     def _gen_c_api(cls, conf=default_conf):
-        specs_list = cls._gen_data_paths()
-        return capi.gen_code(specs_list, conf)
+        paths = cls._gen_data_paths()
+        return capi.gen_code(cls, paths, conf)
+
+    @classmethod
+    def _gen_c_decl(cls, conf=default_conf):
+        paths = cls._gen_data_paths()
+        return capi.gen_cdefs(cls, paths, conf)
 
     def _get_offset(self, fieldname):
         for ff in self._fields:
             if ff.name == fieldname:
                 return ff.get_offset(self)[1]
+
+    @classmethod
+    def _get_inner_types(cls):
+        return [fl.ftype for fl in cls._fields]

@@ -235,6 +235,6 @@ def test_unionref():
 
     paths = StructB._gen_data_paths()
 
-    source, kernels, cdefs = StructB._gen_c_api()
+    source = StructB._gen_c_api()
 
     open("test_capi_unionref.c", "w").write(source)

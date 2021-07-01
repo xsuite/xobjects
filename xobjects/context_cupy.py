@@ -2,8 +2,8 @@ import os
 
 import numpy as np
 
-from .general import XBuffer, XContext, ModuleNotAvailable, available
-from .general import _concatenate_sources
+from .context import XBuffer, XContext, ModuleNotAvailable, available
+from .context import _concatenate_sources
 from .specialize_source import specialize_source
 
 

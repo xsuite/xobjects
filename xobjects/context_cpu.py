@@ -6,11 +6,14 @@ import logging
 
 import numpy as np
 
-from .general import (
+from .context import (
     XBuffer,
     XContext,
     ModuleNotAvailable,
     available,
+    classes_from_kernels,
+    sort_classes,
+    sources_from_classes,
     _concatenate_sources,
 )
 from .specialize_source import specialize_source
@@ -81,6 +84,8 @@ class ContextCpu(XContext):
         extra_compile_args=["-O3"],
         extra_link_args=["-O3"],
         extra_cdef=None,
+        extra_classes=[],
+        extra_headers=[],
     ):
 
         """
@@ -142,9 +147,21 @@ class ContextCpu(XContext):
             ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
         """
 
-        sources = ["#include <stdint.h>"] + sources
+        classes = classes_from_kernels(kernels)
+        classes.update(extra_classes)
+
+        classes = sort_classes(classes)
+
+        cls_sources = sources_from_classes(classes)
+
+        headers = ["#include <stdint.h>"]
+
         if self.omp_num_threads > 0:
-            sources = ["#include <omp.h>"] + sources
+            headers = ["#include <omp.h>"] + headers
+
+        headers += extra_headers
+
+        sources = headers + cls_sources + sources
 
         source, folders = _concatenate_sources(sources)
 
@@ -165,6 +182,10 @@ class ContextCpu(XContext):
                 fid.write(source)
 
         ffi_interface = cffi.FFI()
+
+        cdefs = "\n".join(cls._gen_c_decl({}) for cls in classes)
+
+        ffi_interface.cdef(cdefs)
 
         if extra_cdef is not None:
             ffi_interface.cdef(extra_cdef)

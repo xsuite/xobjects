@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import NamedTuple, List, Type
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -17,8 +18,73 @@ TODO:
 log = logging.getLogger(__name__)
 
 
-def _concatenate_sources(sources):
+def topological_sort(source):
+    """Sort tasks defined as {child: parents} in a list"""
 
+    # Store parent count and parent dictionary.
+    graph = {}
+    num_parents = defaultdict(int)
+    for child, parents in source.items():
+        for parent in parents:
+            graph.setdefault(parent, []).append(child)
+            num_parents[child] += 1
+
+    # Begin with the parent-less items.
+    result = [child for child, parents in source.items() if len(parents) == 0]
+    result.extend([item for item in graph if num_parents[item] == 0])
+
+    # Descend through graph, removing parents as we go.
+    for parent in result:
+        if parent in graph:
+            for child in graph[parent]:
+                num_parents[child] -= 1
+                if num_parents[child] == 0:
+                    result.append(child)
+            del graph[parent]
+
+    # If there's a cycle, just throw in whatever is left over.
+    has_cycle = bool(graph)
+    if has_cycle:
+        result.extend(list(graph.keys()))
+    return result, has_cycle
+
+
+def sort_classes(classes):
+    cdict = {cls.__name__: cls for cls in classes}
+    deps = {}
+    lst = list(classes)
+    for cls in lst:
+        cldeps = []
+        if hasattr(cls, "_get_inner_types"):
+            for cl in cls._get_inner_types():
+                if not cl.__name__ in cdict:
+                    cdict[cl.__name__] = cl
+                    lst.append(cl)
+                cldeps.append(cl.__name__)
+        deps[cls.__name__] = cldeps
+    lst, has_cycle = topological_sort(deps)
+    if has_cycle:
+        raise ValueError("Class dependencies have cycles")
+    return [cdict[cn] for cn in lst if hasattr(cdict[cn], "_gen_c_api")]
+
+
+def sources_from_classes(classes):
+    sources = []
+    for cls in classes:
+        sources.append(cls._gen_c_api())
+        if hasattr(cls, "_extra_c_source"):
+            sources.append(cls._extra_c_source)
+    return sources
+
+
+def classes_from_kernels(kernels):
+    classes = set()
+    for _, kernel in kernels.items():
+        classes.update(kernel.get_classes())
+    return classes
+
+
+def _concatenate_sources(sources):
     source = []
     folders = set()
     for ss in sources:
@@ -299,6 +365,14 @@ class Kernel:
         self.args = args
         self.ret = ret
         self.n_threads = n_threads
+
+    def get_classes(self):
+        classes = [
+            a.atype for a in self.args if hasattr(a.atype, "_gen_c_api")
+        ]
+        if isinstance(self.ret, Arg) and hasattr(self.ret.atype, "_gen_c_api"):
+            classes.append(self.ret)
+        return classes
 
 
 class Method:

@@ -39,7 +39,7 @@ def get_inner_type(part):
     elif is_array(part):  # is an array
         return part._itemtype
     elif is_ref(part):
-        return part._type
+        return part._reftype
     elif is_unionref(part):
         return None
     else:
@@ -459,7 +459,8 @@ def gen_typedef(cls, conf):
 
 
 def gen_enum(cls, conf):
-    st = ",".join(f"{tt._c_type}_t" for tt in cls._reftypes)
+    typename = cls.__name__
+    lst = ",".join(f"{tt._c_type}_t" for tt in cls._reftypes)
     return f"enum {typename}_e{{{lst}}};"
 
 
@@ -477,8 +478,6 @@ def methods_from_path(cls, path, conf):
     if is_scalar(innertype):
         out.append(gen_method_get(cls, path, conf))
         out.append(gen_method_set(cls, path, conf))
-    else:
-        out.append(gen_method_size(cls, path, conf))
 
     if is_array(innertype):
         out.append(gen_method_len(cls, path, conf))
@@ -524,7 +523,7 @@ def gen_code(cls, paths, conf):
     for path in paths:
         out.extend(methods_from_path(cls, path, conf))
 
-    for source, kernel in out:
+    for source, _ in out:
         if source is not None:
             sources.append(source)
 
@@ -545,7 +544,7 @@ def gen_kernels(cls, paths, conf):
         out.extend(methods_from_path(cls, path, conf))
 
     kernels = []
-    for source, kernel in out:
+    for _, kernel in out:
         if kernel is not None:
             kernels.append(kernel)
 

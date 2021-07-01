@@ -1,4 +1,4 @@
-from xobjects.context.general import Chunk
+from xobjects.context.context import Chunk
 
 
 def test_chunk():

@@ -33,7 +33,7 @@ class Ref(metaclass=MetaRef):
             return None
         else:
             refoffset += offset  # from relative to absolute offset
-            return sef._reftype._from_buffer(buffer, refoffset)
+            return self._reftype._from_buffer(buffer, refoffset)
 
     def _to_buffer(self, buffer, offset, value, info=None):
 
@@ -56,7 +56,7 @@ class Ref(metaclass=MetaRef):
             return None
         else:
             (value,) = args
-            return self._reftypes[0](value)
+            return self._reftype(value)
 
     def _inspect_args(self, arg):
         return Info(size=self._size)
@@ -68,19 +68,22 @@ class Ref(metaclass=MetaRef):
         paths = []
         if base is None:
             base = []
+        paths.append(base + [self])
         if hasattr(self._reftype, "_gen_data_paths"):
             paths.extend(self._reftype._gen_data_paths(base + [self]))
         return paths
 
+    def _gen_c_decl(self, conf=default_conf):
+        return capi.gen_cdefs(self, [], conf)
+
     def _gen_c_api(self, conf=default_conf):
-        paths = self._gen_data_paths()
-        return capi.gen_code(cls, paths, conf)
+        return capi.gen_code(self, [], conf)
 
     def __repr__(self):
         return f"<ref {self.__name__}>"
 
-    def _get_inner_types(cls):
-        return [cls._reftype]
+    def _get_inner_types(self):
+        return [self._reftype]
 
 
 # UnionRef is a proper class because
@@ -202,6 +205,7 @@ class MetaUnionRef(type):
 
 class UnionRef(metaclass=MetaUnionRef):
     _size = 16
+    _reftypes: list
 
     def __init__(
         self, *args, _context=None, _buffer=None, _offset=None, **kwargs
@@ -251,7 +255,7 @@ class UnionRef(metaclass=MetaUnionRef):
         return capi.gen_cdefs(cls, paths, conf)
 
     @classmethod
-    def _gen_c_api(cls, conf={}):
+    def _gen_c_api(cls, conf=default_conf):
         paths = cls._gen_data_paths()
         return capi.gen_code(cls, paths, conf)
 

@@ -1,5 +1,3 @@
-from .context import ContextCpu, ContextCupy, ContextPyopencl, Arg, Kernel
-
 from .scalar import (
     Float64,
     Float32,
@@ -17,4 +15,10 @@ from .string import String
 from .struct import Struct, Field
 from .ref import Ref, UnionRef
 
-# from .union import Union
+from .context_cpu import ContextCpu
+from .context_pyopencl import ContextPyopencl
+from .context_cupy import ContextCupy
+
+from .context import available, Arg, Kernel
+
+from .specialize_source import specialize_source

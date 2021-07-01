@@ -1,8 +1,8 @@
 import numpy as np
 
-from .context import context_default
+from .context_cpu import ContextCpu
 
-from .topological_sort import topological_sort
+context_default = ContextCpu()
 
 
 def get_a_buffer(size, context=None, buffer=None, offset=None):
@@ -87,22 +87,3 @@ def get_c_type(typ):
 class Register:
     def __init__(self):
         self.classes = {}
-
-
-def sort_classes(classes):
-    cdict = {cls.__name__: cls for cls in classes}
-    deps = {}
-    lst = classes.copy()
-    for cls in lst:
-        cldeps = []
-        if hasattr(cls, "_get_inner_types"):
-            for cl in cls._get_inner_types():
-                if not cl.__name__ in cdict:
-                    cdict[cl.__name__] = cl
-                    lst.append(cl)
-                cldeps.append(cl.__name__)
-        deps[cls.__name__] = cldeps
-    lst, has_cycle = topological_sort(deps)
-    if has_cycle:
-        raise ValueError("Class dependencies have cycles")
-    return [cdict[cn] for cn in lst if hasattr(cdict[cn], "_gen_c_api")]

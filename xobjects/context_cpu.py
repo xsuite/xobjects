@@ -162,9 +162,7 @@ class ContextCpu(XContext):
 
         classes = classes_from_kernels(kernels)
         classes.update(extra_classes)
-
         classes = sort_classes(classes)
-
         cls_sources = sources_from_classes(classes)
 
         headers = ["#include <stdint.h>"]

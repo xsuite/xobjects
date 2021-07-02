@@ -3,8 +3,16 @@ import logging
 
 import numpy as np
 
-from .context import XBuffer, XContext, ModuleNotAvailable, available
-from .context import _concatenate_sources
+from .context import (
+    XBuffer,
+    XContext,
+    ModuleNotAvailable,
+    available,
+    classes_from_kernels,
+    sort_classes,
+    sources_from_classes,
+    _concatenate_sources,
+)
 from .specialize_source import specialize_source
 
 try:
@@ -94,11 +102,13 @@ class ContextPyopencl(XContext):
 
     def add_kernels(
         self,
-        sources,
-        kernels,
+        sources=[],
+        kernels=[],
         specialize=True,
         save_source_as=None,
         extra_cdef=None,
+        extra_classes=[],
+        extra_headers=[],
     ):
 
         """
@@ -160,7 +170,14 @@ class ContextPyopencl(XContext):
             ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
         """
 
-        sources = openclheader + sources
+        classes = classes_from_kernels(kernels)
+        classes.update(extra_classes)
+        classes = sort_classes(classes)
+        cls_sources = sources_from_classes(classes)
+
+        headers = openclheader + extra_headers
+
+        sources = headers + cls_sources + sources
 
         source, folders = _concatenate_sources(sources)
 

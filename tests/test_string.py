@@ -1,5 +1,4 @@
 import xobjects as xo
-import xobjects.context as xoc
 
 
 def test_string_class():
@@ -26,8 +25,8 @@ def test_string_init2():
 
 
 def test_string_init3():
-    for cls in [xoc.ContextCpu, xoc.ContextPyopencl, xoc.ContextCupy]:
-        if cls not in xoc.available:
+    for cls in [xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy]:
+        if cls not in xo.available:
             continue
 
         ctx = cls()

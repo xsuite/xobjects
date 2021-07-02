@@ -260,5 +260,10 @@ class UnionRef(metaclass=MetaUnionRef):
         return capi.gen_code(cls, paths, conf)
 
     @classmethod
+    def _gen_kernels(cls, conf=default_conf):
+        paths = cls._gen_data_paths()
+        return capi.gen_kernels(cls, paths, conf)
+
+    @classmethod
     def _get_inner_types(cls):
         return cls._reftypes

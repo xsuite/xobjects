@@ -543,10 +543,10 @@ def gen_kernels(cls, paths, conf):
     for path in paths:
         out.extend(methods_from_path(cls, path, conf))
 
-    kernels = []
+    kernels = {}
     for _, kernel in out:
         if kernel is not None:
-            kernels.append(kernel)
+            kernels[kernel.c_name] = kernel
 
     return kernels
 
@@ -562,7 +562,7 @@ def gen_cdefs(cls, paths, conf):
 
     out = [gen_cdef(cls, conf)]
 
-    for kernel in kernels:
+    for _, kernel in kernels.items():
         out.append(gen_c_decl_from_kernel(kernel, conf) + ";")
 
     return "\n".join(out)

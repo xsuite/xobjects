@@ -113,6 +113,9 @@ class MinimalDotDict(dict):
     def __getattr__(self, attr):
         return self.get(attr)
 
+    def __dir__(self):
+        return list(self.keys())
+
 
 class ModuleNotAvailable(object):
     def __init__(self, message="Module not available"):
@@ -371,7 +374,7 @@ class Kernel:
             a.atype for a in self.args if hasattr(a.atype, "_gen_c_api")
         ]
         if isinstance(self.ret, Arg) and hasattr(self.ret.atype, "_gen_c_api"):
-            classes.append(self.ret)
+            classes.append(self.ret.atype)
         return classes
 
 

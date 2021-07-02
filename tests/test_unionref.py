@@ -83,4 +83,4 @@ def test_data_path():
 
     paths = ArrNRefA._gen_data_paths()
 
-    assert paths[0] == [ArrNRefA, ArrNRefA]
+    assert paths[0] == [ArrNRefA]

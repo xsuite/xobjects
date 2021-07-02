@@ -399,6 +399,11 @@ class Struct(metaclass=MetaStruct):
         paths = cls._gen_data_paths()
         return capi.gen_cdefs(cls, paths, conf)
 
+    @classmethod
+    def _gen_kernels(cls, conf=default_conf):
+        paths = cls._gen_data_paths()
+        return capi.gen_kernels(cls, paths, conf)
+
     def _get_offset(self, fieldname):
         for ff in self._fields:
             if ff.name == fieldname:

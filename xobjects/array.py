@@ -597,8 +597,13 @@ class Array(metaclass=MetaArray):
         paths = cls._gen_data_paths()
         return capi.gen_cdefs(cls, paths, conf)
 
+    @classmethod
+    def _gen_kernels(cls, conf=default_conf):
+        paths = cls._gen_data_paths()
+        return capi.gen_kernels(cls, paths, conf)
+
     def __repr__(self):
-        return f"<{self.__class__.__name__} at {self._offset}>"
+        return f"<{self.__class__.__name__}{self._shape} at {self._offset}>"
 
     @classmethod
     def _get_inner_types(cls):

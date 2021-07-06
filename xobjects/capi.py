@@ -185,11 +185,13 @@ def gen_method_offset(path, conf):
     return "\n".join(lst)
 
 
-def gen_fun_data(cls, parts, action, const, extra, ret):
+def gen_fun_data(
+    cls, path, action, const, extra, ret, last_index=True, add_nindex=False
+):
     typename = cls._c_type
     fields = []
     indices = 0
-    for part in parts:
+    for part in path:
         if is_field(part):  # is field
             fields.append(part.name)
         elif is_array(part):  # is array

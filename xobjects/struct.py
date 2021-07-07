@@ -383,7 +383,7 @@ class Struct(metaclass=MetaStruct):
         if base is None:
             base = []
         for field in cls._fields:
-            path = base + [field]
+            path = base + [cls, field]
             paths.append(path)
             if hasattr(field.ftype, "_gen_data_paths"):
                 paths.extend(field.ftype._gen_data_paths(path))

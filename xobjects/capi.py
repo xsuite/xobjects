@@ -7,6 +7,10 @@ def is_field(part):
     return hasattr(part, "ftype")
 
 
+def is_index(part):
+    return hasattr(part, "cls")
+
+
 def is_struct(atype):
     return hasattr(atype, "_fields")
 

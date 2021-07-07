@@ -157,6 +157,11 @@ def bound_check(index, shape):
             raise IndexError(f"index {index} outside shape {shape}")
 
 
+class Index:
+    def __init__(self, cls):
+        self.cls = cls
+
+
 class MetaArray(type):
     def __new__(cls, name, bases, data):
         if "_itemtype" in data:  # specialized class
@@ -581,7 +586,7 @@ class Array(metaclass=MetaArray):
         paths = []
         if base is None:
             base = []
-        path = base + [cls]
+        path = base + [cls, Index(cls)]
         paths.append(path)
         if hasattr(cls._itemtype, "_gen_data_paths"):
             paths.extend(cls._itemtype._gen_data_paths(path))

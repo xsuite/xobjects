@@ -179,7 +179,7 @@ def gen_method_offset(path, conf):
         soffset = get_c_offset(part, conf)
         if type(soffset) is int:
             offset += soffset
-        else:
+        elif type(soffset) is list:
             if offset > 0:
                 lst.append(f"  offset+={offset};")  # dump current offset
             lst.extend(soffset)  # update reference offset
@@ -229,7 +229,7 @@ def gen_c_pointed(target: Arg, conf):
 
 
 def gen_method_get(cls, path, conf):
-    lasttype = get_inner_type(path[-1])
+    lasttype = path[-1]
     retarg = Arg(lasttype)
     kernel = gen_fun_data(
         cls,
@@ -242,7 +242,6 @@ def gen_method_get(cls, path, conf):
     decl = gen_c_decl_from_kernel(kernel, conf)
 
     lst = [decl + "{"]
-    # lst.append(r'  printf("Obj:  %p\n", (void*) obj);')
     lst.append(gen_method_offset(path, conf))
     pointed = gen_c_pointed(retarg, conf)
     lst.append(f"  return {pointed};")
@@ -251,7 +250,7 @@ def gen_method_get(cls, path, conf):
 
 
 def gen_method_set(cls, path, conf):
-    lasttype = get_inner_type(path[-1])
+    lasttype = path[-1]
     valarg = Arg(lasttype, name="value")
     kernel = gen_fun_data(
         cls,
@@ -272,7 +271,7 @@ def gen_method_set(cls, path, conf):
 
 
 def gen_method_getp(cls, path, conf):
-    lasttype = get_inner_type(path[-1])
+    lasttype = path[-1]
     if lasttype is None:
         retarg = Arg(Void, pointer="True")
     else:
@@ -479,25 +478,24 @@ def methods_from_path(cls, path, conf):
     """
     out = []
     lasttype = path[-1]
-    innertype = get_inner_type(lasttype)
 
-    if is_scalar(innertype):
+    if is_scalar(lasttype):
         out.append(gen_method_get(cls, path, conf))
         out.append(gen_method_set(cls, path, conf))
 
-    if is_array(innertype):
-        out.append(gen_method_len(cls, path, conf))
-        out.append(gen_method_shape(cls, path, conf))
-        out.append(gen_method_nd(cls, path, conf))
-        out.append(gen_method_strides(cls, path, conf))
-        out.append(gen_method_getpos(cls, path, conf))
+    #if is_array(lasttype):
+    #    out.append(gen_method_len(cls, path, conf))
+    #    out.append(gen_method_shape(cls, path, conf))
+    #    out.append(gen_method_nd(cls, path, conf))
+    #    out.append(gen_method_strides(cls, path, conf))
+    #    out.append(gen_method_getpos(cls, path, conf))
 
-    if is_unionref(innertype):
-        out.append(gen_method_typeid(cls, path, conf))
-        out.append(gen_method_member(cls, path, conf))
+    #if is_unionref(innertype):
+    #    out.append(gen_method_typeid(cls, path, conf))
+    #    out.append(gen_method_member(cls, path, conf))
 
-    if not (is_unionref(lasttype) or is_unionref(lasttype)):
-        out.append(gen_method_getp(cls, path, conf))
+    #if not (is_unionref(lasttype) or is_unionref(lasttype)):
+    #    out.append(gen_method_getp(cls, path, conf))
 
     return out
 

@@ -49,13 +49,27 @@ def gen_classes():
         _membertypes = [Struct1, Struct2]
 
     Array1 = xo.Int64[2]
-    Array2 = xo.Int64[2, 3]
-    Array3 = xo.Int64[2, 3, 5]
-    Array4 = xo.Int64[None]
-    Array5 = xo.Int64[2, None]
-    Array6 = xo.Int64[None, 2]
-    Array7 = xo.Int64[None, 3, None]
-    Array8 = xo.Int64[2, None, 5]
-    Array9 = xo.Int8[7]
+    Array2 = xo.Int64[:]
+    Array3 = xo.Int64[2, 3]
+    Array4 = xo.Int64[2, :]
+    Array5 = xo.Int64[:, 2]
+    Array6 = xo.Int64[2, 3, 5]
+    Array7 = xo.Int64[:, 3, :]
+    Array8 = xo.Int64[2, :, 5]
+    Array9 = xo.Int8[3]
+    Array10 = xo.Int8[:]
+    Array11 = Struct1[3]
+    Array12 = Struct2[3]
+    Array12r = Struct2[3]
+    Array13 = Struct3[3]
+    Array13r = Struct3[3]
+    Array14 = Struct4[3]
+    Array15 = Struct5[3]
 
-    return locals().copy()
+    res=type('', (object,), {})()
+    res.__dict__.update(locals())
+
+    return res
+
+
+

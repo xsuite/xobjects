@@ -382,6 +382,7 @@ class Struct(metaclass=MetaStruct):
         paths = []
         if base is None:
             base = []
+        paths.append(base + [cls])
         for field in cls._fields:
             path = base + [cls, field]
             paths.append(path)

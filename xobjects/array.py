@@ -586,6 +586,7 @@ class Array(metaclass=MetaArray):
         paths = []
         if base is None:
             base = []
+        paths.append(base + [cls])
         path = base + [cls, Index(cls)]
         paths.append(path)
         if hasattr(cls._itemtype, "_gen_data_paths"):

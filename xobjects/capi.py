@@ -1,40 +1,17 @@
 from .context import Kernel, Arg
 
-from .scalar import Int64, Void, Int8
-
-
-def is_field(part):
-    return hasattr(part, "ftype")
-
-
-def is_index(part):
-    return hasattr(part, "cls")
-
-
-def is_struct(atype):
-    return hasattr(atype, "_fields")
-
-
-def is_array(atype):
-    return hasattr(atype, "_shape")
-
-
-def is_scalar(atype):
-    return hasattr(atype, "_dtype")
-
-
-def is_ref(atype):
-    return hasattr(atype, "_reftype")
-
-
-def is_unionref(atype):
-    return hasattr(atype, "_reftypes")
-
+from .scalar import Int64, Void, Int8, is_scalar
+from .struct import is_field, is_struct
+from .array import is_index, is_array
+from .ref import is_unionref, is_ref
+from .string import is_string
 
 def is_compound(atype):
     """Types that are referenced in C with an opaque pointer"""
-    return is_array(atype) or is_struct(atype) or is_ref(atype)
+    return is_struct(atype) or is_array(atype) or is_unionref(atype)
 
+def is_type(atype):
+    return is_compound(atype)  or is_scalar(atype) or is_string(atype)
 
 def get_inner_type(part):
     """type contained in a field, array or ref, else None"""
@@ -129,13 +106,12 @@ def Field_get_c_offset(self, conf):
     else:
         return self.offset
 
-
 def Ref_get_c_offset(self, conf):
     refoffset = int_from_obj("offset", conf)
     return [f"  offset+={refoffset};"]
 
-
-def Array_get_c_offset(cls, conf):
+def Index_get_c_offset(part, conf):
+    cls=part.cls
     inttype = conf.get("inttype", "int64_t")
 
     out = []
@@ -162,8 +138,8 @@ def Array_get_c_offset(cls, conf):
 
 
 def get_c_offset(atype, conf):
-    if is_array(atype):
-        return Array_get_c_offset(atype, conf)
+    if is_index(atype):
+        return Index_get_c_offset(atype, conf)
     elif is_field(atype):
         return Field_get_c_offset(atype, conf)
     elif is_ref(atype):
@@ -189,8 +165,8 @@ def gen_method_offset(path, conf):
     return "\n".join(lst)
 
 
-def gen_fun_data(
-    cls, path, action, const, extra, ret, last_index=True, add_nindex=False
+def gen_fun_kernel(
+    cls, path, action, const, extra, ret, add_nindex=False
 ):
     typename = cls._c_type
     fields = []
@@ -198,8 +174,10 @@ def gen_fun_data(
     for part in path:
         if is_field(part):  # is field
             fields.append(part.name)
-        elif is_array(part):  # is array
-            indices += len(part._shape)
+        elif is_index(part):  # is array
+            indices += len(part.cls._shape)
+    if add_nindex and indices>1:
+        action+=str(indices)
     fun_name = [typename, action]
     if len(fields) > 0:
         fun_name.append("_".join(fields))
@@ -231,7 +209,7 @@ def gen_c_pointed(target: Arg, conf):
 def gen_method_get(cls, path, conf):
     lasttype = path[-1]
     retarg = Arg(lasttype)
-    kernel = gen_fun_data(
+    kernel = gen_fun_kernel(
         cls,
         path,
         const=True,
@@ -252,7 +230,7 @@ def gen_method_get(cls, path, conf):
 def gen_method_set(cls, path, conf):
     lasttype = path[-1]
     valarg = Arg(lasttype, name="value")
-    kernel = gen_fun_data(
+    kernel = gen_fun_kernel(
         cls,
         path,
         const=False,
@@ -279,20 +257,14 @@ def gen_method_getp(cls, path, conf):
     if is_scalar(lasttype):
         retarg.pointer = True
 
-    action = "getp"
-    if is_ref(lasttype):
-        action += "ref"
-    layers = get_layers(path)
-    if layers > 0:
-        action += str(layers)
-
-    kernel = gen_fun_data(
+    kernel = gen_fun_kernel(
         cls,
         path,
         const=False,
-        action=action,
+        action="getp",
         extra=[],
         ret=retarg,
+        add_nindex=True
     )
     decl = gen_c_decl_from_kernel(kernel, conf)
 
@@ -305,23 +277,18 @@ def gen_method_getp(cls, path, conf):
 
 
 def gen_method_len(cls, path, conf):
-    lasttype = get_inner_type(path[-1])
-    assert is_array(lasttype)
+    lasttype = path[-1]
 
     retarg = Arg(Int64)
 
-    action = "len"
-    layers = get_layers(path)
-    if layers > 0 and not is_scalar(lasttype):
-        action += str(layers)
-
-    kernel = gen_fun_data(
+    kernel = gen_fun_kernel(
         cls,
         path,
         const=False,
-        action=action,
+        action="len",
         extra=[],
         ret=retarg,
+        add_nindex=True
     )
     decl = gen_c_decl_from_kernel(kernel, conf)
 
@@ -335,7 +302,7 @@ def gen_method_len(cls, path, conf):
         arrarg = Arg(Int64, pointer=True)
         pointed = gen_c_pointed(arrarg, conf)
         typearr = gen_pointer("int64_t*", conf)
-        lst.append(f"{typearr} arr= {pointed};")
+        lst.append(f"  {typearr} arr= {pointed};")
         terms = []
         ii = 1
         for sh in lasttype._shape:
@@ -360,7 +327,7 @@ def gen_method_size(cls, path, conf):
     if layers > 0 and not is_scalar(innertype):
         action += str(layers)
 
-    kernel = gen_fun_data(
+    kernel = gen_fun_kernel(
         cls,
         path,
         const=False,
@@ -408,7 +375,7 @@ def gen_method_typeid(cls, path, conf):
 
     action = "typeid"
 
-    kernel = gen_fun_data(
+    kernel = gen_fun_kernel(
         cls,
         path,
         const=True,
@@ -434,7 +401,7 @@ def gen_method_member(cls, path, conf):
 
     action = "member"
 
-    kernel = gen_fun_data(
+    kernel = gen_fun_kernel(
         cls,
         path,
         const=True,
@@ -472,8 +439,8 @@ def gen_enum(cls, conf):
 def methods_from_path(cls, path, conf):
     """
     size: all
-    get,set: innertype is scalar
-    getp: all but union ref as innertype or lasttype
+    get, set: lasttype is scalar
+    getp: all real types
 
     """
     out = []
@@ -483,8 +450,12 @@ def methods_from_path(cls, path, conf):
         out.append(gen_method_get(cls, path, conf))
         out.append(gen_method_set(cls, path, conf))
 
-    #if is_array(lasttype):
-    #    out.append(gen_method_len(cls, path, conf))
+    if is_type(lasttype):
+      print(lasttype)
+      out.append(gen_method_getp(cls, path, conf))
+
+    if is_array(lasttype):
+        out.append(gen_method_len(cls, path, conf))
     #    out.append(gen_method_shape(cls, path, conf))
     #    out.append(gen_method_nd(cls, path, conf))
     #    out.append(gen_method_strides(cls, path, conf))
@@ -495,7 +466,6 @@ def methods_from_path(cls, path, conf):
     #    out.append(gen_method_member(cls, path, conf))
 
     #if not (is_unionref(lasttype) or is_unionref(lasttype)):
-    #    out.append(gen_method_getp(cls, path, conf))
 
     return out
 

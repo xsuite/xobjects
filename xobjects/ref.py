@@ -5,7 +5,6 @@ import numpy as np
 from .typeutils import Info, dispatch_arg, get_a_buffer, default_conf
 from .scalar import Int64
 from .array import Array
-from . import capi
 
 log = logging.getLogger(__name__)
 
@@ -74,9 +73,11 @@ class Ref(metaclass=MetaRef):
         return paths
 
     def _gen_c_decl(self, conf=default_conf):
+        from . import capi
         return capi.gen_cdefs(self, [], conf)
 
     def _gen_c_api(self, conf=default_conf):
+        from . import capi
         return capi.gen_code(self, [], conf)
 
     def __repr__(self):
@@ -251,19 +252,29 @@ class UnionRef(metaclass=MetaUnionRef):
 
     @classmethod
     def _gen_c_decl(cls, conf=default_conf):
+        from . import capi
         paths = cls._gen_data_paths()
         return capi.gen_cdefs(cls, paths, conf)
 
     @classmethod
     def _gen_c_api(cls, conf=default_conf):
+        from . import capi
         paths = cls._gen_data_paths()
         return capi.gen_code(cls, paths, conf)
 
     @classmethod
     def _gen_kernels(cls, conf=default_conf):
+        from . import capi
         paths = cls._gen_data_paths()
         return capi.gen_kernels(cls, paths, conf)
 
     @classmethod
     def _get_inner_types(cls):
         return cls._reftypes
+
+def is_ref(atype):
+    return isinstance(atype,Ref)
+
+def is_unionref(atype):
+    return isinstance(atype,MetaRef)
+

@@ -55,7 +55,6 @@ from .typeutils import (
 
 from .scalar import Int64
 from .array import Array
-from . import capi
 
 
 log = logging.getLogger(__name__)
@@ -392,16 +391,19 @@ class Struct(metaclass=MetaStruct):
 
     @classmethod
     def _gen_c_api(cls, conf=default_conf):
+        from . import capi
         paths = cls._gen_data_paths()
         return capi.gen_code(cls, paths, conf)
 
     @classmethod
     def _gen_c_decl(cls, conf=default_conf):
+        from . import capi
         paths = cls._gen_data_paths()
         return capi.gen_cdefs(cls, paths, conf)
 
     @classmethod
     def _gen_kernels(cls, conf=default_conf):
+        from . import capi
         paths = cls._gen_data_paths()
         return capi.gen_kernels(cls, paths, conf)
 
@@ -413,3 +415,10 @@ class Struct(metaclass=MetaStruct):
     @classmethod
     def _get_inner_types(cls):
         return [fl.ftype for fl in cls._fields]
+
+def is_struct(atype):
+    return isinstance(atype,MetaStruct)
+
+def is_field(atype):
+    return isinstance(atype,Field)
+

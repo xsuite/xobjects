@@ -146,7 +146,7 @@ class ContextCupy(XContext):
         classes = sort_classes(classes)
         cls_sources = sources_from_classes(classes)
 
-        headers = openclheader + extra_headers
+        headers = cudaheader + extra_headers
 
         sources = headers + cls_sources + sources
 

@@ -276,5 +276,5 @@ def is_ref(atype):
     return isinstance(atype,Ref)
 
 def is_unionref(atype):
-    return isinstance(atype,MetaRef)
+    return isinstance(atype,MetaUnionRef)
 

@@ -46,7 +46,7 @@ def gen_classes():
         field4 = Struct4
 
     class URef(xo.UnionRef):
-        _membertypes = [Struct1, Struct2]
+        _reftypes = [Struct1, Struct2]
 
     Array1 = xo.Int64[2]
     Array2 = xo.Int64[:]

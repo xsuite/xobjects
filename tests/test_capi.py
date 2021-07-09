@@ -2,6 +2,9 @@
 
 import numpy as np
 import xobjects as xo
+import cffi
+
+ffi = cffi.FFI()
 
 
 def gen_classes():
@@ -163,3 +166,43 @@ def test_struct2r():
         assert ctx.kernels.Struct2r_get_field2(obj=s1, i0=ii) == ii * 3
         ctx.kernels.Struct2r_set_field2(obj=s1, i0=ii, value=ii * 4)
         assert s1.field2[ii] == ii * 4
+
+
+def test_unionref():
+    class Struct1(xo.Struct):
+        field1 = xo.Int64
+        field2 = xo.Float64
+
+    class Struct2(xo.Struct):
+        field1 = xo.Int32
+        field2 = xo.Float64[:]
+
+    class URef(xo.UnionRef):
+        _reftypes = [Struct1, Struct2]
+
+    ArrNURef = URef[:]
+
+    arr = ArrNURef(3)
+
+    arr[0] = Struct1(field1=3, field2=4)
+    arr[1] = Struct2(field1=2, field2=[5, 7])
+    arr[2] = None
+
+    kernels = ArrNURef._gen_kernels()
+    kernels.update(Struct1._gen_kernels())
+    kernels.update(Struct2._gen_kernels())
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels)
+
+    ctx.kernels.ArrNURef_typeid(obj=arr, i0=0) == URef._typeid_from_type(
+        type(arr[0])
+    )
+    ctx.kernels.ArrNURef_typeid(obj=arr, i0=1) == URef._typeid_from_type(
+        type(arr[1])
+    )
+    ctx.kernels.ArrNURef_typeid(obj=arr, i0=2) == -1
+
+    p1 = ctx.kernels.Struct1_getp(obj=arr[0])
+    p2 = ctx.kernels.ArrNURef_member(obj=arr, i0=0)
+
+    assert int(ffi.cast("size_t", p1)) == int(ffi.cast("size_t", p2))

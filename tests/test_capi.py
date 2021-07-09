@@ -13,15 +13,15 @@ def gen_classes():
         field1 = xo.Int32
         field2 = xo.Float64[:]
 
+    class Struct2r(xo.Struct):
+        field1 = xo.Int32
+        field2 = xo.Ref[xo.Float64[:]]
+
     class Struct3(xo.Struct):
         field1 = xo.Float64
         field2 = xo.Float32[:]
         field3 = xo.Float64[:]
         field3 = xo.String
-
-    class Struct2r(xo.Struct):
-        field1 = xo.Int32
-        field2 = xo.Ref[xo.Float64[:]]
 
     class Struct3r(xo.Struct):
         field1 = xo.Float64
@@ -125,7 +125,7 @@ def test_array2():
         assert a1[ii] == ii * 4
 
 
-def test_struct1():
+def test_struct2():
     class Struct2(xo.Struct):
         field1 = xo.Int32
         field2 = xo.Float64[:]
@@ -141,4 +141,25 @@ def test_struct1():
         s1.field2[ii] = ii * 3
         assert ctx.kernels.Struct2_get_field2(obj=s1, i0=ii) == ii * 3
         ctx.kernels.Struct2_set_field2(obj=s1, i0=ii, value=ii * 4)
+        assert s1.field2[ii] == ii * 4
+
+
+def test_struct2r():
+    class Struct2r(xo.Struct):
+        field1 = xo.Int32
+        field2 = xo.Ref[xo.Float64[:]]
+
+    s1 = Struct2r(field1=2)
+
+    s1.field2 = 5
+
+    kernels = Struct2r._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels)
+
+    assert ctx.kernels.Struct2r_len_field2(obj=s1) == len(s1.field2)
+    for ii in range(len(s1.field2)):
+        s1.field2[ii] = ii * 3
+        assert ctx.kernels.Struct2r_get_field2(obj=s1, i0=ii) == ii * 3
+        ctx.kernels.Struct2r_set_field2(obj=s1, i0=ii, value=ii * 4)
         assert s1.field2[ii] == ii * 4

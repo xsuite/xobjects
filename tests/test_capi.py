@@ -89,6 +89,15 @@ def test_struct1():
     ctx.kernels.Struct1_set_field2(obj=s1, value=7)
     ctx.kernels.Struct1_get_field2(obj=s1) == s1.field2
 
+    ps = ctx.kernels.Struct1_getp(obj=s1)
+    p1 = ctx.kernels.Struct1_getp_field1(obj=s1)
+    p2 = ctx.kernels.Struct1_getp_field2(obj=s1)
+
+    assert ffi.cast("uint64_t *", ps)[0] == s1.field1
+    assert ffi.cast("double *", ps)[1] == s1.field2
+    assert p1[0] == s1.field1
+    assert p2[0] == s1.field2
+
 
 def test_array1():
     Array1 = xo.Int64[2]

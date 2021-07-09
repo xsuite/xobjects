@@ -9,6 +9,6 @@ setup(
     url="https://github.com/rdemaria/cobjects",
     python_requires=">=3.7",
     setup_requires=[],
-    install_requires=["numpy", "cffi", "pyopencl"],
+    install_requires=["numpy", "cffi"],
     packages=["xobjects"],
 )

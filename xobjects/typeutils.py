@@ -1,6 +1,8 @@
 import numpy as np
 
-from .context import context_default
+from .context_cpu import ContextCpu
+
+context_default = ContextCpu()
 
 
 def get_a_buffer(size, context=None, buffer=None, offset=None):
@@ -57,7 +59,7 @@ default_conf = {
     "cpurestrict": "/*restrict*/",
     "inttype": "int64_t",
     "chartype": "char",
-    "gpufun": "/*gpufun*/"
+    "gpufun": "/*gpufun*/",
 }
 
 

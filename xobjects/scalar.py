@@ -48,6 +48,13 @@ class NumpyScalar:
     def _array_from_buffer(self, buffer, offset, count):
         return buffer.to_nplike(offset, self._dtype, (count,))
 
+    def _gen_data_paths(self, base=None):
+        paths = []
+        if base is None:
+            base = []
+        paths.append(base + [self])
+        return paths
+
 
 Float128 = NumpyScalar("float128", "double[2]")
 Float64 = NumpyScalar("float64", "double")
@@ -68,7 +75,8 @@ Complex256 = NumpyScalar("complex256", "double[4]")
 def is_scalar(cls):
     return isinstance(cls, NumpyScalar)
 
-
 class Void:
     _c_type = "void"
     _size = None
+
+

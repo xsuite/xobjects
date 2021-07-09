@@ -55,7 +55,6 @@ from .typeutils import (
 
 from .scalar import Int64
 from .array import Array
-from . import capi
 
 
 log = logging.getLogger(__name__)
@@ -131,16 +130,6 @@ class Field:
             return arg[self.name]
         else:
             return self.get_default()
-
-    def _get_c_offset(self, conf):
-        itype = conf.get("itype", "int64_t")
-        if self.is_reference:
-            doffset = f"offset+{self.offset}"  # starts of data
-            return [
-                f"  offset+= *(/*gpuglmem*/{itype}*)((/*gpuglmem*/char*) obj + {doffset});"
-            ]
-        else:
-            return self.offset
 
 
 class MetaStruct(type):
@@ -391,9 +380,10 @@ class Struct(metaclass=MetaStruct):
     def _gen_data_paths(cls, base=None):
         paths = []
         if base is None:
-            base = [cls]
+            base = []
+        paths.append(base + [cls])
         for field in cls._fields:
-            path = base + [field]
+            path = base + [cls, field]
             paths.append(path)
             if hasattr(field.ftype, "_gen_data_paths"):
                 paths.extend(field.ftype._gen_data_paths(path))
@@ -401,10 +391,34 @@ class Struct(metaclass=MetaStruct):
 
     @classmethod
     def _gen_c_api(cls, conf=default_conf):
-        specs_list = cls._gen_data_paths()
-        return capi.gen_code(specs_list, conf)
+        from . import capi
+        paths = cls._gen_data_paths()
+        return capi.gen_code(cls, paths, conf)
+
+    @classmethod
+    def _gen_c_decl(cls, conf=default_conf):
+        from . import capi
+        paths = cls._gen_data_paths()
+        return capi.gen_cdefs(cls, paths, conf)
+
+    @classmethod
+    def _gen_kernels(cls, conf=default_conf):
+        from . import capi
+        paths = cls._gen_data_paths()
+        return capi.gen_kernels(cls, paths, conf)
 
     def _get_offset(self, fieldname):
         for ff in self._fields:
             if ff.name == fieldname:
                 return ff.get_offset(self)[1]
+
+    @classmethod
+    def _get_inner_types(cls):
+        return [fl.ftype for fl in cls._fields]
+
+def is_struct(atype):
+    return isinstance(atype,MetaStruct)
+
+def is_field(atype):
+    return isinstance(atype,Field)
+

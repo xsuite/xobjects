@@ -6,11 +6,14 @@ import logging
 
 import numpy as np
 
-from .general import (
+from .context import (
     XBuffer,
     XContext,
     ModuleNotAvailable,
     available,
+    classes_from_kernels,
+    sort_classes,
+    sources_from_classes,
     _concatenate_sources,
 )
 from .specialize_source import specialize_source
@@ -22,12 +25,10 @@ try:
 
     _enabled = True
 except ImportError:
-    print(
-        "WARNING:" "cffi is not installed, this platform will not be available"
-    )
+    log.info("cffi is not installed, ContextCPU will not be available")
 
     cffi = ModuleNotAvailable(
-        message=("cffi is not installed. " "this platform is not available!")
+        message=("cffi is not installed. " "ContextCPU is not available!")
     )
     _enabled = False
 
@@ -56,6 +57,19 @@ def nplike_to_numpy(arr):
     return np.array(arr)
 
 
+def cdef_from_kernel(kernel, pyname=None):
+    if kernel.c_name is None:
+        kernel.c_name = pyname
+    if kernel.ret is not None:
+        rettype = kernel.ret.get_c_type()
+    else:
+        rettype = "void"
+    signature = f"{rettype} {kernel.c_name}("
+    signature += ",".join(arg.get_c_type() for arg in kernel.args)
+    signature += ");"
+    return signature
+
+
 class ContextCpu(XContext):
     """
 
@@ -76,13 +90,15 @@ class ContextCpu(XContext):
 
     def add_kernels(
         self,
-        sources,
-        kernels,
+        sources=[],
+        kernels=[],
         specialize=True,
         save_source_as=None,
         extra_compile_args=["-O3"],
         extra_link_args=["-O3"],
         extra_cdef=None,
+        extra_classes=[],
+        extra_headers=[],
     ):
 
         """
@@ -144,9 +160,19 @@ class ContextCpu(XContext):
             ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
         """
 
-        sources = ["#include <stdint.h>"] + sources
+        classes = classes_from_kernels(kernels)
+        classes.update(extra_classes)
+        classes = sort_classes(classes)
+        cls_sources = sources_from_classes(classes)
+
+        headers = ["#include <stdint.h>"]
+
         if self.omp_num_threads > 0:
-            sources = ["#include <omp.h>"] + sources
+            headers = ["#include <omp.h>"] + headers
+
+        headers += extra_headers
+
+        sources = headers + cls_sources + sources
 
         source, folders = _concatenate_sources(sources)
 
@@ -168,22 +194,18 @@ class ContextCpu(XContext):
 
         ffi_interface = cffi.FFI()
 
+        cdefs = "\n".join(cls._gen_c_decl({}) for cls in classes)
+
+        ffi_interface.cdef(cdefs)
+
         if extra_cdef is not None:
             ffi_interface.cdef(extra_cdef)
 
         for pyname, kernel in kernels.items():
-            if kernel.c_name is None:
-                kernel.c_name = pyname
-            if kernel.ret is not None:
-                rettype = kernel.ret.get_c_type()
-            else:
-                rettype = "void"
-            signature = f"{rettype} {kernel.c_name}("
-            signature += ",".join(arg.get_c_type() for arg in kernel.args)
-            signature += ");"
-
-            ffi_interface.cdef(signature)
-            log.debug(f"cffi def {pyname} {signature}")
+            if pyname not in cdefs:  # check if kernel not already declared
+                signature = cdef_from_kernel(kernel, pyname)
+                ffi_interface.cdef(signature)
+                log.debug(f"cffi def {pyname} {signature}")
 
         if self.omp_num_threads > 0:
             ffi_interface.cdef("void omp_set_num_threads(int);")

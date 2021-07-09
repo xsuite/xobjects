@@ -140,3 +140,15 @@ class String(metaclass=MetaString):
 
     def to_bytes(self):
         return self.__class__._get_data(self._buffer, self._offset)
+
+    @classmethod
+    def _gen_data_paths(cls, base=None):
+        paths = []
+        if base is None:
+            base = []
+        paths.append(base + [cls])
+        return paths
+
+def is_string(atype):
+    return atype==String
+

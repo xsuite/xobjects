@@ -463,8 +463,6 @@ def methods_from_path(cls, path, conf):
         out.append(gen_method_typeid(cls, path, conf))
         out.append(gen_method_member(cls, path, conf))
 
-    # if not (is_unionref(lasttype) or is_unionref(lasttype)):
-
     return out
 
 

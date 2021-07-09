@@ -3,9 +3,6 @@
 import numpy as np
 import xobjects as xo
 
-from xobjects import capi
-from xobjects.typeutils import default_conf
-
 
 def gen_classes():
     class Struct1(xo.Struct):
@@ -66,10 +63,82 @@ def gen_classes():
     Array14 = Struct4[3]
     Array15 = Struct5[3]
 
-    res=type('', (object,), {})()
+    res = type("", (object,), {})()
     res.__dict__.update(locals())
 
     return res
 
 
+def test_struct1():
+    class Struct1(xo.Struct):
+        field1 = xo.Int64
+        field2 = xo.Float64
 
+    kernels = Struct1._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels)
+
+    s1 = Struct1(field1=2, field2=3.0)
+
+    ctx.kernels.Struct1_set_field1(obj=s1, value=7)
+    ctx.kernels.Struct1_get_field1(obj=s1) == s1.field1
+
+    ctx.kernels.Struct1_set_field2(obj=s1, value=7)
+    ctx.kernels.Struct1_get_field2(obj=s1) == s1.field2
+
+
+def test_array1():
+    Array1 = xo.Int64[2]
+
+    kernels = Array1._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels)
+
+    ini = [2, 7]
+
+    a1 = Array1(ini)
+
+    assert ctx.kernels.Arr2Int64_len(obj=a1) == len(ini)
+    for ii, vv in enumerate(ini):
+        a1[ii] = ii * 3
+        assert ctx.kernels.Arr2Int64_get(obj=a1, i0=ii) == ii * 3
+        ctx.kernels.Arr2Int64_set(obj=a1, i0=ii, value=ii * 4)
+        assert a1[ii] == ii * 4
+
+
+def test_array2():
+    Array2 = xo.Int64[:]
+
+    kernels = Array2._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels)
+
+    ini = [2, 7, 3]
+
+    a1 = Array2(ini)
+
+    assert ctx.kernels.ArrNInt64_len(obj=a1) == len(ini)
+    for ii, vv in enumerate(ini):
+        a1[ii] = ii * 3
+        assert ctx.kernels.ArrNInt64_get(obj=a1, i0=ii) == ii * 3
+        ctx.kernels.ArrNInt64_set(obj=a1, i0=ii, value=ii * 4)
+        assert a1[ii] == ii * 4
+
+
+def test_struct1():
+    class Struct2(xo.Struct):
+        field1 = xo.Int32
+        field2 = xo.Float64[:]
+
+    s1 = Struct2(field1=2, field2=5)
+
+    kernels = Struct2._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels)
+
+    assert ctx.kernels.Struct2_len_field2(obj=s1) == len(s1.field2)
+    for ii in range(len(s1.field2)):
+        s1.field2[ii] = ii * 3
+        assert ctx.kernels.Struct2_get_field2(obj=s1, i0=ii) == ii * 3
+        ctx.kernels.Struct2_set_field2(obj=s1, i0=ii, value=ii * 4)
+        assert s1.field2[ii] == ii * 4

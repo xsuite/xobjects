@@ -19,6 +19,9 @@ from .context_cpu import ContextCpu
 from .context_pyopencl import ContextPyopencl
 from .context_cupy import ContextCupy
 
-from .context import available, Arg, Kernel
+from .context import Arg, Kernel
+from .context import available as available_contexts
 
 from .specialize_source import specialize_source
+
+from .typeutils import context_default

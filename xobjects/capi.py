@@ -6,12 +6,15 @@ from .array import is_index, is_array
 from .ref import is_unionref, is_ref
 from .string import is_string
 
+
 def is_compound(atype):
     """Types that are referenced in C with an opaque pointer"""
     return is_struct(atype) or is_array(atype) or is_unionref(atype)
 
+
 def is_type(atype):
-    return is_compound(atype)  or is_scalar(atype) or is_string(atype)
+    return is_compound(atype) or is_scalar(atype) or is_string(atype)
+
 
 def get_inner_type(part):
     """type contained in a field, array or ref, else None"""
@@ -106,12 +109,14 @@ def Field_get_c_offset(self, conf):
     else:
         return self.offset
 
+
 def Ref_get_c_offset(self, conf):
     refoffset = int_from_obj("offset", conf)
     return [f"  offset+={refoffset};"]
 
+
 def Index_get_c_offset(part, conf):
-    cls=part.cls
+    cls = part.cls
     inttype = conf.get("inttype", "int64_t")
 
     out = []
@@ -165,9 +170,7 @@ def gen_method_offset(path, conf):
     return "\n".join(lst)
 
 
-def gen_fun_kernel(
-    cls, path, action, const, extra, ret, add_nindex=False
-):
+def gen_fun_kernel(cls, path, action, const, extra, ret, add_nindex=False):
     typename = cls._c_type
     fields = []
     indices = 0
@@ -176,8 +179,8 @@ def gen_fun_kernel(
             fields.append(part.name)
         elif is_index(part):  # is array
             indices += len(part.cls._shape)
-    if add_nindex and indices>1:
-        action+=str(indices)
+    if add_nindex and indices > 0:
+        action += str(indices)
     fun_name = [typename, action]
     if len(fields) > 0:
         fun_name.append("_".join(fields))
@@ -264,7 +267,7 @@ def gen_method_getp(cls, path, conf):
         action="getp",
         extra=[],
         ret=retarg,
-        add_nindex=True
+        add_nindex=True,
     )
     decl = gen_c_decl_from_kernel(kernel, conf)
 
@@ -288,7 +291,7 @@ def gen_method_len(cls, path, conf):
         action="len",
         extra=[],
         ret=retarg,
-        add_nindex=True
+        add_nindex=True,
     )
     decl = gen_c_decl_from_kernel(kernel, conf)
 
@@ -447,8 +450,8 @@ def methods_from_path(cls, path, conf):
         out.append(gen_method_set(cls, path, conf))
 
     if is_type(lasttype):
-      print(lasttype)
-      out.append(gen_method_getp(cls, path, conf))
+        print(lasttype)
+        out.append(gen_method_getp(cls, path, conf))
 
     if is_array(lasttype):
         out.append(gen_method_len(cls, path, conf))
@@ -461,7 +464,7 @@ def methods_from_path(cls, path, conf):
         out.append(gen_method_typeid(cls, path, conf))
         out.append(gen_method_member(cls, path, conf))
 
-    #if not (is_unionref(lasttype) or is_unionref(lasttype)):
+    # if not (is_unionref(lasttype) or is_unionref(lasttype)):
 
     return out
 

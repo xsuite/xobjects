@@ -26,7 +26,7 @@ def test_string_init2():
 
 def test_string_init3():
     for cls in [xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy]:
-        if cls not in xo.available:
+        if cls not in xo.available_contexts:
             continue
 
         ctx = cls()

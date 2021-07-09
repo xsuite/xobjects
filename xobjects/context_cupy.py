@@ -1,4 +1,5 @@
 import os
+import logging
 
 import numpy as np
 
@@ -15,6 +16,7 @@ from .context import (
 
 from .specialize_source import specialize_source
 
+log = logging.getLogger(__name__)
 
 try:
     import cupy
@@ -22,7 +24,7 @@ try:
 
     _enabled = True
 except ImportError:
-    print("WARNING: cupy is not installed, ContextCupy will not be available")
+    log.info("cupy is not installed, ContextCupy will not be available")
     cupy = ModuleNotAvailable(
         message=("cupy is not installed. " "ContextCupy is not available!")
     )

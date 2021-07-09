@@ -15,14 +15,16 @@ from .context import (
 )
 from .specialize_source import specialize_source
 
+log = logging.getLogger(__name__)
+
 try:
     import pyopencl as cl
     import pyopencl.array as cla
 
     _enabled = True
 except ImportError:
-    print(
-        "WARNING: pyopencl is not installed, ContextPyopencl will not be available"
+    log.info(
+        "pyopencl is not installed, ContextPyopencl will not be available"
     )
     cl = ModuleNotAvailable(
         message=(
@@ -35,7 +37,6 @@ except ImportError:
 
 from ._patch_pyopencl_array import _patch_pyopencl_array
 
-log = logging.getLogger(__name__)
 
 openclheader = [
     """\

@@ -25,7 +25,7 @@ try:
 
     _enabled = True
 except ImportError:
-    print("WARNING:" "cffi is not installed, ContextCPU will not be available")
+    log.info("cffi is not installed, ContextCPU will not be available")
 
     cffi = ModuleNotAvailable(
         message=("cffi is not installed. " "ContextCPU is not available!")

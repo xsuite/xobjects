@@ -34,9 +34,11 @@ except ImportError:
 
 try:
     import pyfftw
+    pyfftw_available = True
 except ImportError:
     print("WARNING: pyfftw not available, will use numpy")
     pyfftw = ModuleNotAvailable(message="pyfftw not available")
+    pyfftw_available = False
 
 dtype_dict = {
     "float64": "double",
@@ -537,7 +539,7 @@ class FFTCpu(object):
         self.threads = threads
 
         self.use_pyfftw = False
-        if threads > 0 and hasattr(pyfftw, "builders"):
+        if threads > 0 and pyfftw_available:
             self.use_pyfftw = True
             self.data = data
             self.data_temp = pyfftw.byte_align(0 * data)

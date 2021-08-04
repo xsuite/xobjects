@@ -111,7 +111,9 @@ def _align(offset, alignment):
 
 class MinimalDotDict(dict):
     def __getattr__(self, attr):
-        return self[attr]
+        if attr not in self:
+            raise AttributeError(f"`{attr}` not found in dict")
+        return self.get(attr)
 
     def __dir__(self):
         return list(self.keys())

@@ -150,6 +150,10 @@ class XContext(ABC):
         "return buffer"
 
     @abstractmethod
+    def get_minimum_alignment(self):
+        "return minimum alignment"
+
+    @abstractmethod
     def add_kernels(
         self,
         sources: list,
@@ -186,7 +190,7 @@ class XContext(ABC):
 
 
 class XBuffer(ABC):
-    def __init__(self, capacity=1048576, context=None):
+    def __init__(self, capacity=1048576, context=None, default_alignment=None):
 
         if context is None:
             self.context = self._make_context()
@@ -194,15 +198,22 @@ class XBuffer(ABC):
             self.context = context
         self.buffer = self._new_buffer(capacity)
         self.capacity = capacity
+        if default_alignment is None:
+            default_alignment=self.context.get_minimum_alignment()
+        self.default_alignment = default_alignment
         self.chunks = [Chunk(0, capacity)]
 
     @abstractmethod
     def _make_context(self):
         "return a default context"
 
-    def allocate(self, size, alignment=1):
+    def allocate(self, size, align=False):
         # find available free slot
         # and update free slot if exists
+        if align:
+            alignment=self.default_alignmnent
+        else:
+            alignment=1
         sizepa = size + alignment - 1
         for chunk in self.chunks:
             if sizepa <= chunk.size:

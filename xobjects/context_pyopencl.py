@@ -101,6 +101,9 @@ class ContextPyopencl(XContext):
     def _make_buffer(self, capacity):
         return BufferPyopencl(capacity=capacity, context=self)
 
+    def get_minimum_alignment(self):
+        return 1
+
     def add_kernels(
         self,
         sources=[],

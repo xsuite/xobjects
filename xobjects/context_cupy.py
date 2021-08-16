@@ -73,6 +73,10 @@ class ContextCupy(XContext):
     def _make_buffer(self, capacity):
         return BufferCupy(capacity=capacity, context=self)
 
+    def get_minimum_alignment(self):
+        return 1
+
+
     def add_kernels(
         self,
         sources,

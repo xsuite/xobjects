@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="xobjects",
-    version="0.0.5",
+    version="0.0.6",
     description="In-memory serialization and code generator for CPU and GPU",
     author="Riccardo De Maria",
     author_email="riccardo.de.maria@cern.ch",

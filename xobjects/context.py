@@ -213,25 +213,30 @@ class XBuffer(ABC):
             alignment=self.default_alignment
         else:
             alignment=1
-        sizepa = size + alignment - 1
+        #sizepa = size + alignment - 1
         for chunk in self.chunks:
-            if sizepa <= chunk.size:
-                offset = chunk.start
-                chunk.start += sizepa
+            offset = _align(chunk.start,alignment)
+            newend=offset+size
+            if chunk.end>=newend:
+                chunk.start = newend
                 if chunk.size == 0:
                     self.chunks.remove(chunk)
-                return _align(offset, alignment)
+                return offset
 
         # no free slot check if can be allocated then try to grow
+        sizepa = size + alignment - 1
         if sizepa > self.capacity:
             self.grow(sizepa)
         else:
             self.grow(self.capacity)
 
         # try again
-        return self.allocate(sizepa)
+        return self.allocate(size, align=align)
 
     def grow(self, capacity):
+        """
+        Add capacity to buffer
+        """
         oldcapacity = self.capacity
         newcapacity = self.capacity + capacity
         newbuff = self._new_buffer(newcapacity)

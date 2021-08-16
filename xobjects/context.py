@@ -210,7 +210,7 @@ class XBuffer(ABC):
         # find available free slot
         # and update free slot if exists
         if align:
-            alignment=self.default_alignmnent
+            alignment=self.default_alignment
         else:
             alignment=1
         sizepa = size + alignment - 1
@@ -447,6 +447,15 @@ def get_test_contexts():
             yield xo.ContextCupy()
         if xo.ContextPyopencl in xo.context.available:
             yield xo.ContextPyopencl()
+    elif ctxstr=="all":
+        yield xo.ContextCpu()
+        yield xo.ContextCpu(omp_num_threads=2)
+        if xo.ContextCupy in xo.context.available:
+            yield xo.ContextCupy()
+        if xo.ContextPyopencl in xo.context.available:
+            for dd in xo.ContextPyopencl.get_devices():
+               yield xo.ContextPyopencl(device=dd)
+
     else:
       for cc in ctxstr.split(';'):
         yield get_context_from_string(cc)

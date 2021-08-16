@@ -49,6 +49,14 @@ typedef char int8_t;
 
 class ContextPyopencl(XContext):
     @classmethod
+    def get_devices(cls):
+        out=[]
+        for ip, platform in enumerate(cl.get_platforms()):
+            for id, device in enumerate(platform.get_devices()):
+                out.append(f"{ip}.{id}")
+        return out
+
+    @classmethod
     def print_devices(cls):
         for ip, platform in enumerate(cl.get_platforms()):
             print(f"Context {ip}: {platform.name}")

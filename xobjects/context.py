@@ -411,12 +411,11 @@ class Method:
 
 def get_context_from_string(ctxstr):
     import xobjects as xo
-
     if ctxstr is None:
         return xo.ContexCPU()
     else:
         ll = ctxstr.split(":")
-        if len(ll):
+        if len(ll)<=1:
             ctxtype = ll[0]
             option = []
         else:
@@ -445,7 +444,7 @@ def get_test_contexts():
     import os
     import xobjects as xo
 
-    ctxstr = os.environ.get("XOBJECT_TEST_CONTEXTS")
+    ctxstr = os.environ.get("XOBJECTS_TEST_CONTEXTS")
     if ctxstr is None:
         yield xo.ContextCpu()
         yield xo.ContextCpu(omp_num_threads=2)
@@ -469,7 +468,7 @@ def get_test_contexts():
 
 def get_user_context():
     """
-    Get the context specfied by the enviroment variable XOBJECT_USER_CONTEXT.
+    Get the context specfied by the enviroment variable XOBJECTS_USER_CONTEXT.
     If not present use ContextCpu().
 
     Examples:
@@ -482,5 +481,5 @@ def get_user_context():
     """
     import os
 
-    ctxstr = os.environ.get("XOBJECT_USER_CONTEXT")
+    ctxstr = os.environ.get("XOBJECTS_USER_CONTEXT")
     return get_context_from_string(ctxstr)

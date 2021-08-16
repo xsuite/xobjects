@@ -466,6 +466,18 @@ def get_test_contexts():
         yield get_context_from_string(cc)
 
 def get_user_context():
+    """
+    Get the context specfied by the enviroment variable XOBJECT_USER_CONTEXT.
+    If not present use ContextCpu().
+
+    Examples:
+       ContextPyopencl:0.0  -> ContextPyopencl(device="0.0")
+       ContextPyopencl:1.0  -> ContextPyopencl(device="1.0")
+       ContextPyopencl      -> ContextPyopencl()
+       ContextCpu           -> ContextCpu()
+       ContextCpu:2         -> ContextCpu(omp_num_threads=2)
+       ContextCupy:0        -> ContextCupy(device=0)
+    """
     import os
     ctxstr=os.environ.get('XOBJECT_USER_CONTEXT')
     return get_context_from_string(ctxstr)

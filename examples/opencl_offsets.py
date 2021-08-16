@@ -13,9 +13,9 @@ def try_offset(ctx):
     except Exception as ex:
         pass
         # print("Always fails due to ArrayHasOffsetError")
-        #print(repr(ex))
+        # print(repr(ex))
 
-    for offset in 3,4,8,16,32,64,128:
+    for offset in 3, 4, 8, 16, 32, 64, 128:
         try:
             b = a[offset:]
             b.base_data[b.offset : b.offset + b.nbytes]
@@ -23,7 +23,8 @@ def try_offset(ctx):
         except Exception as ex:
             # Fails in some platform due to clCreateSubBuffer MISALIGNED_SUB_BUFFER_OFFSET"
             print(f"offset={b.offset} not OK")
-            #print(repr(ex))
+            # print(repr(ex))
+
 
 for platform in cl.get_platforms():
     for device in platform.get_devices():

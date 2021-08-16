@@ -1,16 +1,12 @@
 import numpy as np
 import xobjects as xo
-from xobjects.context import available
 
 
 def test_ref_to_static_type():
-    for CTX in xo.ContextCupy, xo.ContextPyopencl, xo.ContextCpu:
-        if CTX not in available:
-            continue
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
 
-        context = CTX()
-        print(context)
-        buff = context._make_buffer(capacity=1024)
+        buff = ctx._make_buffer(capacity=1024)
 
         Float64_3 = xo.Float64[3]
 
@@ -45,13 +41,10 @@ def test_ref_to_static_type():
 
 
 def test_ref_to_dynamic_type():
-    for CTX in xo.ContextCupy, xo.ContextPyopencl, xo.ContextCpu:
-        if CTX not in available:
-            continue
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
 
-        context = CTX()
-        print(context)
-        buff = context._make_buffer(capacity=1024)
+        buff = ctx._make_buffer(capacity=1024)
 
         arr1 = xo.Float64[:]([1, 2, 3], _buffer=buff)
         arr2 = xo.Float64[:]([4, 5, 6, 7], _buffer=buff)
@@ -86,14 +79,10 @@ def test_ref_to_dynamic_type():
 
 def no_test_unionref():
 
-    for CTX in xo.ContextCupy, xo.ContextPyopencl, xo.ContextCpu:
-        if CTX not in available:
-            continue
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
 
-        context = CTX()
-        print(context)
-
-        arr = xo.Float64[:]([1, 2, 3], _context=context)
+        arr = xo.Float64[:]([1, 2, 3], _context=ctx)
         buf = arr._buffer
         string = xo.String("Test", _buffer=buf)
 
@@ -124,14 +113,10 @@ def no_test_array_of_unionrefs():
     Element = xo.Ref[MyStructA, MyStructB]
     ArrOfUnionRefs = Element[:]
 
-    for CTX in xo.ContextCupy, xo.ContextPyopencl, xo.ContextCpu:
-        if CTX not in available:
-            continue
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
 
-        context = CTX()
-        print(context)
-
-        aoref = ArrOfUnionRefs(10, _context=context)
+        aoref = ArrOfUnionRefs(10, _context=ctx)
 
         for ii in range(10):
             if np.mod(ii, 2) == 0:

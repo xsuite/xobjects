@@ -1,7 +1,6 @@
 import numpy as np
 
 import xobjects as xo
-from xobjects.context import available
 
 
 class Check:
@@ -49,21 +48,15 @@ def test_cl_init():
 
 
 def test_new_buffer():
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
         buff1 = ctx.new_buffer()
         buff2 = ctx.new_buffer(capacity=200)
 
 
 def test_read_write():
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
         buff = ctx.new_buffer()
         bb = b"asdfasdfafsdf"
         buff.update_from_buffer(23, bb)
@@ -71,11 +64,8 @@ def test_read_write():
 
 
 def test_to_from_byterarray():
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
         buff = ctx.new_buffer()
         bb = b"asdfasdfafsdf"
         buff.update_from_buffer(23, bb)
@@ -83,22 +73,16 @@ def test_to_from_byterarray():
 
 
 def test_allocate_simple():
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
         ch = Check(ctx, 200)
         ch.new_string(30)
         ch.check()
 
 
 def test_free_simple():
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
         ch = Check(ctx, 200)
         offsets = [ch.new_string(ii * 2 + 1) for ii in range(10)]
         print(offsets)
@@ -109,11 +93,8 @@ def test_free_simple():
 
 
 def test_grow():
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
         ch = Check(ctx, 200)
         ch.new_string(150)
         ch.new_string(60)
@@ -127,12 +108,8 @@ def test_grow():
 
 
 def test_random_string():
-
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
         ch = Check(ctx, 200)
 
         for i in range(50):
@@ -147,13 +124,15 @@ def test_random_string():
 
 
 def test_nplike():
-    ctx = xo.ContextCpu()
-    buff = ctx.new_buffer(capacity=80)
-    arr = np.arange(6.0).reshape((2, 3))
-    offset = 3
-    buff.update_from_buffer(offset, arr.tobytes())
-    arr2 = buff.to_nplike(offset, "float64", (2, 3))
-    assert np.all(arr == arr2)
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
+        buff = ctx.new_buffer(capacity=80)
+        arr = np.arange(6.0).reshape((2, 3))
+        offset = 3
+        buff.update_from_buffer(offset, arr.tobytes())
+        arr2 = buff.to_nplike(offset, "float64", (2, 3))
+        arr3 = ctx.nparray_from_context_array(arr2)
+        assert np.all(arr == arr3)
 
 
 def test_type_matrix():

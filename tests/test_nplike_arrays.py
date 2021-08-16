@@ -1,26 +1,19 @@
 import numpy as np
 
 import xobjects as xo
-from xobjects.context import available
 
 
 def test_ffts():
-    ctxs = [xo.ContextCpu, xo.ContextCupy]
-    try:
-        import gpyfft
 
-        ctxs.append(
-            xo.ContextPyopencl,
-        )
-    except ImportError:
-        print("gpyfft not available")
+    for ctx in xo.context.get_test_contexts():
+        if "Pyopencl" in str(ctx):
+            try:
+                import gpyfft
+            except ImportError:
+                print("gpyfft not available")
+                continue
 
-    for CTX in ctxs:
-        if CTX not in available:
-            continue
-
-        print(f"Test {CTX}")
-        ctx = CTX()
+        print(f"Test {ctx}")
 
         # Test on a square wave
         n_x = 1000
@@ -44,12 +37,8 @@ def test_ffts():
 
 
 def test_slicing():
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
 
         for order in ("C", "F"):
             n_x = 100
@@ -84,13 +73,10 @@ def test_slicing():
             assert np.isclose(c_dev.sum(), c_host.sum())
             assert np.isclose(c_dev[:].sum(), c_host[:].sum())
 
-def test_nplike_from_xoarray():
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
 
-        print(f"Test {CTX}")
-        ctx = CTX()
+def test_nplike_from_xoarray():
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
 
         Array = xo.Float64[:]
         a_xo = Array(10, _context=ctx)
@@ -104,11 +90,11 @@ def test_nplike_from_xoarray():
         a_nl[2] = 5
         assert a_xo[2] == 5
 
-        Array = xo.Float64[:,:]
+        Array = xo.Float64[:, :]
         a_xo = Array(10, 20, _context=ctx)
         a_nl = a_xo.to_nplike()
         a_nl[2, 3] = 5
-        assert a_xo[2,3] == 5
+        assert a_xo[2, 3] == 5
 
         Array = xo.Float64[10, 20]
         a_xo = Array(_context=ctx)

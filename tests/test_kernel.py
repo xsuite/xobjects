@@ -1,7 +1,7 @@
 import numpy as np
 
 import xobjects as xo
-from xobjects.context import available
+
 
 def test_kernel_cpu():
     ctx = xo.ContextCpu()
@@ -27,8 +27,7 @@ double my_mul(const int n, const double* x1,
         )
     }
 
-    ctx.add_kernels(sources=[src_code],
-            kernels=kernel_descriptions)
+    ctx.add_kernels(sources=[src_code], kernels=kernel_descriptions)
     a1 = np.arange(10.0)
     a2 = np.arange(10.0)
     y = ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
@@ -37,17 +36,7 @@ double my_mul(const int n, const double* x1,
 
 
 def test_kernels():
-    for (CTX, kwargs, name) in zip(
-        (xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy),
-        ({"omp_num_threads": 2}, {}, {}),
-        ("cpu", "pyopencl", "cupy"),
-    ):
-
-        if CTX not in available:
-            continue
-
-        print(f"Test {CTX}")
-        ctx = CTX(**kwargs)
+    for ctx in xo.context.get_test_contexts():
 
         src_code = """
         /*gpufun*/
@@ -78,7 +67,7 @@ def test_kernels():
                     xo.Arg(xo.Float64, pointer=True, const=False, name="y"),
                 ],
                 n_threads="n",
-                ),
+            ),
         }
 
         # Import kernel in context
@@ -101,4 +90,3 @@ def test_kernels():
         y_host = ctx.nparray_from_context_array(y_dev)
 
         assert np.allclose(y_host, x1_host * x2_host)
-

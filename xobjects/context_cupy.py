@@ -64,7 +64,7 @@ class ContextCupy(XContext):
     def __init__(self, default_block_size=256, device=None):
 
         if device is not None:
-            cupy.Device(device).use()
+            cupy.cuda.Device(device).use()
 
         super().__init__()
 
@@ -72,10 +72,6 @@ class ContextCupy(XContext):
 
     def _make_buffer(self, capacity):
         return BufferCupy(capacity=capacity, context=self)
-
-    def get_minimum_alignment(self):
-        return 1
-
 
     def add_kernels(
         self,
@@ -303,7 +299,7 @@ class BufferCupy(XBuffer):
 
     def to_nplike(self, offset, dtype, shape):
         """view in nplike"""
-        nbytes = np.prod(shape) * dtype.itemsize
+        nbytes = np.prod(shape) * np.dtype(dtype).itemsize
         return (
             self.buffer[offset : offset + nbytes]
             .view(dtype=dtype)

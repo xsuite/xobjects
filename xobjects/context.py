@@ -128,6 +128,8 @@ class ModuleNotAvailable(object):
 
 
 class XContext(ABC):
+    minimum_alignment=1
+
     def __init__(self):
         self._kernels = MinimalDotDict()
         self._buffers = []
@@ -149,9 +151,6 @@ class XContext(ABC):
     def _make_buffer(self, capacity):
         "return buffer"
 
-    @abstractmethod
-    def get_minimum_alignment(self):
-        "return minimum alignment"
 
     @abstractmethod
     def add_kernels(
@@ -199,7 +198,7 @@ class XBuffer(ABC):
         self.buffer = self._new_buffer(capacity)
         self.capacity = capacity
         if default_alignment is None:
-            default_alignment=self.context.get_minimum_alignment()
+            default_alignment=self.context.minimum_alignment
         self.default_alignment = default_alignment
         self.chunks = [Chunk(0, capacity)]
 
@@ -404,3 +403,55 @@ class Method:
             return kernel(*args, **kwargs)
 
         return a_method
+
+
+
+def get_context_from_string(ctxstr):
+    import xobjects as xo
+    if ctxstr is None:
+        return xo.ContexCPU()
+    else:
+        ll=ctxstr.split(':')
+        if len(ll):
+            ctxtype=ll[0]
+            option=[]
+        else:
+            ctxtype,options=ctxstr.split(':')
+            option=options.split(',')
+    if ctxtype=='ContextCpu':
+        if len(option)==0:
+            return xo.ContextCpu()
+        else:
+            return xo.ContextCpu(omp_num_threads=int(option[0]))
+    elif ctxtype=='ContextCupy':
+        if len(option)==0:
+           return xo.ContextCupy()
+        else:
+           return xo.ContextCupy(device=int(option[0]))
+    elif ctxtype=='ContextPyopencl':
+        if len(option)==0:
+           return xo.ContextPyopencl()
+        else:
+           return xo.ContextPyopencl(device=option[0])
+    else:
+        raise ValueError(f"Cannot create context from `{ctxstr}`")
+
+def get_test_contexts():
+    import os
+    import xobjects as xo
+    ctxstr=os.environ.get('XOBJECT_TEST_CONTEXTS')
+    if ctxstr is None:
+        yield xo.ContextCpu()
+        yield xo.ContextCpu(omp_num_threads=2)
+        if xo.ContextCupy in xo.context.available:
+            yield xo.ContextCupy()
+        if xo.ContextPyopencl in xo.context.available:
+            yield xo.ContextPyopencl()
+    else:
+      for cc in ctxstr.split(';'):
+        yield get_context_from_string(cc)
+
+def get_user_context():
+    import os
+    ctxstr=os.environ.get('XOBJECT_USER_CONTEXT')
+    return get_context_from_string(ctxstr)

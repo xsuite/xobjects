@@ -29,12 +29,8 @@ def test_static_struct():
     assert StructA.b.index == 1
     assert StructA.c.index == 2
 
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
 
         s = StructA(_context=xo.ContextCpu())
 
@@ -64,12 +60,8 @@ def test_nested_struct():
     assert StructB._size is not None
     assert StructC._size is not None
 
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
 
         b = StructC(_context=ctx)
 
@@ -87,12 +79,8 @@ def test_dynamic_struct():
 
     assert StructD._size is None
 
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
 
         d = StructD(b="this is a test", _context=ctx)
         assert d._size is not None
@@ -124,12 +112,8 @@ def test_dynamic_nested_struct():
     assert info.size == 80
     assert info._offsets == {2: 32}
 
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
 
         s = StructF(g={"b": "this is a test"}, _context=ctx)
         assert s._size is not None
@@ -153,12 +137,8 @@ def test_assign_full_struct():
     assert StructE._size is None
     assert StructF._size is None
 
-    for CTX in xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy:
-        if CTX not in available:
-            continue
-
-        print(f"Test {CTX}")
-        ctx = CTX()
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
 
         s = StructF(g={"b": "this is a test"}, _context=ctx)
         assert s._size is not None

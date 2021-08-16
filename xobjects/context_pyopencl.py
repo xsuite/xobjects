@@ -55,7 +55,7 @@ class ContextPyopencl(XContext):
             for id, device in enumerate(platform.get_devices()):
                 print(f"Device {ip}.{id}: {device.name}")
 
-    def __init__(self, device=None, patch_pyopencl_array=True):
+    def __init__(self, device=None, patch_pyopencl_array=True, minimum_alignment=None):
 
         """
         Creates a Pyopencl Context object, that allows performing the computations
@@ -98,11 +98,28 @@ class ContextPyopencl(XContext):
         if patch_pyopencl_array:
             _patch_pyopencl_array(cl, cla, self.context)
 
+        if minimum_alignment is None:
+            minimum_alignment = self.find_minimum_alignment()
+        self.minimum_alignment=minimum_alignment
+
     def _make_buffer(self, capacity):
         return BufferPyopencl(capacity=capacity, context=self)
 
-    def get_minimum_alignment(self):
-        return 1
+    def find_minimum_alignment(self):
+        buff=self.new_buffer()
+        i=1
+        found=False
+        while i<2**16:
+            try:
+                buff.buffer[i:]
+                found=True
+                break
+            except cl._cl.RuntimeError:
+                pass
+            i+=1
+        if not found:
+            raise RuntimeError("Impossible to find minimum alignment on Pyopencl context")
+        return i
 
     def add_kernels(
         self,

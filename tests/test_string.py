@@ -25,12 +25,6 @@ def test_string_init2():
 
 
 def test_string_init3():
-    for cls in [xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy]:
-        if cls not in xo.available_contexts:
-            continue
-
-        ctx = cls()
-
-        print(repr(cls))
+    for ctx in xo.context.get_test_contexts():
         ss = xo.String("test", _context=ctx)
         assert xo.String._from_buffer(ss._buffer, ss._offset) == "test"

@@ -595,18 +595,21 @@ class Array(metaclass=MetaArray):
     @classmethod
     def _gen_c_api(cls, conf=default_conf):
         from . import capi
+
         paths = cls._gen_data_paths()
         return capi.gen_code(cls, paths, conf)
 
     @classmethod
     def _gen_c_decl(cls, conf=default_conf):
         from . import capi
+
         paths = cls._gen_data_paths()
         return capi.gen_cdefs(cls, paths, conf)
 
     @classmethod
     def _gen_kernels(cls, conf=default_conf):
         from . import capi
+
         paths = cls._gen_data_paths()
         return capi.gen_kernels(cls, paths, conf)
 
@@ -619,8 +622,8 @@ class Array(metaclass=MetaArray):
 
 
 def is_index(atype):
-    return isinstance(atype,Index)
+    return isinstance(atype, Index)
+
 
 def is_array(atype):
-    return isinstance(atype,MetaArray)
-
+    return isinstance(atype, MetaArray)

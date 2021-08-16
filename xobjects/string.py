@@ -149,6 +149,6 @@ class String(metaclass=MetaString):
         paths.append(base + [cls])
         return paths
 
-def is_string(atype):
-    return atype==String
 
+def is_string(atype):
+    return atype == String

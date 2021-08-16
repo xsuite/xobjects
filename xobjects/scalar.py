@@ -75,8 +75,7 @@ Complex256 = NumpyScalar("complex256", "double[4]")
 def is_scalar(cls):
     return isinstance(cls, NumpyScalar)
 
+
 class Void:
     _c_type = "void"
     _size = None
-
-

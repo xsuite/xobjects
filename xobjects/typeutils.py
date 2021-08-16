@@ -14,8 +14,8 @@ def get_a_buffer(size, context=None, buffer=None, offset=None):
         buffer = context.new_buffer(size)
     if offset is None:
         offset = buffer.allocate(size)
-    elif offset=="aligned":
-        offset = buffer.allocate(size,align=True)
+    elif offset == "aligned":
+        offset = buffer.allocate(size, align=True)
     return buffer, offset
 
 

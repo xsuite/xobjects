@@ -2,6 +2,7 @@ import numpy as np
 
 import xobjects as xo
 
+
 class Check:
     def __init__(self, ctx, capacity):
         self.ctx = ctx
@@ -129,7 +130,7 @@ def test_nplike():
         arr = np.arange(6.0).reshape((2, 3))
         offset = 3
         buff.update_from_buffer(offset, arr.tobytes())
-        arr2 = buff.to_nplike(offset, 'float64', (2, 3))
+        arr2 = buff.to_nplike(offset, "float64", (2, 3))
         arr3 = ctx.nparray_from_context_array(arr2)
         assert np.all(arr == arr3)
 

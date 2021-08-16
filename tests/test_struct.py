@@ -1,8 +1,6 @@
 import xobjects as xo
 
 from xobjects.typeutils import Info
-from xobjects.context import available
-
 
 def test_static_struct_def():
     class StructA(xo.Struct):

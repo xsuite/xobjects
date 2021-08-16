@@ -1,7 +1,6 @@
 import numpy as np
 
 import xobjects as xo
-from xobjects.context import available
 
 def test_kernel_cpu():
     ctx = xo.ContextCpu()
@@ -37,17 +36,7 @@ double my_mul(const int n, const double* x1,
 
 
 def test_kernels():
-    for (CTX, kwargs, name) in zip(
-        (xo.ContextCpu, xo.ContextPyopencl, xo.ContextCupy),
-        ({"omp_num_threads": 2}, {}, {}),
-        ("cpu", "pyopencl", "cupy"),
-    ):
-
-        if CTX not in available:
-            continue
-
-        print(f"Test {CTX}")
-        ctx = CTX(**kwargs)
+    for ctx in xo.context.get_test_contexts():
 
         src_code = """
         /*gpufun*/

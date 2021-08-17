@@ -205,7 +205,7 @@ class XBuffer(ABC):
     def _make_context(self):
         "return a default context"
 
-    def allocate(self, size, align=False):
+    def allocate(self, size, align=True):
         # find available free slot
         # and update free slot if exists
         if align:

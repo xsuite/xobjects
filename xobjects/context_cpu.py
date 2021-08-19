@@ -96,7 +96,7 @@ class ContextCpu(XContext):
         kernels=[],
         specialize=True,
         save_source_as=None,
-        extra_compile_args=["-O3"],
+        extra_compile_args=["-O3", "-Wno-unused-function"],
         extra_link_args=["-O3"],
         extra_cdef=None,
         extra_classes=[],

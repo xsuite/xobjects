@@ -43,6 +43,7 @@ openclheader = [
 #ifndef XOBJ_STDINT
 typedef long int64_t;
 typedef char int8_t;
+typedef unsigned int uint32_t;
 #endif"""
 ]
 

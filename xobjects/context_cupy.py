@@ -33,9 +33,11 @@ except ImportError:
 
 
 cudaheader = [
-    """\
-typedef signed long long int64_t; //only_for_context cuda
-typedef signed char      int8_t;  //only_for_context cuda
+"""\
+typedef signed long long int64_t;  //only_for_context cuda
+typedef signed char      int8_t;   //only_for_context cuda
+typedef unsigned int     uint32_t; //only_for_context cuda
+
 """
 ]
 

@@ -217,15 +217,17 @@ class ContextPyopencl(XContext):
 
         if specialize:
             # included files are searched in the same folders od the src_filed
-            source = specialize_source(
+            specialized_source = specialize_source(
                 source, specialize_for="opencl", search_in_folders=folders
             )
+        else:
+            specialized_source = source
 
         if save_source_as is not None:
             with open(save_source_as, "w") as fid:
-                fid.write(source)
+                fid.write(specialized_source)
 
-        prg = cl.Program(self.context, source).build()
+        prg = cl.Program(self.context, specialized_source).build()
 
         for pyname, kernel in kernels.items():
             if kernel.c_name is None:
@@ -236,6 +238,9 @@ class ContextPyopencl(XContext):
                 description=kernel,
                 context=self,
             )
+
+            self.kernels[pyname].source = source
+            self.kernels[pyname].specialized_source = specialized_source
 
     def nparray_to_context_array(self, arr):
 

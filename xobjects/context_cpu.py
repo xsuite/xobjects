@@ -184,15 +184,17 @@ class ContextCpu(XContext):
             else:
                 specialize_for = "cpu_serial"
             # included files are searched in the same folders od the src_filed
-            source = specialize_source(
+            specialized_source = specialize_source(
                 source,
                 specialize_for=specialize_for,
                 search_in_folders=list(folders),
             )
+        else:
+            specialized_source = source
 
         if save_source_as is not None:
             with open(save_source_as, "w") as fid:
-                fid.write(source)
+                fid.write(specialized_source)
 
         ffi_interface = cffi.FFI()
 
@@ -226,7 +228,7 @@ class ContextCpu(XContext):
 
         ffi_interface.set_source(
             tempfname,
-            source,
+            specialized_source,
             extra_compile_args=xtr_compile_args,
             extra_link_args=xtr_link_args,
         )
@@ -257,6 +259,9 @@ class ContextCpu(XContext):
                     ffi_interface=module.ffi,
                     context=self,
                 )
+                self.kernels[pyname].source = source
+                self.kernels[pyname].specialized_source = specialized_source
+
         finally:
             # Clean temp files
             files_to_remove = [so_fname, tempfname + ".c", tempfname + ".o"]

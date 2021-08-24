@@ -159,15 +159,17 @@ class ContextCupy(XContext):
 
         if specialize:
             # included files are searched in the same folders od the src_filed
-            source = specialize_source(
+            specialized_source = specialize_source(
                 source, specialize_for="cuda", search_in_folders=folders
             )
+        else:
+            specialized_source = source
 
         if save_source_as is not None:
             with open(save_source_as, "w") as fid:
-                fid.write(source)
+                fid.write(specialized_source)
 
-        module = cupy.RawModule(code=source)
+        module = cupy.RawModule(code=specialized_source)
 
         for pyname, kernel in kernels.items():
             if kernel.c_name is None:
@@ -179,6 +181,9 @@ class ContextCupy(XContext):
                 block_size=self.default_block_size,
                 context=self,
             )
+
+            self.kernels[pyname].source = source
+            self.kernels[pyname].specialized_source = specialized_source
 
     def nparray_to_context_array(self, arr):
         """

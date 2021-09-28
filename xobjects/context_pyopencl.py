@@ -3,6 +3,8 @@ import logging
 
 import numpy as np
 
+from .context import Arg
+
 from .context import (
     XBuffer,
     XContext,
@@ -46,6 +48,62 @@ typedef char int8_t;
 typedef unsigned int uint32_t;
 #endif"""
 ]
+
+
+class SharedMemPyopenclArg(Arg):
+    def __init__(
+        self,
+        atype,
+        name=None,
+        size=0,
+        shmem_per_work_item=0,
+        shmem_per_work_group=0,
+        **kwargs,
+    ):
+        if not kwargs.get("pointer", False):
+            kwargs["pointer"] = True
+        super().__init__(atype, name=name, **kwargs)
+
+        self.size = 0
+        self.shmem_arg = None
+        self.shmem_per_work_item = 0
+        self.shmem_per_work_group = 0
+
+        if size is not None and size > 0:
+            self.size = size
+            self.shmem_arg = cl.LocalMemory(size)
+        elif (
+            shmem_per_work_item is not None
+            and shmem_per_work_item >= 0
+            and shmem_per_work_group is not None
+            and shmem_per_work_group >= 0
+        ):
+            self.shmem_per_work_item = shmem_per_work_item
+            self.shmem_per_work_group = shmem_per_work_group
+
+    def update(self, kernel=None, work_items_per_work_group=0):
+        if self.shmem_arg is not None or self.size > 0:
+            raise RuntimeError("attempting to update an already existing arg")
+
+        assert self.shmem_per_work_group is not None
+        assert self.shmem_per_work_group >= 0
+        size = self.shmem_per_work_group
+
+        if (
+            self.shmem_per_work_item is not None
+            and self.shmem_per_work_item > 0
+        ):
+            if kernel is not None:
+                size += kernel.work_group_size * self.shmem_per_work_item
+            elif (
+                work_items_per_work_group is not None
+                and work_items_per_work_group >= 0
+            ):
+                size += work_items_per_work_group * self.shmem_per_work_item
+
+        if size > 0:
+            self.size = size
+            self.shmem_arg = cl.LocalMemory(size)
 
 
 class ContextPyopencl(XContext):

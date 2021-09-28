@@ -108,6 +108,42 @@ def specialize_source(source, specialize_for, search_in_folders=[]):
         }[specialize_for],
     )
     newfilecontent = newfilecontent.replace(
+        "/*gpusharedmem*/",
+        {
+            "cpu_serial": " ",
+            "cpu_openmp": " ",
+            "opencl": " __local ",
+            "cuda": " __shared__ ",
+        }[specialize_for],
+    )
+    newfilecontent = newfilecontent.replace(
+        "/*gpuprivatemem*/",
+        {
+            "cpu_serial": " ",
+            "cpu_openmp": " ",
+            "opencl": " __private ",
+            "cuda": " ",
+        }[specialize_for],
+    )
+    newfilecontent = newfilecontent.replace(
+        "/*gpuconstmem*/",
+        {
+            "cpu_serial": " ",
+            "cpu_openmp": " ",
+            "opencl": " __constant ",
+            "cuda": " __constant__ ",
+        }[specialize_for],
+    )
+    newfilecontent = newfilecontent.replace(
+        "/*gpugenmem*/",
+        {
+            "cpu_serial": " ",
+            "cpu_openmp": " ",
+            "opencl": " __generic ",
+            "cuda": " ",
+        }[specialize_for],
+    )
+    newfilecontent = newfilecontent.replace(
         "/*restrict*/",
         {
             "cpu_serial": " restrict ",

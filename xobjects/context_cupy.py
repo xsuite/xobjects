@@ -335,12 +335,18 @@ class KernelCupy(object):
         description,
         block_size,
         context,
+        shmem_per_thread=0,
+        shmem_per_block=0,
     ):
 
         self.function = function
         self.description = description
         self.block_size = block_size
         self.context = context
+
+        assert block_size >= 0 and block_size % 32 == 0
+        assert shmem_per_thread >= 0 and shmem_per_block >= 0
+        self.shared_mem_size = shmem_per_thread * block_size + shmem_per_block
 
     def to_function_arg(self, arg, value):
         if arg.pointer:
@@ -365,6 +371,9 @@ class KernelCupy(object):
                     f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}"
                 )
 
+    def set_shared_mem(self, shmem_bytes):
+        self.shared_mem_size = shmem_bytes
+
     @property
     def num_args(self):
         return len(self.description.args)
@@ -382,7 +391,12 @@ class KernelCupy(object):
             n_threads = self.description.n_threads
 
         grid_size = int(np.ceil(n_threads / self.block_size))
-        self.function((grid_size,), (self.block_size,), arg_list)
+        self.function(
+            (grid_size,),
+            (self.block_size,),
+            arg_list,
+            shared_mem=self.shared_mem_size,
+        )
 
 
 class FFTCupy(object):

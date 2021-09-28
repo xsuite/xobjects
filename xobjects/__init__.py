@@ -16,7 +16,7 @@ from .struct import Struct, Field
 from .ref import Ref, UnionRef
 
 from .context_cpu import ContextCpu
-from .context_pyopencl import ContextPyopencl
+from .context_pyopencl import ContextPyopencl, SharedMemPyopenclArg
 from .context_cupy import ContextCupy
 
 from .context import Arg, Kernel, get_user_context

@@ -123,7 +123,11 @@ class ContextPyopencl(XContext):
                 print(f"Device {ip}.{id}: {device.name}")
 
     def __init__(
-        self, device=None, patch_pyopencl_array=True, minimum_alignment=None
+        self,
+        device=None,
+        patch_pyopencl_array=True,
+        minimum_alignment=None,
+        enable_profiling=False,
     ):
 
         """
@@ -146,6 +150,13 @@ class ContextPyopencl(XContext):
 
         super().__init__()
 
+        if enable_profiling:
+            _queue_prop = cl.command_queue_properties.PROFILING_ENABLE
+            self.profiling_enabled = True
+        else:
+            _queue_prop = 0
+            self.profiling_enabled = False
+
         # TODO assume one device only
         if device is None:
             self.context = cl.create_some_context(interactive=False)
@@ -162,7 +173,7 @@ class ContextPyopencl(XContext):
             self.device = self.platform.get_devices()[device]
             self.context = cl.Context([self.device])
 
-        self.queue = cl.CommandQueue(self.context)
+        self.queue = cl.CommandQueue(self.context, properties=_queue_prop)
 
         if patch_pyopencl_array:
             _patch_pyopencl_array(cl, cla, self.context)
@@ -505,6 +516,47 @@ class BufferPyopencl(XBuffer):
         return self.buffer[offset : offset + nbytes]
 
 
+class ProfileResultPyopencl(object):
+    def __init__(self):
+        self.queued = 0
+        self.submit = 0
+        self.start = 0
+        self.end = 0
+
+    def update(self, event):
+        self.submit = event.profile.submit
+        self.queued = event.profile.queued
+        self.start = event.profile.start
+        self.end = event.profile.end
+
+    @property
+    def execution_time_ns(self):
+        assert self.end >= self.start
+        return self.end - self.start
+
+    @property
+    def execution_time(self):
+        return float(1e-9) * self.execution_time_ns
+
+    @property
+    def time_since_submit_ns(self):
+        assert self.end >= self.submit
+        return self.end - self.submit
+
+    @property
+    def time_since_submit(self):
+        return float(1e-9) * self.time_since_submit_ns
+
+    @property
+    def time_since_queued_ns(self):
+        assert self.end >= self.queued
+        return self.end - self.queued
+
+    @property
+    def time_since_queued(self):
+        return float(1e-9) * self.time_since_queued_ns
+
+
 class KernelPyopencl(object):
     def __init__(
         self,
@@ -512,18 +564,74 @@ class KernelPyopencl(object):
         description,
         context,
         wait_on_call=True,
+        profile=True,
     ):
-
         self.function = function
         self.description = description
         self.context = context
         self.wait_on_call = wait_on_call
+        self._max_global_work_size = function.get_work_group_info(
+            cl.kernel_work_group_info.WORK_GROUP_SIZE, context.device
+        )
+        self._compile_work_group_size = function.get_work_group_info(
+            cl.kernel_work_group_info.COMPILE_WORK_GROUP_SIZE, context.device
+        )
+        self._pref_work_group_size_multiple = function.get_work_group_info(
+            cl.kernel_work_group_info.PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+            context.device,
+        )
+        self._local_mem_size = function.get_work_group_info(
+            cl.kernel_work_group_info.LOCAL_MEM_SIZE, context.device
+        )
+        self._private_mem_size = function.get_work_group_info(
+            cl.kernel_work_group_info.PRIVATE_MEM_SIZE, context.device
+        )
+
+        self.profiling_enabled = bool(context.profiling_enabled and profile)
+        self.last_profile = (
+            ProfileResultPyopencl() if self.profiling_enabled else None
+        )
+
+    @property
+    def work_group_size(self):
+        temp = (
+            self._compile_work_group_size[0]
+            * self._compile_work_group_size[1]
+            * self._compile_work_group_size[2]
+            if len(self._compile_work_group_size) == 3
+            else 0
+        )
+        return self._max_global_work_size if temp == 0 else temp
+
+    @property
+    def compile_work_group_size(self):
+        return self._compile_work_group_size
+
+    @property
+    def max_global_work_size(self):
+        return self._max_global_work_size
+
+    @property
+    def preferred_work_group_size_multiple(self):
+        return self._pref_work_group_size_multiple
+
+    @property
+    def private_mem_size(self):
+        return self._private_mem_size
+
+    @property
+    def local_mem_size(self):
+        return self._local_mem_size
 
     def to_function_arg(self, arg, value):
         if arg.pointer:
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 if isinstance(value, cl.Buffer):
                     return value
+                elif isinstance(value, cl.LocalMemory):
+                    return value
+                elif isinstance(value, SharedMemPyopenclArg):
+                    return value.shmem_arg
                 elif hasattr(value, "dtype"):  # nparray
                     assert isinstance(value, cla.Array)
                     return value.base_data[value.offset :]
@@ -550,6 +658,11 @@ class KernelPyopencl(object):
     def num_args(self):
         return len(self.description.args)
 
+    def update_last_profile(self, event):
+        if self.profiling_enabled:
+            assert self.last_profile is not None
+            self.last_profile.update(event)
+
     def __call__(self, **kwargs):
         assert len(kwargs.keys()) == self.num_args
         arg_list = []
@@ -568,6 +681,8 @@ class KernelPyopencl(object):
 
         if self.wait_on_call:
             event.wait()
+            if self.profiling_enabled:
+                self.last_profile.update(event)
 
         return event
 

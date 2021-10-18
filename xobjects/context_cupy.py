@@ -2,6 +2,8 @@ import os
 import logging
 
 import numpy as np
+import copy
+import re
 
 from .context import (
     XBuffer,
@@ -63,14 +65,51 @@ class ContextCupy(XContext):
 
     """
 
-    def __init__(self, default_block_size=256, device=None):
+    def __init__(
+        self,
+        default_block_size=256,
+        device=None,
+        enable_profiling=False,
+        build_options=None ):
 
         if device is not None:
-            cupy.cuda.Device(device).use()
+            if isinstance( device, str ):
+                #PCI Bus ID : hhhh:hh:hh.d with h = hex digit, d = integer digit
+                #             meaning of the ID: domain:bus:device:function
+                #NOTE: nvidia-smi outputs eight digits for the domain ->
+                #      the pattern is therefore a bit more lenient and accepts
+                #      any amount of domain digits
+                pci_id_pattern = \
+                    r"\b[0-9a-fA-F]+:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.\d{1}\s*"
+                m = re.match( pci_id_pattern, device )
+
+                if m is not None:
+                    dev = cupy.cuda.Device.from_pci_bus_id( device )
+                else:
+                    #SixTrackLib / OpenCL style device string
+                    device_str_pattern = r"\b(\d+)(\.0)*"
+                    m = re.match( device_str_pattern, device )
+                    if m is not None and len( m.groups() ) == 2:
+                        dev = cupy.cuda.Device( int( m[ 1 ] ) )
+                    else:
+                        dev = None
+            else:
+                dev = cupy.cuda.Device( int( device ) )
+
+            if dev is not None:
+                dev.use()
+            else:
+                raise ValueError( f"can't initialize device with id {device}" )
 
         super().__init__()
 
         self.default_block_size = default_block_size
+        self.profiling_enabled = enable_profiling
+        try:
+            self._build_options = list( it for it in iter( build_options ) )
+        except TypeError as exc:
+            self._build_options = []
+
 
     def _make_buffer(self, capacity):
         return BufferCupy(capacity=capacity, context=self)

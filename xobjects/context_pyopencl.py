@@ -71,6 +71,7 @@ class ContextPyopencl(XContext):
         patch_pyopencl_array=True,
         minimum_alignment=None,
         enable_profiling=False,
+        build_options=None
     ):
 
         """
@@ -85,6 +86,11 @@ class ContextPyopencl(XContext):
                 allow some operations with non-contiguous arrays.
             specialize_code (bool): If True, the code is specialized using
                 annotations in the source code. Default is ``True``
+            build_options (iterable): if not ``None``, then an iterable sequence
+                of string compile options is expected. Note that the options
+                provided via the ``PYOPENCL_BUILD_OPTIONS`` environment
+                variable will be appended to any options provided via this
+                parameter
 
         Returns:
             ContextPyopencl: context object.
@@ -99,6 +105,13 @@ class ContextPyopencl(XContext):
         else:
             _queue_prop = 0
             self.profiling_enabled = False
+
+        self._build_options = []
+        if build_options is not None:
+            try:
+                self._build_options = list( it for it in iter( build_options ) )
+            except TypeError:
+                pass
 
         # TODO assume one device only
         if device is None:
@@ -155,6 +168,7 @@ class ContextPyopencl(XContext):
         extra_cdef=None,
         extra_classes=[],
         extra_headers=[],
+        build_options=None,
     ):
 
         """
@@ -174,6 +188,10 @@ class ContextPyopencl(XContext):
                 annotations in the source code. Default is ``True``
             save_source_as (str): Filename for saving the specialized source
                 code. Default is ```None```.
+            build_options (iterable): Kernel specific build options in the form
+                of an interable sequence of strings. Any option in the context
+                level _build_options list will be prepended by all options
+                in this sequence.
         Example:
 
         .. code-block:: python
@@ -239,7 +257,20 @@ class ContextPyopencl(XContext):
             with open(save_source_as, "w") as fid:
                 fid.write(specialized_source)
 
-        prg = cl.Program(self.context, specialized_source).build()
+        prog_build_options = []
+        try:
+            for it in iter( build_options ):
+                prog_build_options.append( it )
+        except TypeError:
+            prog_build_options = []
+
+        for opt in self._build_options:
+            #WARNING: Assuming people know what they are doing, no checks
+            #         for contracdictory options here ...
+            prog_build_options.append( opt )
+
+        prg = cl.Program(self.context, specialized_source).build(
+            options=prog_build_options )
 
         for pyname, kernel in kernels.items():
             if kernel.c_name is None:

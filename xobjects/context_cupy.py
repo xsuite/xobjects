@@ -413,24 +413,59 @@ class BufferCupy(XBuffer):
 
 
 class KernelCupy(object):
+    @staticmethod
+    def calc_num_bytes_shared_mem(
+        block_size,
+        shared_mem_num_bytes_per_thread,
+        shared_mem_num_bytes_common=0 ):
+        assert block_size >= 0 and block_size % 32 == 0
+        assert shared_mem_num_bytes_per_thread >= 0
+        assert shared_mem_num_bytes_common >= 0
+        shared_mem_size = shared_mem_num_bytes_common
+        shared_mem_size += shared_mem_num_bytes_per_thread * block_size
+        return shared_mem_size
+
     def __init__(
         self,
         function,
         description,
         block_size,
         context,
-        shmem_per_thread=0,
-        shmem_per_block=0,
+        shared_mem_num_bytes_per_thread=0,
+        shared_mem_num_bytes_common=0,
+        profile=True,
+        build_options=None # For compability with the PyOpenCL interface, not needed here
     ):
-
         self.function = function
         self.description = description
         self.block_size = block_size
         self.context = context
+        self._shared_mem_size = KernelCupy.calc_num_bytes_shared_mem(
+            block_size,
+            shared_mem_num_bytes_per_thread,
+            shared_mem_num_bytes_common )
 
-        assert block_size >= 0 and block_size % 32 == 0
-        assert shmem_per_thread >= 0 and shmem_per_block >= 0
-        self.shared_mem_size = shmem_per_thread * block_size + shmem_per_block
+        if bool(context.profiling_enabled and profile):
+            self.profiling_enabled = True
+            self.last_profile = ProfileResultCupy()
+        else:
+            self.profiling_enabled = False
+            self.last_profile = None
+
+
+    @property
+    def shared_mem_size(self):
+        return self._shared_mem_size
+
+    def update_num_bytes_shared_mem(
+        self,
+        shared_mem_num_bytes_per_thread,
+        shared_mem_num_bytes_common=0 ):
+        self._shared_mem_size = KernelCupy.calc_num_bytes_shared_mem(
+            self.block_size,
+            shared_mem_num_bytes_per_thread,
+            shared_mem_num_bytes_common )
+
 
     def to_function_arg(self, arg, value):
         if arg.pointer:
@@ -455,14 +490,12 @@ class KernelCupy(object):
                     f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}"
                 )
 
-    def set_shared_mem(self, shmem_bytes):
-        self.shared_mem_size = shmem_bytes
-
     @property
     def num_args(self):
         return len(self.description.args)
 
     def __call__(self, **kwargs):
+        #NOTE: Use streams other then the current / null (legacy default) stream?
         assert len(kwargs.keys()) == self.num_args
         arg_list = []
         for arg in self.description.args:
@@ -475,12 +508,23 @@ class KernelCupy(object):
             n_threads = self.description.n_threads
 
         grid_size = int(np.ceil(n_threads / self.block_size))
+        if self.profiling_enabled:
+            start_event = cupy.cuda.Event()
+            start_event.record(stream=cupy.cuda.get_current_stream())
+            start_event.synchronize()
+
         self.function(
             (grid_size,),
             (self.block_size,),
             arg_list,
             shared_mem=self.shared_mem_size,
         )
+
+        if self.profiling_enabled:
+            #NOTE: Check this!!!
+            cupy.cuda.Device().synchronize()
+            self.last_profile.update( start_event )
+
 
 
 class FFTCupy(object):

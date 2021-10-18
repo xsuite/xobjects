@@ -146,6 +146,7 @@ class ContextCupy(XContext):
         extra_cdef=None,
         extra_classes=[],
         extra_headers=[],
+        build_options=None
     ):
 
         """
@@ -165,6 +166,10 @@ class ContextCupy(XContext):
                 annotations in the source code. Default is ``True``
             save_source_as (str): Filename for saving the specialized source
                 code. Default is ```None```.
+            build_options (iterable): Module specific build options in the form
+                of an interable sequence of strings. Any option in the context
+                level _build_options list will be prepended by all options
+                in this sequence.
         Example:
 
         .. code-block:: python
@@ -231,16 +236,33 @@ class ContextCupy(XContext):
             with open(save_source_as, "w") as fid:
                 fid.write(specialized_source)
 
-        module = cupy.RawModule(code=specialized_source)
+        temp_options = copy.deepcopy( self._build_options )
+        try:
+            for opt in iter( build_options ):
+                temp_options.append( opt )
+        except TypeError as exc:
+            pass
+
+        module = cupy.RawModule(
+            code=specialized_source,
+            options=tuple(temp_options))
 
         for pyname, kernel in kernels.items():
             if kernel.c_name is None:
                 kernel.c_name = pyname
 
+            function = module.get_function(kernel.c_name)
+
+            # This is not the best way to do it but at least takes the
+            # complexity of the kernel into account.
+            block_size = self.default_block_size
+            if function.max_threads_per_block < block_size:
+                block_size = function.max_threads_per_block
+
             self.kernels[pyname] = KernelCupy(
-                function=module.get_function(kernel.c_name),
+                function=function,
                 description=kernel,
-                block_size=self.default_block_size,
+                block_size=block_size,
                 context=self,
             )
 

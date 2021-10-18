@@ -48,6 +48,29 @@ def nplike_to_cupy(arr):
     return cupy.array(arr)
 
 
+class ProfileResultCupy(object):
+    def __init__(self ):
+        self.t_exec_ms = 0.0
+
+    def update(self, start_event, stop_event=None, stream=None ):
+        if stop_event is None:
+            stop_event = cupy.cuda.Event()
+            if stream is None:
+                stream = cupy.cuda.get_current_stream()
+            stop_event.record(stream=stream)
+            stop_event.synchronize()
+
+        self.t_exec_ms = cupy.cuda.get_elapsed_time( start_event, stop_event )
+
+    @property
+    def execution_time_ms(self):
+        return self.t_exec_ms
+
+    @property
+    def execution_time(self):
+        return float(1e-3) * self.t_exec_ms
+
+
 class ContextCupy(XContext):
 
     """

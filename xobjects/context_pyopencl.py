@@ -49,63 +49,6 @@ typedef unsigned int uint32_t;
 #endif"""
 ]
 
-
-class SharedMemPyopenclArg(Arg):
-    def __init__(
-        self,
-        atype,
-        name=None,
-        size=0,
-        shmem_per_work_item=0,
-        shmem_per_work_group=0,
-        **kwargs,
-    ):
-        if not kwargs.get("pointer", False):
-            kwargs["pointer"] = True
-        super().__init__(atype, name=name, **kwargs)
-
-        self.size = 0
-        self.shmem_arg = None
-        self.shmem_per_work_item = 0
-        self.shmem_per_work_group = 0
-
-        if size is not None and size > 0:
-            self.size = size
-            self.shmem_arg = cl.LocalMemory(size)
-        elif (
-            shmem_per_work_item is not None
-            and shmem_per_work_item >= 0
-            and shmem_per_work_group is not None
-            and shmem_per_work_group >= 0
-        ):
-            self.shmem_per_work_item = shmem_per_work_item
-            self.shmem_per_work_group = shmem_per_work_group
-
-    def update(self, kernel=None, work_items_per_work_group=0):
-        if self.shmem_arg is not None or self.size > 0:
-            raise RuntimeError("attempting to update an already existing arg")
-
-        assert self.shmem_per_work_group is not None
-        assert self.shmem_per_work_group >= 0
-        size = self.shmem_per_work_group
-
-        if (
-            self.shmem_per_work_item is not None
-            and self.shmem_per_work_item > 0
-        ):
-            if kernel is not None:
-                size += kernel.work_group_size * self.shmem_per_work_item
-            elif (
-                work_items_per_work_group is not None
-                and work_items_per_work_group >= 0
-            ):
-                size += work_items_per_work_group * self.shmem_per_work_item
-
-        if size > 0:
-            self.size = size
-            self.shmem_arg = cl.LocalMemory(size)
-
-
 class ContextPyopencl(XContext):
     @classmethod
     def get_devices(cls):
@@ -556,60 +499,176 @@ class ProfileResultPyopencl(object):
     def time_since_queued(self):
         return float(1e-9) * self.time_since_queued_ns
 
+class KernelPyopenclBase(object):
+    @staticmethod
+    def get_work_group_info( kernel, cl_dev ):
+        assert isinstance( kernel, cl.Kernel )
+        assert isinstance( cl_dev, cl.Device )
+        return {
+            'CL_KERNEL_WORK_GROUP_SIZE': kernel.get_work_group_info(
+                cl.kernel_work_group_info.WORK_GROUP_SIZE, cl_dev ),
+            'CL_KERNEL_COMPILE_WORK_GROUP_SIZE': kernel.get_work_group_info(
+                cl.kernel_work_group_info.COMPILE_WORK_GROUP_SIZE, cl_dev ),
+            'CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE': kernel.get_work_group_info(
+                cl.kernel_work_group_info.PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+                cl_dev ),
+            'CL_KERNEL_LOCAL_MEM_SIZE': kernel.get_work_group_info(
+                cl.kernel_work_group_info.LOCAL_MEM_SIZE, cl_dev ),
+            'CL_KERNEL_PRIVATE_MEM_SIZE': kernel.get_work_group_info(
+                cl.kernel_work_group_info.LOCAL_MEM_SIZE, cl_dev ),
+            }
 
-class KernelPyopencl(object):
+    @staticmethod
+    def get_kernel_arg_address_qualifier_infos( cl_kernel, build_options=None ):
+        assert isinstance( cl_kernel, cl.Kernel )
+        assert build_options is None or isinstance( build_options, str )
+
+        if build_options is None:
+            cl_program = cl_kernel.get_info( cl.kernel_info.PROGRAM )
+            cl_devices = cl_program.get_info( cl.program_info.DEVICES )
+            assert len( cl_devices ) == 1 #TODO: fix for multi-device builds
+            cl_dev = cl_devices[ 0 ]
+            build_options = cl_program.get_build_info(
+                cl_dev, cl.program_build_info.OPTIONS )
+
+        if not isinstance( build_options, str ):
+            raise ValueError( "no legal build_options string available" )
+
+        if build_options.find( "-cl-kernel-arg-info" ) == -1:
+            raise RuntimeError( "Program appears to have been built "
+                "without support for kernel argument info retrieval" )
+
+        num_args = cl_kernel.get_info( cl.kernel_info.NUM_ARGS )
+
+        qual_arg_indices = {
+            'CL_KERNEL_ARG_ADDRESS_GLOBAL': [],
+            'CL_KERNEL_ARG_ADDRESS_LOCAL': [],
+            'CL_KERNEL_ARG_ADDRESS_CONSTANT': [],
+            'CL_KERNEL_ARG_ADDRESS_PRIVATE': [],
+        }
+
+        for idx in range( num_args ):
+            xs_qualifier = cl_kernel.get_arg_info(
+                idx, cl.kernel_arg_info.ADDRESS_QUALIFIER )
+            if xs_qualifier == cl.kernel_arg_address_qualifier.GLOBAL:
+                qual_arg_indices[ "CL_KERNEL_ARG_ADDRESS_GLOBAL" ].append( idx )
+            elif xs_qualifier == cl.kernel_arg_address_qualifier.LOCAL:
+                qual_arg_indices[ "CL_KERNEL_ARG_ADDRESS_LOCAL" ].append( idx )
+            elif xs_qualifier == cl.kernel_arg_address_qualifier.CONSTANT:
+                qual_arg_indices[ "CL_KERNEL_ARG_ADDRESS_CONSTANT" ].append( idx )
+            else:
+                assert xs_qualifier == cl.kernel_arg_address_qualifier.PRIVATE
+                qual_arg_indices[ "CL_KERNEL_ARG_ADDRESS_PRIVATE" ].append( idx )
+
+        assert len( qual_arg_indices[ 'CL_KERNEL_ARG_ADDRESS_GLOBAL' ] ) + \
+            len( qual_arg_indices[ 'CL_KERNEL_ARG_ADDRESS_LOCAL' ] ) + \
+            len( qual_arg_indices[ 'CL_KERNEL_ARG_ADDRESS_CONSTANT' ] ) + \
+            len( qual_arg_indices[ 'CL_KERNEL_ARG_ADDRESS_PRIVATE' ] ) == \
+            num_args
+
+        return qual_arg_indices
+
+
     def __init__(
         self,
         function,
         description,
         context,
-        wait_on_call=True,
-        profile=True,
+        build_options=None
     ):
         self.function = function
         self.description = description
         self.context = context
-        self.wait_on_call = wait_on_call
-        self._max_global_work_size = function.get_work_group_info(
-            cl.kernel_work_group_info.WORK_GROUP_SIZE, context.device
-        )
-        self._compile_work_group_size = function.get_work_group_info(
-            cl.kernel_work_group_info.COMPILE_WORK_GROUP_SIZE, context.device
-        )
-        self._pref_work_group_size_multiple = function.get_work_group_info(
-            cl.kernel_work_group_info.PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
-            context.device,
-        )
-        self._local_mem_size = function.get_work_group_info(
-            cl.kernel_work_group_info.LOCAL_MEM_SIZE, context.device
-        )
-        self._private_mem_size = function.get_work_group_info(
-            cl.kernel_work_group_info.PRIVATE_MEM_SIZE, context.device
-        )
 
-        self.profiling_enabled = bool(context.profiling_enabled and profile)
-        self.last_profile = (
-            ProfileResultPyopencl() if self.profiling_enabled else None
-        )
+        kinfo = KernelPyopenclBase.get_work_group_info(
+            self.function, self.context.device)
+
+        try:
+            arg_info = KernelPyopenclBase.get_kernel_arg_address_qualifier_infos(
+                function, build_options )
+        except RuntimeError:
+            arg_info = {}
+
+        self._global_arg_indices = arg_info.get(
+            'CL_KERNEL_ARG_ADDRESS_GLOBAL', None )
+
+        self._local_arg_indices = arg_info.get(
+            'CL_KERNEL_ARG_ADDRESS_LOCAL', None )
+
+        self._constant_arg_indices = arg_info.get(
+            'CL_KERNEL_ARG_ADDRESS_CONSTANT', None )
+
+        self._private_arg_indices = arg_info.get(
+            'CL_KERNEL_ARG_ADDRESS_PRIVATE', None )
+
+        #TODO: Generalise to grid dimensions > 1
+        self._grid_dim = 1
+        self._global_offset = None
+        self._allow_empty_ndrange = False
+
+        self._max_work_group_size = kinfo.get(
+            'CL_KERNEL_WORK_GROUP_SIZE', 0 )
+
+        self._pref_work_group_size_multiple = kinfo.get(
+            'CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE', 1 )
+
+        self._local_mem_size = kinfo.get( 'CL_KERNEL_LOCAL_MEM_SIZE', 0 )
+        self._private_mem_size = kinfo.get( 'CL_KERNEL_PRIVATE_MEM_SIZE', 0 )
+
+        compile_wg_size = tuple( kinfo.get(
+            'CL_KERNEL_COMPILE_WORK_GROUP_SIZE', (0,0,0) ) )
+
+        # As mandated by the OpenCL standard:
+        assert len( compile_wg_size ) == 3
+
+        #TODO: Generalise to grid dimensions > 1
+        assert ( all( compile_wg_size[ ii ] == 0 for ii in range( 3 ) ) or
+                ( compile_wg_size[ 0 ] > 0 and
+                  compile_wg_size[ 1 ] == 1 and
+                  compile_wg_size[ 2 ] == 1 ) )
+        self._compile_work_group_size = ( compile_wg_size[ 0 ], ) # 1D !!!
 
     @property
-    def work_group_size(self):
-        temp = (
-            self._compile_work_group_size[0]
-            * self._compile_work_group_size[1]
-            * self._compile_work_group_size[2]
-            if len(self._compile_work_group_size) == 3
-            else 0
-        )
-        return self._max_global_work_size if temp == 0 else temp
+    def grid_dimension(self):
+        assert self._grid_dim >= 1 and self._grid_dim <= 3
+        return self._grid_dim
+
+    @property
+    def global_offset(self):
+        return self._global_offset
+
+    @property
+    def allow_empty_ndrange(self):
+        return self._allow_empty_ndrange
+
+    @property
+    def has_compile_work_group_size(self):
+        assert self._grid_dim == 1, "TODO: update for grid dimension > 1"
+        assert len( self._compile_work_group_size ) >= 1
+        return self._compile_work_group_size[ 0 ] > 0
+
+    @property
+    def compile_work_group_num_work_items(self):
+        n_work_items = 1
+        for wg_size in self._compile_work_group_size:
+            n_work_items *= wg_size
+        return n_work_items
 
     @property
     def compile_work_group_size(self):
+        assert self.grid_dimension == len( self._compile_work_group_size )
         return self._compile_work_group_size
 
     @property
-    def max_global_work_size(self):
-        return self._max_global_work_size
+    def cl_compile_work_group_size(self):
+        cmp_wg_size = [ 0, 0, 0 ]
+        for ii in range( min( 3, self._grid_dim ) ):
+            cmp_wg_size[ ii ] = self._compile_work_group_size[ ii ]
+        return tuple( cmp_wg_size )
+
+    @property
+    def max_work_group_size(self):
+        return self._max_work_group_size
 
     @property
     def preferred_work_group_size_multiple(self):
@@ -623,15 +682,255 @@ class KernelPyopencl(object):
     def local_mem_size(self):
         return self._local_mem_size
 
+    @property
+    def num_args(self):
+        return len(self.description.args)
+
+    @property
+    def num_global_mem_args(self):
+        assert self._global_arg_indices is not None
+        return len( self._global_arg_indices )
+
+    @property
+    def num_local_mem_args(self):
+        assert self._local_arg_indices is not None
+        return len( self._local_arg_indices )
+
+    @property
+    def num_constant_mem_args(self):
+        assert self._constant_arg_indices is not None
+        return len( self._constant_arg_indices )
+
+    @property
+    def local_mem_args(self):
+        if self._local_arg_indices is None:
+            raise RuntimeError( "not properly initialised global arg indices" )
+        return self._local_arg_indices
+
+    def __call__(self, **kwargs):
+        raise RuntimeError( "KernelPyopenclBase does not support launching " +
+            "kernels, use the derived KernelPyopencl instead!" )
+
+class LocalMemPyopenclArg(Arg):
+    @staticmethod
+    def calc_local_mem_num_bytes(
+        n_work_items_per_wg,
+        n_bytes_per_work_item,
+        n_bytes_per_wg = 0 ):
+        assert n_work_items_per_wg >= 0
+        assert n_bytes_per_work_item >= 0
+        assert n_bytes_per_wg >= 0
+        return n_work_items_per_wg * n_bytes_per_work_item + n_bytes_per_wg
+
+    def __init__(
+        self,
+        atype,
+        name=None,
+        num_bytes_per_thread=0,
+        num_bytes_common=0,
+        **kwargs,
+    ):
+        if not kwargs.get("pointer", False):
+            kwargs["pointer"] = True
+        super().__init__(atype, name=name, **kwargs)
+
+        self._loc_mem_num_bytes = 0
+        self._cl_loc_mem_obj = None
+        self._cl_kernel = None
+        self._arg_index = -1
+
+        self._num_bytes_per_work_item = max( 0, num_bytes_per_thread )
+        self._num_bytes_per_wg = max( 0, num_bytes_common )
+
+    @property
+    def local_memory_obj(self):
+        return self._cl_loc_mem_obj
+
+    @property
+    def local_memory_num_bytes(self):
+        return self._loc_mem_num_bytes
+
+    @property
+    def num_bytes_per_thread(self):
+        return self._num_bytes_per_work_item
+
+    @property
+    def num_bytes_common(self):
+        return self._num_bytes_per_wg
+
+    @property
+    def is_assigned_to_any_kernel(self):
+        assert self._cl_kernel is None or isinstance( self._cl_kernel, cl.Kernel )
+        assert self._cl_loc_mem_obj is None or \
+            isinstance( self._cl_loc_mem_obj, cl.LocalMemory )
+        return self._cl_kernel is not None and self._cl_loc_mem_obj is not None and \
+            self._arg_index >= 0
+
+    def is_assigned_to_kernel( self, kernel ):
+        result = False
+        if self.is_assigned_to_any_kernel:
+            if isinstance( kernel, KernelPyopenclBase ):
+                result = bool( self._cl_kernel == kernel.function and
+                    kernel.num_args > self._arg_index and
+                    isinstance( kernel.description.args[ self._arg_index ],
+                            LocalMemPyopenclArg ) and
+                    kernel.description.args[ self._arg_index ] == self )
+            elif isinstance( kernel, cl.Kernel ):
+                result = bool( self._cl_kernel == kernel )
+        return result
+
+    def assign_to_pyopencl_kernel( self, cl_kernel, arg_index, work_group_size ):
+        assert self._cl_kernel is None
+        assert self._cl_loc_mem_obj is None
+        assert self._arg_index < 0
+        assert isinstance( cl_kernel, cl.Kernel )
+        loc_mem_num_bytes = self.calc_local_mem_num_bytes(
+            work_group_size, self._num_bytes_per_work_item, self._num_bytes_per_wg )
+        loc_mem_obj = cl.LocalMemory( loc_mem_num_bytes )
+
+        self._loc_mem_num_bytes = loc_mem_num_bytes
+        self._cl_kernel = cl_kernel
+        self._arg_index = arg_index
+        self._cl_loc_mem_obj = loc_mem_obj
+
+
+    def assign_to_kernel( self, kernel, arg_index ):
+        if not self.is_assigned_to_kernel( kernel ):
+            if not self.is_assigned_to_any_kernel:
+                assert isinstance( kernel, KernelPyopenclBase )
+                assert arg_index < kernel.num_args
+                assert self == kernel.description.args[ arg_index ]
+                self.assign_to_pyopencl_kernel(
+                    kernel.function, arg_index,
+                        kernel.local_work_size_num_work_items )
+            else:
+                raise ValueError( "Can't assign argument to a new kernel, is " +
+                    "already assigned to a different kernel" )
+
+
+class KernelPyopencl(KernelPyopenclBase):
+    def __init__(
+        self,
+        function,
+        description,
+        context,
+        wait_on_call=True,
+        profile=True,
+        build_options=None
+    ):
+        super().__init__( function, description, context,
+                         build_options=build_options )
+        self.wait_on_call = wait_on_call
+
+        if self._global_arg_indices is None:
+            # Could not get from OpenCL meta data -> try to guess them from description
+            self._global_arg_indices = []
+            self._local_arg_indices = []
+            self._constant_arg_indices = []
+            self._private_arg_indices = []
+            for idx, arg in enumerate( description.args ):
+                if arg.pointer:
+                    #TODO: figure out a way to determine __constant memory
+                    self._global_arg_indices.append( idx )
+                elif isinstance( arg, LocalMemPyopenclArg ):
+                    self._local_arg_indices.append( idx )
+                else:
+                    self._private_arg_indices.append( idx )
+
+        self._arg_name_to_index = dict( {
+            arg.name: idx for idx, arg in enumerate( self.description.args ) } )
+        # Verify that there were no duplicate arg.name entries in the list:
+        assert len( self._arg_name_to_index ) == len( self.description.args )
+
+        # Ensure that some "reserved" keywords of Pyopencl are not
+        # used as argument names
+        assert "wait_for" not in self._arg_name_to_index, "illegal arg name wait_for"
+        assert "g_times_l" not in self._arg_name_to_index, "illegal arg name g_times_l"
+
+        if self.has_compile_work_group_size:
+            assert self.grid_dimension == 1
+            #TODO: generalise for grid dimensions > 1
+            self._local_work_size = ( self.compile_work_group_num_work_items, )
+        elif self.num_local_mem_args > 0:
+            assert self.grid_dimension == 1
+            #TODO: generalise for grid dimensions > 1
+            self._local_work_size = ( self.max_work_group_size, )
+        else:
+            self._local_work_size = None
+
+        if bool(context.profiling_enabled and profile):
+            self.profiling_enabled = True
+            self.last_profile = ProfileResultPyopencl()
+        else:
+            self.profiling_enabled = False
+            self.last_profile = None
+
+    @property
+    def local_mem_arg_indices(self):
+        return self._local_arg_indices
+
+    @property
+    def local_work_size(self):
+        assert self._local_work_size is None or \
+            len( self._local_work_size ) == self.grid_dimension
+        return self._local_work_size
+
+    def set_local_work_size( self, new_loc_work_size, strict_multiples=True ):
+        if new_loc_work_size is None:
+            if self.num_local_mem_args > 0:
+                raise ValueError( "Can't set local work size to the default " +
+                    "becuase local memory arguments are used" )
+            self._local_work_size = None
+            return
+
+        #TODO: Generalise for grid dimensions > 1
+        assert self.grid_dimension == 1
+        loc_work_size = None
+        try:
+            loc_work_size_iter = iter( new_loc_work_size )
+            if len( new_loc_work_size ) > 0:
+                loc_work_size = ( new_loc_work_size[ 0 ], )
+        except TypeError:
+            pass
+        if loc_work_size is None:
+            loc_work_size = ( int( new_loc_work_size ), )
+        assert loc_work_size[ 0 ] >= 0
+        assert self.preferred_work_group_size_multiple > 0
+        if loc_work_size[ 0 ] > self.max_work_group_size:
+            raise ValueError( f"local work size {new_loc_work_size} exceeds " +
+                f"maximum allowed work group size of {self.max_work_group_size}" )
+        if self.preferred_work_group_size_multiple > 1 and strict_multiples and \
+            loc_work_size[ 0 ] % self.preferred_work_group_size_multiple != 0:
+            raise ValueError( f"provided local work size {loc_work_size} not " +
+                "divisible by the preferred work group size multiplier " +
+                    f"{self.preferred_work_group_size_multiple}" )
+        self._local_work_size = loc_work_size
+
+    @property
+    def local_work_size_num_work_items(self):
+        n_work_items = 1
+        if self._local_work_size is not None:
+            assert len( self._local_work_size ) == self.grid_dimension
+            for ii in range( self.grid_dimension ):
+                n_work_items *= self._local_work_size[ ii ]
+        return n_work_items
+
+    def calc_global_work_size( self, min_num_work_items ):
+        #TODO: Generalise for grid dimensions > 1
+        assert self.grid_dimension == 1
+        n_work_items_multiple = self.preferred_work_group_size_multiple
+        assert n_work_items_multiple > 0
+        n_work_groups = min_num_work_items // n_work_items_multiple
+        n_work_items = n_work_groups *  n_work_items_multiple
+        if n_work_items < min_num_work_items:
+            n_work_items += n_work_items_multiple
+        return ( n_work_items, )
+
     def to_function_arg(self, arg, value):
         if arg.pointer:
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 if isinstance(value, cl.Buffer):
                     return value
-                elif isinstance(value, cl.LocalMemory):
-                    return value
-                elif isinstance(value, SharedMemPyopenclArg):
-                    return value.shmem_arg
                 elif hasattr(value, "dtype"):  # nparray
                     assert isinstance(value, cla.Array)
                     return value.base_data[value.offset :]
@@ -654,21 +953,30 @@ class KernelPyopencl(object):
                     f"Invalid value {value} for argument {arg.name} of kernel {self.description.pyname}"
                 )
 
-    @property
-    def num_args(self):
-        return len(self.description.args)
-
     def update_last_profile(self, event):
         if self.profiling_enabled:
             assert self.last_profile is not None
             self.last_profile.update(event)
 
     def __call__(self, **kwargs):
-        assert len(kwargs.keys()) == self.num_args
         arg_list = []
-        for arg in self.description.args:
-            vv = kwargs[arg.name]
-            arg_list.append(self.to_function_arg(arg, vv))
+        for idx, arg in enumerate( self.description.args ):
+            if not isinstance( arg, LocalMemPyopenclArg ):
+                if arg.name not in kwargs:
+                    raise ValueError( "Mandatory kernel argument " +
+                        f"#{idx} \"{arg.name}\" not provided." )
+                vv = kwargs[arg.name]
+                arg_list.append(self.to_function_arg(arg, vv))
+            else:
+                pdb.set_trace()
+                lmem_obj = kwargs.get( arg.name, None )
+                if lmem_obj is None:
+                    arg.assign_to_kernel( self, idx )
+                    arg_list.append( arg.local_memory_obj )
+                else:
+                    assert isinstance( lmem_obj, cl.LocalMemory )
+                    arg_list.append( lmem_obj )
+        assert self.num_args == len( arg_list )
 
         if isinstance(self.description.n_threads, str):
             n_threads = kwargs[self.description.n_threads]
@@ -676,8 +984,13 @@ class KernelPyopencl(object):
             n_threads = self.description.n_threads
 
         event = self.function(
-            self.context.queue, (n_threads,), None, *arg_list
-        )
+            self.context.queue,
+            self.calc_global_work_size( n_threads ),
+            self.local_work_size,
+            *arg_list,
+            global_offset=self.global_offset,
+            wait_for = kwargs.get( 'wait_for', None ),
+            allow_empty_ndrange = self.allow_empty_ndrange )
 
         if self.wait_on_call:
             event.wait()

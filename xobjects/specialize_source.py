@@ -113,7 +113,7 @@ def specialize_source(source, specialize_for, search_in_folders=[]):
             "cpu_serial": " ",
             "cpu_openmp": " ",
             "opencl": " __local ",
-            "cuda": " __shared__ ",
+            "cuda": " ", # This is on purpose!!
         }[specialize_for],
     )
     newfilecontent = newfilecontent.replace(

@@ -188,7 +188,7 @@ class XContext(ABC):
 
 
 class XBuffer(ABC):
-    def __init__(self, capacity=1048576, context=None, default_alignment=None):
+    def __init__(self, capacity=1048576, context=None, default_alignment=None, grow_step=None):
 
         if context is None:
             self.context = self._make_context()
@@ -200,6 +200,7 @@ class XBuffer(ABC):
             default_alignment = self.context.minimum_alignment
         self.default_alignment = default_alignment
         self.chunks = [Chunk(0, capacity)]
+        self.grow_step = grow_step
 
     @abstractmethod
     def _make_context(self):
@@ -226,6 +227,8 @@ class XBuffer(ABC):
         sizepa = size + alignment - 1
         if sizepa > self.capacity:
             self.grow(sizepa)
+        elif self.grow_step is not None:
+            self.grow(self.grow_step)
         else:
             self.grow(self.capacity)
 

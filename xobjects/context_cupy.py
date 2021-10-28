@@ -52,12 +52,11 @@ class ContextCupy(XContext):
     Creates a Cupy Context object, that allows performing the computations
     on nVidia GPUs.
 
-    To select device use cupy.Device(<n>).use()
-
     Args:
         default_block_size (int):  CUDA thread size that is used by default
             for kernel execution in case a block size is not specified
             directly in the kernel object. The default value is 256.
+        device (int): Identifier of the device to be used by the context.
     Returns:
         ContextCupy: context object.
 

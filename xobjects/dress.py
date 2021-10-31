@@ -14,7 +14,11 @@ class _FieldOfDressed:
 
     def __get__(self, container, ContainerType=None):
         if self.isnplikearray:
-            return getattr(container._xobject, self.name).to_nplike()
+            if hasattr(container, '_lim_arrays_name'):
+                lim = getattr(container, container._lim_arrays_name)
+                return getattr(container._xobject, self.name).to_nplike()[:lim]
+            else:
+                return getattr(container._xobject, self.name).to_nplike()
         elif hasattr(container, '_dressed_'+self.name):
             return getattr(container, '_dressed_'+self.name)
         else:
@@ -22,7 +26,7 @@ class _FieldOfDressed:
 
     def __set__(self, container, value):
         if self.isnplikearray:
-            getattr(container._xobject, self.name).to_nplike()[:] = value
+            self.__get__(container=container)[:] = value
         elif hasattr(value, '_xobject'): # value is a dressed xobject
             setattr(container, '_dressed_' + self.name, value)
             setattr(container._xobject, self.name, value._xobject)

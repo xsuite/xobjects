@@ -25,4 +25,4 @@ from .specialize_source import specialize_source
 
 from .typeutils import context_default
 
-from .dress import dress
+from .dress import dress, JEncoder

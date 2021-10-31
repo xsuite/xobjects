@@ -1,3 +1,4 @@
+import json
 
 class _FieldOfDressed:
     def __init__(self, name, XoStruct):
@@ -135,3 +136,11 @@ def dress(XoStruct, rename={}):
 
     return DressedXStruct
 
+class JEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif np.issubdtype(type(obj), np.integer):
+            return int(obj)
+        else:
+            return json.JSONEncoder.default(self, obj)

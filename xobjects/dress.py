@@ -1,5 +1,7 @@
 import json
 
+import numpy as np
+
 class _FieldOfDressed:
     def __init__(self, name, XoStruct):
         self.name = name

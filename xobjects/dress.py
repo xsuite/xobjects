@@ -93,11 +93,13 @@ def dress(XoStruct, rename={}):
         self.xoinitialize(_xobject=_xobject, **kwargs)
 
     def to_dict(self):
-        out = {}
+        out = {'__class__':self.__class__.__name__}
         for ff in self._fields:
             vv = getattr(self, ff)
             if hasattr(vv, 'to_dict'):
                 out[ff] = vv.to_dict()
+            elif hasattr(vv, '_to_dict'):
+                out[ff] = vv._to_dict()
             else:
                 out[ff] = vv
         return out

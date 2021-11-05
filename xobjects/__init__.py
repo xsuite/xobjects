@@ -23,6 +23,6 @@ from .context import Arg, Kernel, get_user_context
 
 from .specialize_source import specialize_source
 
-from .typeutils import context_default
+from .typeutils import context_default, get_a_buffer
 
 from .dress import dress, JEncoder

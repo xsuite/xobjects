@@ -40,6 +40,9 @@ class _FieldOfDressed:
 
 def dress(XoStruct, rename={}):
 
+    if hasattr(XoStruct, '_DressingClass'):
+        raise ValueError('A Struct cannot be dressed multiple times')
+
     DressedXStruct = type(
         'Dressed'+XoStruct.__name__,
         (),
@@ -65,10 +68,18 @@ def dress(XoStruct, rename={}):
 
         DressedXStruct._fields = pynames_list
 
+    XoStruct._DressingClass = DressedXStruct
+
     def xoinitialize(self, _xobject=None, **kwargs):
 
         if _xobject is not None:
             self._xobject = _xobject
+            for ff in self.XoStruct._fields:
+                if hasattr(ff.ftype, '_DressingClass'):
+                    vv = ff.ftype._DressingClass(
+                            _xobject=getattr(_xobject, ff.name))
+                    pyname = self._rename.get(ff.name, ff.name)
+                    setattr(self, pyname, vv)
         else:
 
             # Handle dressed inputs

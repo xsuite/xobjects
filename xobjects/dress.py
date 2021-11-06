@@ -70,18 +70,20 @@ def dress(XoStruct, rename={}):
 
     XoStruct._DressingClass = DressedXStruct
 
+    def _reinit_from_xobject(self, _xobject):
+        self._xobject = _xobject
+        for ff in self.XoStruct._fields:
+            if hasattr(ff.ftype, '_DressingClass'):
+                vv = ff.ftype._DressingClass(
+                        _xobject=getattr(_xobject, ff.name))
+                pyname = self._rename.get(ff.name, ff.name)
+                setattr(self, pyname, vv)
+
     def xoinitialize(self, _xobject=None, **kwargs):
 
         if _xobject is not None:
-            self._xobject = _xobject
-            for ff in self.XoStruct._fields:
-                if hasattr(ff.ftype, '_DressingClass'):
-                    vv = ff.ftype._DressingClass(
-                            _xobject=getattr(_xobject, ff.name))
-                    pyname = self._rename.get(ff.name, ff.name)
-                    setattr(self, pyname, vv)
+            self._reinit_from_xobject(_xobject=_xobject)
         else:
-
             # Handle dressed inputs
             dressed_kwargs = {}
             for kk, vv in kwargs.items():
@@ -152,6 +154,7 @@ def dress(XoStruct, rename={}):
     DressedXStruct.from_dict = from_dict
     DressedXStruct.copy= copy
     DressedXStruct.__init__ = myinit
+    DressedXStruct._reinit_from_xobject = _reinit_from_xobject
 
     return DressedXStruct
 

@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+from .struct import Struct
 
 class _FieldOfDressed:
     def __init__(self, name, XoStruct):
@@ -166,3 +167,26 @@ class JEncoder(json.JSONEncoder):
             return int(obj)
         else:
             return json.JSONEncoder.default(self, obj)
+
+class MetaDressedStruct(type):
+
+    def __new__(cls, name, bases, data):
+        XoStruct_name = name+'Data'
+        if '_xofields' in data.keys():
+            xofields = data['_xofields']
+        else:
+            for bb in bases:
+                if hasattr(bb,'_xofields'):
+                    xofields = bb._xofields
+                    break
+        XoStruct = type(XoStruct_name, (Struct,), xofields)
+
+        bases = (dress(XoStruct),) + bases
+        new_class = type.__new__(cls, name, bases, data)
+
+        XoStruct._DressingClass = new_class
+
+        return new_class
+
+class DressedStruct(metaclass=MetaDressedStruct):
+    _xofields={}

@@ -71,6 +71,12 @@ def dress(XoStruct, rename={}):
 
     XoStruct._DressingClass = DressedXStruct
 
+    def _move_to(self, _context=None, _buffer=None, _offset=None):
+        self._xobject = self._xobject.__class__(
+                self._xobject, _context=_context,
+                _buffer=_buffer, _offset=_offset)
+        self._reinit_from_xobject(_xobject=self._xobject)
+
     def _reinit_from_xobject(self, _xobject):
         self._xobject = _xobject
         for ff in self.XoStruct._fields:
@@ -156,6 +162,7 @@ def dress(XoStruct, rename={}):
     DressedXStruct.copy= copy
     DressedXStruct.__init__ = myinit
     DressedXStruct._reinit_from_xobject = _reinit_from_xobject
+    DressedXStruct._move_to = _move_to
 
     return DressedXStruct
 

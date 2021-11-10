@@ -36,7 +36,7 @@ try:
     import pyfftw
     pyfftw_available = True
 except ImportError:
-    print("WARNING: pyfftw not available, will use numpy")
+    log.info("pyfftw not available, will use numpy")
     pyfftw = ModuleNotAvailable(message="pyfftw not available")
     pyfftw_available = False
 

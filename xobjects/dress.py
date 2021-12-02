@@ -132,8 +132,8 @@ def dress(XoStruct, rename={}):
         return out
 
     @classmethod
-    def from_dict(cls, dct):
-        return cls(**dct)
+    def from_dict(cls, dct, _context=None, _buffer=None, _offset=None):
+        return cls(**dct, _context=_context, _buffer=_buffer, _offset=_offset)
 
     def copy(self, _context=None, _buffer=None, _offset=None):
         if _context is None and _buffer is None:

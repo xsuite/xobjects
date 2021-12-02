@@ -2,6 +2,7 @@ import json
 
 import numpy as np
 from .struct import Struct
+from .context import context_default
 
 class _FieldOfDressed:
     def __init__(self, name, XoStruct):
@@ -114,6 +115,12 @@ def dress(XoStruct, rename={}):
 
     def to_dict(self):
         out = {'__class__':self.__class__.__name__}
+        # Use a cpu copy by default:
+        if copy_to_cpu:
+            obj = self.copy(_context=context_default)
+        else:
+            obj = self
+
         for ff in self._fields:
             vv = getattr(self, ff)
             if hasattr(vv, 'to_dict'):

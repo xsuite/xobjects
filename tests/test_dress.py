@@ -10,8 +10,11 @@ def test_dress():
 
     class Element(dress(ElementData)):
 
-        def __init__(self, vv, **kwargs):
-            self.xoinitialize(n=len(vv), b=np.sum(vv), vv=vv,
+        def __init__(self, vv=None, **kwargs):
+            if '_xobject' in kwargs.keys():
+                self.xoinitialize(**kwargs)
+            else:
+                self.xoinitialize(n=len(vv), b=np.sum(vv), vv=vv,
                               **kwargs)
     for context in xo.context.get_test_contexts():
         print(f"Test {context.__class__}")
@@ -33,6 +36,10 @@ def test_dress():
         ele.b = 50
         assert ele.b == ele._xobject.b == 50.
 
+        dd = ele.to_dict()
+        assert dd['vv'][1] == 8
+        assert isinstance(dd['vv'], np.ndarray)
+
 
 def test_explicit_buffer():
     class ElementData(xo.Struct):
@@ -42,7 +49,7 @@ def test_explicit_buffer():
 
     class Element(dress(ElementData)):
 
-        def __init__(self, vv, **kwargs):
+        def __init__(self, vv=None, **kwargs):
             self.xoinitialize(n=len(vv), b=np.sum(vv), vv=vv, **kwargs)
 
     for context in xo.context.get_test_contexts():

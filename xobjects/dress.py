@@ -2,7 +2,7 @@ import json
 
 import numpy as np
 from .struct import Struct
-from .context import context_default
+from .typeutils import context_default
 
 class _FieldOfDressed:
     def __init__(self, name, XoStruct):
@@ -113,7 +113,7 @@ def dress(XoStruct, rename={}):
     def myinit(self, _xobject=None, **kwargs):
         self.xoinitialize(_xobject=_xobject, **kwargs)
 
-    def to_dict(self):
+    def to_dict(self, copy_to_cpu=True):
         out = {'__class__':self.__class__.__name__}
         # Use a cpu copy by default:
         if copy_to_cpu:
@@ -121,8 +121,8 @@ def dress(XoStruct, rename={}):
         else:
             obj = self
 
-        for ff in self._fields:
-            vv = getattr(self, ff)
+        for ff in obj._fields:
+            vv = getattr(obj, ff)
             if hasattr(vv, 'to_dict'):
                 out[ff] = vv.to_dict()
             elif hasattr(vv, '_to_dict'):

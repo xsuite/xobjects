@@ -3,6 +3,14 @@ import numpy as np
 import xobjects as xo
 
 
+def test_type():
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
+
+    a = ctx.zeros(10, dtype=np.float64)
+    assert isinstance(a, ctx.nplike_array_type)
+
+
 def test_ffts():
 
     for ctx in xo.context.get_test_contexts():

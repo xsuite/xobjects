@@ -62,6 +62,8 @@ class ContextCupy(XContext):
 
     """
 
+    nplike_array_type = cupy.ndarray
+
     def __init__(self, default_block_size=256, device=None):
 
         if device is not None:

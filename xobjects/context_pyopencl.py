@@ -50,7 +50,9 @@ typedef unsigned int uint32_t;
 
 class ContextPyopencl(XContext):
 
-    nplike_array_type = cla.Array
+    @property
+    def nplike_array_type(self):
+        return cla.Array
 
     @classmethod
     def get_devices(cls):

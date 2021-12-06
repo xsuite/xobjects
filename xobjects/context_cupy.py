@@ -62,7 +62,9 @@ class ContextCupy(XContext):
 
     """
 
-    nplike_array_type = cupy.ndarray
+    @property
+    def nplike_array_type(self):
+        return cupy.ndarray
 
     def __init__(self, default_block_size=256, device=None):
 

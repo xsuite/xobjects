@@ -83,7 +83,9 @@ class ContextCpu(XContext):
 
     """
 
-    nplike_array_type = np.ndarray
+    @property
+    def nplike_array_type(self):
+        return np.ndarray
 
     def __init__(self, omp_num_threads=0):
         super().__init__()

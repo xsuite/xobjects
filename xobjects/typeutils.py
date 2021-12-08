@@ -19,7 +19,7 @@ def get_a_buffer(size, context=None, buffer=None, offset=None):
     elif offset == "packed":
         offset = buffer.allocate(size, align=False)
     if isinstance(offset, str):
-        raise ValueError(f'Invalid offset {offset}')
+        raise ValueError(f"Invalid offset {offset}")
     return buffer, offset
 
 

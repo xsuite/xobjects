@@ -215,3 +215,22 @@ def test_unionref():
     p2 = ctx.kernels.ArrNURef_member(obj=arr, i0=0)
 
     assert int(ffi.cast("size_t", p1)) == int(ffi.cast("size_t", p2))
+
+
+def test_get_two_indices():
+    class Point(xo.Struct):
+        x = xo.Float64
+        y = xo.Float64
+
+    class Triangle(Point[3]):
+        pass
+
+    class Mesh(Triangle[:]):
+        pass
+
+    kernels = Mesh._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels)
+    m = Mesh(5)
+    m[0][1].x = 3
+    assert ctx.kernels.Mesh_get_x(obj=m, i0=0, i1=1) == 3

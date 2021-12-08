@@ -188,7 +188,13 @@ class XContext(ABC):
 
 
 class XBuffer(ABC):
-    def __init__(self, capacity=1048576, context=None, default_alignment=None, grow_step=None):
+    def __init__(
+        self,
+        capacity=1048576,
+        context=None,
+        default_alignment=None,
+        grow_step=None,
+    ):
 
         if context is None:
             self.context = self._make_context()
@@ -414,11 +420,12 @@ class Method:
 
 def get_context_from_string(ctxstr):
     import xobjects as xo
+
     if ctxstr is None:
         return xo.ContexCPU()
     else:
         ll = ctxstr.split(":")
-        if len(ll)<=1:
+        if len(ll) <= 1:
             ctxtype = ll[0]
             option = []
         else:

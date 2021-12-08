@@ -115,7 +115,7 @@ def Ref_get_c_offset(self, conf):
     return [f"  offset+={refoffset};"]
 
 
-def Index_get_c_offset(part, conf):
+def Index_get_c_offset(part, conf, icount):
     cls = part.cls
     inttype = conf.get("inttype", "int64_t")
 
@@ -132,7 +132,7 @@ def Index_get_c_offset(part, conf):
             out.append(f"{sname}={svalue};")
             strides.append(sname)
 
-    soffset = "+".join([f"i{ii}*{ss}" for ii, ss in enumerate(strides)])
+    soffset = "+".join([f"i{ii+icount}*{ss}" for ii, ss in enumerate(strides)])
     if cls._data_offset > 0:
         soffset = f"{cls._data_offset}+{soffset}"
     if cls._is_static_type:
@@ -142,22 +142,22 @@ def Index_get_c_offset(part, conf):
     return out
 
 
-def get_c_offset(atype, conf):
-    if is_index(atype):
-        return Index_get_c_offset(atype, conf)
-    elif is_field(atype):
-        return Field_get_c_offset(atype, conf)
-    elif is_ref(atype):
-        return Ref_get_c_offset(atype, conf)
-
-
 def gen_method_offset(path, conf):
     """return code to obtain offset of the target in bytes"""
     inttype = conf.get("inttype", "int64_t")
     lst = [f"  {inttype} offset=0;"]
     offset = 0
+    icount = 0
     for part in path:
-        soffset = get_c_offset(part, conf)
+        if is_index(part):
+            soffset = Index_get_c_offset(part, conf, icount)
+            icount += len(part.cls._shape)
+        elif is_field(part):
+            soffset = Field_get_c_offset(part, conf)
+        elif is_ref(part):
+            soffset = Ref_get_c_offset(part, conf)
+        else:
+            soffset = None
         if type(soffset) is int:
             offset += soffset
         elif type(soffset) is list:

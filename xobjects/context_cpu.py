@@ -34,6 +34,7 @@ except ImportError:
 
 try:
     import pyfftw
+
     pyfftw_available = True
 except ImportError:
     log.info("pyfftw not available, will use numpy")

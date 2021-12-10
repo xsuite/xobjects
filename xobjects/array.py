@@ -36,7 +36,7 @@ Array class:
     - _size
     - _shape: the shape in the index space
     - _dshape_idx: index of dynamic shapes
-    - _order: the hierarchical order of the indeces
+    - _order: the hierarchical order of the indexes
     - _itemtype
     - _is_static_shape
     - _strides

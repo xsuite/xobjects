@@ -22,7 +22,7 @@ Struct class:
 - _size: class size, None if not static
 - _fields: list of fields
 - _d_fields: list of dynamic fields
-- _s_fields: list of dynamic fields
+- _s_fields: list of static fields
 
 Struct instance:
 - _offsets: cached offsets of dynamic fields dict indexed by field.index
@@ -279,6 +279,7 @@ class Struct(metaclass=MetaStruct):
             val = Int64._from_buffer(self._buffer, offset)
             _offsets[field.index] = val
         self._offsets = _offsets
+        self._size = self._get_size()
         self._post_init()
         return self
 

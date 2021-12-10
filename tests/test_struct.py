@@ -187,3 +187,20 @@ def test_init_from_xobj():
 
     assert s2.a == s1.a
     assert s3.b == s1.b
+
+
+def test_nestednested():
+    class MyStructA(xo.Struct):
+        a = xo.Float64[:]
+        b = xo.Float64[:]
+
+    class MyStructB(xo.Struct):
+        s = MyStructA
+
+    b = MyStructB(s={'a':10, 'b':10})
+
+    assert b.s.a._size==96
+    assert b.s.b._size==96
+    assert b.s._size==208
+    assert b._size==216
+

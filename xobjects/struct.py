@@ -27,6 +27,7 @@ Struct class:
 Struct instance:
 - _offsets: cached offsets of dynamic fields dict indexed by field.index
 - _sizes: cached sizes of dynamic fields dict indexed by field.index
+- _size: cached size of the object
 
 Field instance:
 - ftype
@@ -36,7 +37,6 @@ Field instance:
 - is_static_type
 - has_update
 - readonly
-
 
 
 """

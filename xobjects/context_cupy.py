@@ -15,6 +15,7 @@ from .context import (
 )
 
 from .specialize_source import specialize_source
+from .linkedarray import BaseLinkedArray
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +31,15 @@ except ImportError:
     )
     cufftp = cupy
     _enabled = False
+
+# order of base classes matters as it defines which __setitem__ is used
+class LinkedArrayCupy(BaseLinkedArray, cupy.ndarray):
+
+    @classmethod
+    def _build_view(cls, a):
+        assert len(a.shape) == 1
+        return cls(shape=a.shape, dtype=a.dtype, memptr=a.data,
+                   strides=a.strides, order='C')
 
 
 cudaheader = [
@@ -65,6 +75,10 @@ class ContextCupy(XContext):
     @property
     def nplike_array_type(self):
         return cupy.ndarray
+
+    @property
+    def linked_array_type(self):
+        return LinkedArrayCupy
 
     def __init__(self, default_block_size=256, device=None):
 

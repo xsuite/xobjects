@@ -72,6 +72,28 @@ def cdef_from_kernel(kernel, pyname=None):
     signature += ");"
     return signature
 
+class LinkedArray(np.ndarray):
+
+    container = None
+    name_in_container = None
+    mode = None
+
+    @classmethod
+    def from_array(cls, a, mode=None):
+        assert len(a.shape) == 1 # TODO: To be generalized
+        assert mode in (None, 'readonly')
+        self = cls(shape=a.shape, dtype=a.dtype, buffer=a.data, offset=0,
+                   strides=a.strides, order='C')
+        self.mode=mode
+        return self
+
+    def __setitem__(self, indx, val):
+        print(f'{indx=} {val=}')
+        if self.mode is None:
+            super().__setitem__(indx, val)
+        elif self.mode == 'readonly':
+            raise ValueError('This array is read only')
+
 
 class ContextCpu(XContext):
     """

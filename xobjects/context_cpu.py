@@ -92,13 +92,14 @@ class LinkedArrayCpu(np.ndarray):
 
     def __setitem__(self, indx, val):
         print(f'{indx=} {val=}')
-        if self.mode is None:
+        if (self.mode is None or
+            (hasattr(self.container, '_flag_bypass_linked')
+                         and self.container._flag_bypass_linked)):
             super().__setitem__(indx, val)
         elif self.mode == 'setitem_from_container':
             getattr(self.container, self.container_setitem_name)(indx, val)
         elif self.mode == 'readonly':
             raise ValueError('This array is read only')
-
 
 class ContextCpu(XContext):
     """

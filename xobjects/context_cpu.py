@@ -72,6 +72,16 @@ def cdef_from_kernel(kernel, pyname=None):
     signature += ");"
     return signature
 
+class BypassLinked:
+    def __init__(self, container):
+        self.container = container
+
+    def __enter__(self):
+        self.container._flag_bypass_linked = True
+
+    def __exit__(self, *args, **kwargs):
+        del(self.container._flag_bypass_linked)
+
 class LinkedArrayCpu(np.ndarray):
 
     container = None

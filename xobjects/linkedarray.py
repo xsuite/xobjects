@@ -17,7 +17,6 @@ class BaseLinkedArray():
         return self
 
     def __setitem__(self, indx, val):
-        print(f'{indx=} {val=}')
         if (self.mode is None or
             (hasattr(self.container, '_flag_bypass_linked')
                          and self.container._flag_bypass_linked)):

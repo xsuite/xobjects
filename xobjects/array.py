@@ -437,6 +437,8 @@ class Array(metaclass=MetaArray):
         if hasattr(cls._itemtype, "_dtype") and hasattr(
             value, "dtype"
         ):  # is a scalar type:
+            if not isinstance(value, buffer.context.nplike_array_type):
+                value = buffer.context.nparray_to_context_array(value)
             buffer.update_from_nplike(coffset, cls._itemtype._dtype, value)
         elif isinstance(value, cls):
             if value._size == info.size:

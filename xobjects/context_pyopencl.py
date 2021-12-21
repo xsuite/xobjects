@@ -13,7 +13,9 @@ from .context import (
     sources_from_classes,
     _concatenate_sources,
 )
+
 from .specialize_source import specialize_source
+from .linkedarray import BaseLinkedArray
 
 log = logging.getLogger(__name__)
 
@@ -48,10 +50,24 @@ typedef unsigned int uint32_t;
 ]
 
 
+# order of base classes matters as it defines which __setitem__ is used
+class LinkedArrayPyopencl(BaseLinkedArray, cla.Array):
+
+    @classmethod
+    def _build_view(cls, a):
+        assert len(a.shape) == 1
+        return cls(cq=a.queue, shape=a.shape, dtype=a.dtype,
+                   data=a.base_data, offset=a.offset, strides=a.strides, order='C',
+                   _flags=a.flags)
+
 class ContextPyopencl(XContext):
     @property
     def nplike_array_type(self):
         return cla.Array
+
+    @property
+    def linked_array_type(self):
+        return LinkedArrayPyopencl
 
     @classmethod
     def get_devices(cls):

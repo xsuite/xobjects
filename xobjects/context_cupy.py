@@ -32,14 +32,15 @@ except ImportError:
     cufftp = cupy
     _enabled = False
 
-# order of base classes matters as it defines which __setitem__ is used
-class LinkedArrayCupy(BaseLinkedArray, cupy.ndarray):
+if _enabled:
+    # order of base classes matters as it defines which __setitem__ is used
+    class LinkedArrayCupy(BaseLinkedArray, cupy.ndarray):
 
-    @classmethod
-    def _build_view(cls, a):
-        assert len(a.shape) == 1
-        return cls(shape=a.shape, dtype=a.dtype, memptr=a.data,
-                   strides=a.strides, order='C')
+        @classmethod
+        def _build_view(cls, a):
+            assert len(a.shape) == 1
+            return cls(shape=a.shape, dtype=a.dtype, memptr=a.data,
+                    strides=a.strides, order='C')
 
 
 cudaheader = [

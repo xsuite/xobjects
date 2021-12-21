@@ -49,16 +49,16 @@ typedef unsigned int uint32_t;
 #endif"""
 ]
 
+if _enabled:
+    # order of base classes matters as it defines which __setitem__ is used
+    class LinkedArrayPyopencl(BaseLinkedArray, cla.Array):
 
-# order of base classes matters as it defines which __setitem__ is used
-class LinkedArrayPyopencl(BaseLinkedArray, cla.Array):
-
-    @classmethod
-    def _build_view(cls, a):
-        assert len(a.shape) == 1
-        return cls(cq=a.queue, shape=a.shape, dtype=a.dtype,
-                   data=a.base_data, offset=a.offset, strides=a.strides, order='C',
-                   _flags=a.flags)
+        @classmethod
+        def _build_view(cls, a):
+            assert len(a.shape) == 1
+            return cls(cq=a.queue, shape=a.shape, dtype=a.dtype,
+                    data=a.base_data, offset=a.offset, strides=a.strides, order='C',
+                    _flags=a.flags)
 
 class ContextPyopencl(XContext):
     @property

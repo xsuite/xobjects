@@ -73,14 +73,15 @@ def cdef_from_kernel(kernel, pyname=None):
     signature += ");"
     return signature
 
-# order of base classes matters as it defines which __setitem__ is used
-class LinkedArrayCpu(BaseLinkedArray, np.ndarray):
+if _enabled:
+    # order of base classes matters as it defines which __setitem__ is used
+    class LinkedArrayCpu(BaseLinkedArray, np.ndarray):
 
-    @classmethod
-    def _build_view(cls, a):
-        assert len(a.shape) == 1
-        return cls(shape=a.shape, dtype=a.dtype, buffer=a.data, offset=0,
-                   strides=a.strides, order='C')
+        @classmethod
+        def _build_view(cls, a):
+            assert len(a.shape) == 1
+            return cls(shape=a.shape, dtype=a.dtype, buffer=a.data, offset=0,
+                    strides=a.strides, order='C')
 
 class ContextCpu(XContext):
     """

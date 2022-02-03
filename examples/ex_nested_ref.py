@@ -2,18 +2,21 @@ import xobjects as xo
 
 context = xo.ContextPyopencl()
 
+
 class MyStruct(xo.Struct):
     a = xo.Float64[:]
+
 
 class MyStruct2(xo.Struct):
     a = xo.Float64[:]
     sr = xo.Ref(MyStruct)
 
-ms = MyStruct(a=[1,2,3], _context=context)
 
-ms2 = MyStruct2(_buffer=ms._buffer, sr=ms, a=[0,0,0])
+ms = MyStruct(a=[1, 2, 3], _context=context)
 
-src = '''
+ms2 = MyStruct2(_buffer=ms._buffer, sr=ms, a=[0, 0, 0])
+
+src = """
 /*gpukern*/
 void cp_sra_to_a(MyStruct2 ms, int64_t n){
 
@@ -23,14 +26,17 @@ void cp_sra_to_a(MyStruct2 ms, int64_t n){
     }//end_vectorize
 
 }
-'''
+"""
 
-context.add_kernels(sources=[src], kernels={
-    'cp_sra_to_a': xo.Kernel(args=[
-        xo.Arg(MyStruct2, name='ms'),
-        xo.Arg(xo.Int64, name='n')],
-        n_threads='n'
-        )})
+context.add_kernels(
+    sources=[src],
+    kernels={
+        "cp_sra_to_a": xo.Kernel(
+            args=[xo.Arg(MyStruct2, name="ms"), xo.Arg(xo.Int64, name="n")],
+            n_threads="n",
+        )
+    },
+)
 
 context.kernels.cp_sra_to_a(ms=ms2, n=len(ms.a))
 

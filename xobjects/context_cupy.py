@@ -95,8 +95,8 @@ class ContextCupy(XContext):
 
     def add_kernels(
         self,
-        sources,
-        kernels,
+        sources=[],
+        kernels=[],
         specialize=True,
         save_source_as=None,
         extra_cdef=None,

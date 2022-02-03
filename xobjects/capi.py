@@ -415,10 +415,51 @@ def gen_method_member(cls, path, conf):
     lst.append(gen_method_offset(path, conf))
 
     # pointed = gen_c_pointed(Arg(Int8, pointer=True), conf)
+    lst.extend(Ref_get_c_offset("offset",conf))
+    pointed = gen_c_pointed(retarg, conf)
+    lst.append(f" return {pointed};")
     # GPU not handled
-    lst.append("  char *reloff_p = (char *) obj + offset;")
-    lst.append("  int64_t  reloff= *(int64_t *) reloff_p;")
-    lst.append("  return (void *) (reloff_p + reloff);")
+    #lst.append("  char *reloff_p = (char *) obj + offset;")
+    #lst.append("  int64_t  reloff= *(int64_t *) reloff_p;")
+    #lst.append("  return (void*) (reloff_p + reloff);")
+    lst.append("}")
+    return "\n".join(lst), kernel
+
+
+def gen_method_switch(cls, path, conf, method):
+    "generate switch methods declared in _methods"
+    lasttype = path[-1]
+
+    kernel = gen_fun_kernel(
+        cls,
+        path,
+        const=True,
+        action=method.c_name,
+        extra=method.args,
+        ret=method.ret,
+    )
+    refname=lasttype.__name__
+
+    decl = gen_c_decl_from_kernel(kernel, conf)
+    lst = [decl + "{"]
+    voidp=gen_pointer("void*",conf)
+    lst.append(f"  {voidp} member = {refname}_member(obj);")
+    lst.append(f"  switch ({refname}_typeid(obj)){{")
+    for atype in lasttype._reftypes:
+        atname=atype.__name__
+        targs=[f"({atname}) member"]
+        for arg in kernel.args[1:]:
+            targs.append(f"{arg.name}")
+        targs=','.join(targs)
+        lst.append(f"""\
+        #ifndef {refname.upper()}_SKIP_{atname.upper()}
+        case {refname}_{atname}_t:
+            return {atname}_{method.c_name}({targs});
+            break;
+        #endif"""
+        )
+    lst.append ("  }")
+    lst.append ("  return 0;")
     lst.append("}")
     return "\n".join(lst), kernel
 
@@ -431,7 +472,7 @@ def gen_typedef(cls, conf):
 
 def gen_enum(cls, conf):
     typename = cls.__name__
-    lst = ",".join(f"{tt._c_type}_t" for tt in cls._reftypes)
+    lst = ",".join(f"{typename}_{tt._c_type}_t" for tt in cls._reftypes)
     return f"enum {typename}_e{{{lst}}};"
 
 
@@ -462,7 +503,9 @@ def methods_from_path(cls, path, conf):
     if is_unionref(lasttype):
         out.append(gen_method_typeid(cls, path, conf))
         out.append(gen_method_member(cls, path, conf))
-
+        if cls == lasttype:
+            for method in lasttype._methods:
+                out.append(gen_method_switch(cls, path, conf, method))
     return out
 
 

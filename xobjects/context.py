@@ -402,11 +402,11 @@ class Kernel:
             classes.append(self.ret.atype)
         return classes
 
-
 class Method:
-    def __init__(self, kernel_name, arg_name="self"):
-        self.kernel_name = kernel_name
-        self.arg_name = arg_name
+    def __init__(self, args, c_name, ret):
+        self.args = args
+        self.c_name = c_name
+        self.ret = ret
 
     def mk_method(self):
         def a_method(instance, *args, **kwargs):

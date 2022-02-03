@@ -28,6 +28,8 @@ Square.extra_sources = [
 
 class Base(xo.UnionRef):
     _reftypes = (Triangle, Square)
+    _methods = [
+        xo.Method(c_name='compute_area', args=['Base', 'double'], ret='double')]
 
 Base.extra_sources =[
     '''
@@ -81,3 +83,6 @@ prism_square = Prism(base=square, height=10)
 
 context.kernels.Prism_compute_volume(prism=prism_triangle)
 context.kernels.Prism_compute_volume(prism=prism_square)
+
+assert prism_triangle.volume == 45
+assert prism_square.volume == 120

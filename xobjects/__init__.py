@@ -19,7 +19,7 @@ from .context_cpu import ContextCpu
 from .context_pyopencl import ContextPyopencl
 from .context_cupy import ContextCupy
 
-from .context import Arg, Kernel, get_user_context
+from .context import Arg, Kernel, Method, get_user_context
 
 from .specialize_source import specialize_source
 

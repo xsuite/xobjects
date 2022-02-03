@@ -180,10 +180,11 @@ def no_test_array_of_unionrefs():
             print(f"aoref[{ii}]=", aoref[ii])
             assert aoref[ii].a == 10 * ii
 
+
 import xobjects as xo
 
-def test_unionref():
 
+def test_unionref():
     class Triangle(xo.Struct):
         b = xo.Float64
         h = xo.Float64
@@ -208,7 +209,6 @@ def test_unionref():
         }
         """
 
-
     class Base(xo.UnionRef):
         _reftypes = (Triangle, Square)
         _methods = [
@@ -218,7 +218,6 @@ def test_unionref():
                 ret=xo.Arg(xo.Float64),
             )
         ]
-
 
     class Prism(xo.Struct):
         base = Base
@@ -241,11 +240,10 @@ def test_unionref():
         context.add_kernels(
             kernels={
                 "Prism_compute_volume": xo.Kernel(
-                    args=[xo.Arg(Prism, name="prism")], n_threads=1
+                    args=[xo.Arg(Prism, name="prism")]
                 )
             }
         )
-
 
         triangle = Triangle(b=2, h=3, _context=context)
         prism_triangle = Prism(base=triangle, height=5, _context=context)

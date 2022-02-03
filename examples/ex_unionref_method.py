@@ -74,12 +74,31 @@ assert prism_triangle.volume == 45
 assert prism_square.volume == 120
 
 
+# OpenCL
 context = xo.ContextPyopencl()
 context.add_kernels(
     kernels={
-        "Prism_compute_volume": xo.Kernel(
-            args=[xo.Arg(Prism, name="prism")], n_threads=1
-        )
+        "Prism_compute_volume": xo.Kernel(args=[xo.Arg(Prism, name="prism")])
+    }
+)
+
+
+triangle = Triangle(b=2, h=3, _context=context)
+prism_triangle = Prism(base=triangle, height=5, _context=context)
+square = Square(a=2, _context=context)
+prism_square = Prism(base=square, height=10, _context=context)
+
+context.kernels.Prism_compute_volume(prism=prism_triangle)
+context.kernels.Prism_compute_volume(prism=prism_square)
+
+assert prism_triangle.volume == 45
+assert prism_square.volume == 120
+
+# Cuda
+context = xo.ContextCupy()
+context.add_kernels(
+    kernels={
+        "Prism_compute_volume": xo.Kernel(args=[xo.Arg(Prism, name="prism")])
     }
 )
 

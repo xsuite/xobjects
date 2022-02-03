@@ -96,13 +96,13 @@ def test_grow():
     for ctx in xo.context.get_test_contexts():
         print(f"Test {ctx}")
         ch = Check(ctx, 200)
-        st=ch.new_string(150)
-        st=ch.new_string(60)
+        st = ch.new_string(150)
+        st = ch.new_string(60)
         ch.check()
         assert ch.buffer.capacity == 400
-        assert ch.buffer.chunks[0].start == st+60
+        assert ch.buffer.chunks[0].start == st + 60
         assert ch.buffer.chunks[0].end == 400
-        st=ch.new_string(500)
+        st = ch.new_string(500)
         assert ch.buffer.capacity == 900 + ch.buffer.default_alignment - 1
         ch.check()
 

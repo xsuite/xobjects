@@ -6,10 +6,10 @@ class Triangle(xo.Struct):
 
 Triangle.extra_sources = [
     '''
-    double Triangle_compute_area(Triangle tr){
+    double Triangle_compute_area(Triangle tr, double scale){
         double b = Triangle_get_b(tr);
         double h = Triangle_get_h(tr);
-        return 0.5*b*h;
+        return 0.5*b*h*scale;
     }
     '''
 ]
@@ -19,9 +19,9 @@ class Square(xo.Struct):
 
 Square.extra_sources = [
     '''
-    double Square_compute_area(Square sq){
+    double Square_compute_area(Square sq, double scale){
         double a = Square_get_a(sq);
-        return a*a;
+        return a*a*scale;
     }
     '''
 ]
@@ -31,17 +31,17 @@ class Base(xo.UnionRef):
 
 Base.extra_sources =[
     '''
-    double Base_compute_area(Base base){
+    double Base_compute_area(Base base, double scale){
         void* member = Base_member(base);
         switch (Base_typeid(base)){
             #ifndef BASE_SKIP_TRIANGLE
             case Base_Triangle_t:
-                return Triangle_compute_area((Triangle) member);
+                return Triangle_compute_area((Triangle) member, scale);
                 break;
             #endif
             #ifndef BASE_SKIP_SQUARE
             case Base_Square_t:
-                return Square_compute_area((Square) member);
+                return Square_compute_area((Square) member, scale);
                 break;
             #endif
         }
@@ -61,7 +61,7 @@ Prism.extra_sources = [
         Base base = Prism_getp_base(pr);
         double height = Prism_get_height(pr);
 
-        double base_area = Base_compute_area(base);
+        double base_area = Base_compute_area(base, 3.);
 
         Prism_set_volume(pr, base_area*height);
     }

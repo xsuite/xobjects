@@ -431,7 +431,7 @@ def gen_typedef(cls, conf):
 
 def gen_enum(cls, conf):
     typename = cls.__name__
-    lst = ",".join(f"{tt._c_type}_t" for tt in cls._reftypes)
+    lst = ",".join(f"{typename}_{tt._c_type}_t" for tt in cls._reftypes)
     return f"enum {typename}_e{{{lst}}};"
 
 

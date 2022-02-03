@@ -34,7 +34,11 @@ Prism.extra_sources = [
 ]
 
 context = xo.ContextCpu()
-import pdb; pdb.set_trace()
 context.add_kernels(sources=(Triangle.extra_sources + Prism.extra_sources),
     kernels = {'Prism_compute_volume': xo.Kernel(
-        args = [xo.Arg(Prism, 'prism')])})
+        args = [xo.Arg(Prism, name='prism')])})
+
+triangle = Triangle(b=2, h=3)
+prism = Prism(base=triangle, height=5)
+
+context.kernels.Prism_compute_volume(prism=prism)

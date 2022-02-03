@@ -94,10 +94,13 @@ class Ref(metaclass=MetaRef):
 #  - can be useful to instantiate for debugging
 class MetaUnionRef(type):
     _reftypes: list
+    _methods: list
 
     def __new__(cls, name, bases, data):
         if "_c_type" not in data:
             data["_c_type"] = name
+        if "_methods" not in data:
+            data["_methods"] = []
 
         return type.__new__(cls, name, bases, data)
 

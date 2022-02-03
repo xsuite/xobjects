@@ -6,6 +6,7 @@ class Triangle(xo.Struct):
     h = xo.Float64
 
     _extra_c_source = """
+    /*gpufun*/
     double Triangle_compute_area(Triangle tr, double scale){
         double b = Triangle_get_b(tr);
         double h = Triangle_get_h(tr);
@@ -18,6 +19,7 @@ class Square(xo.Struct):
     a = xo.Float64
 
     _extra_c_source = """
+    /*gpufun*/
     double Square_compute_area(Square sq, double scale){
         double a = Square_get_a(sq);
         return a*a*scale;
@@ -35,12 +37,14 @@ class Base(xo.UnionRef):
         )
     ]
 
+
 class Prism(xo.Struct):
     base = Base
     height = xo.Float64
     volume = xo.Float64
 
     _extra_c_source = """
+    /*gpukern*/
     void Prism_compute_volume(Prism pr){
         Base base = Prism_getp_base(pr);
         double height = Prism_get_height(pr);
@@ -69,3 +73,24 @@ context.kernels.Prism_compute_volume(prism=prism_square)
 assert prism_triangle.volume == 45
 assert prism_square.volume == 120
 
+
+context = xo.ContextPyopencl()
+context.add_kernels(
+    kernels={
+        "Prism_compute_volume": xo.Kernel(
+            args=[xo.Arg(Prism, name="prism")], n_threads=1
+        )
+    }
+)
+
+
+triangle = Triangle(b=2, h=3, _context=context)
+prism_triangle = Prism(base=triangle, height=5, _context=context)
+square = Square(a=2, _context=context)
+prism_square = Prism(base=square, height=10, _context=context)
+
+context.kernels.Prism_compute_volume(prism=prism_triangle)
+context.kernels.Prism_compute_volume(prism=prism_square)
+
+assert prism_triangle.volume == 45
+assert prism_square.volume == 120

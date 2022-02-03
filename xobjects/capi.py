@@ -415,10 +415,13 @@ def gen_method_member(cls, path, conf):
     lst.append(gen_method_offset(path, conf))
 
     # pointed = gen_c_pointed(Arg(Int8, pointer=True), conf)
+    lst.extend(Ref_get_c_offset("offset",conf))
+    pointed = gen_c_pointed(retarg, conf)
+    lst.append(f" return {pointed};")
     # GPU not handled
-    lst.append("  char *reloff_p = (char *) obj + offset;")
-    lst.append("  int64_t  reloff= *(int64_t *) reloff_p;")
-    lst.append("  return (void *) (reloff_p + reloff);")
+    #lst.append("  char *reloff_p = (char *) obj + offset;")
+    #lst.append("  int64_t  reloff= *(int64_t *) reloff_p;")
+    #lst.append("  return (void*) (reloff_p + reloff);")
     lst.append("}")
     return "\n".join(lst), kernel
 
@@ -439,7 +442,8 @@ def gen_method_switch(cls, path, conf, method):
 
     decl = gen_c_decl_from_kernel(kernel, conf)
     lst = [decl + "{"]
-    lst.append(f"  void* member = {refname}_member(obj);")
+    voidp=gen_pointer("void*",conf)
+    lst.append(f"  {voidp} member = {refname}_member(obj);")
     lst.append(f"  switch ({refname}_typeid(obj)){{")
     for atype in lasttype._reftypes:
         atname=atype.__name__

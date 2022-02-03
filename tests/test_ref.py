@@ -240,23 +240,6 @@ def test_unionref():
 
         context.add_kernels(
             kernels={
-                "Prism_compute_volume": xo.Kernel(args=[xo.Arg(Prism, name="prism")])
-            }
-        )
-
-        triangle = Triangle(b=2, h=3)
-        prism_triangle = Prism(base=triangle, height=5)
-        square = Square(a=2)
-        prism_square = Prism(base=square, height=10)
-
-        context.kernels.Prism_compute_volume(prism=prism_triangle)
-        context.kernels.Prism_compute_volume(prism=prism_square)
-
-        assert prism_triangle.volume == 45
-        assert prism_square.volume == 120
-
-        context.add_kernels(
-            kernels={
                 "Prism_compute_volume": xo.Kernel(
                     args=[xo.Arg(Prism, name="prism")], n_threads=1
                 )

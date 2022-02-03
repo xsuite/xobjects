@@ -34,12 +34,16 @@ Base.extra_sources =[
     double Base_compute_area(Base base){
         void* member = Base_member(base);
         switch (Base_typeid(base)){
+            #ifndef BASE_SKIP_TRIANGLE
             case Base_Triangle_t:
                 return Triangle_compute_area((Triangle) member);
                 break;
+            #endif
+            #ifndef BASE_SKIP_SQUARE
             case Base_Square_t:
                 return Square_compute_area((Square) member);
                 break;
+            #endif
         }
         return 0;
     }

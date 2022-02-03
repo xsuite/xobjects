@@ -390,7 +390,7 @@ class Arg:
 
 
 class Kernel:
-    def __init__(self, args, c_name=None, ret=None, n_threads=None):
+    def __init__(self, args, c_name=None, ret=None, n_threads=1):
         self.c_name = c_name
         self.args = args
         self.ret = ret

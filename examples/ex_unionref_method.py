@@ -1,80 +1,62 @@
 import xobjects as xo
 
+
 class Triangle(xo.Struct):
     b = xo.Float64
     h = xo.Float64
 
-Triangle.extra_sources = [
-    '''
+    _extra_c_source = """
     double Triangle_compute_area(Triangle tr, double scale){
         double b = Triangle_get_b(tr);
         double h = Triangle_get_h(tr);
         return 0.5*b*h*scale;
     }
-    '''
-]
+    """
+
 
 class Square(xo.Struct):
     a = xo.Float64
 
-Square.extra_sources = [
-    '''
+    _extra_c_source = """
     double Square_compute_area(Square sq, double scale){
         double a = Square_get_a(sq);
         return a*a*scale;
     }
-    '''
-]
+    """
+
 
 class Base(xo.UnionRef):
     _reftypes = (Triangle, Square)
     _methods = [
-        xo.Method(c_name='compute_area', args=['Base', 'double'], ret='double')]
-
-Base.extra_sources =[
-    '''
-    double Base_compute_area(Base base, double scale){
-        void* member = Base_member(base);
-        switch (Base_typeid(base)){
-            #ifndef BASE_SKIP_TRIANGLE
-            case Base_Triangle_t:
-                return Triangle_compute_area((Triangle) member, scale);
-                break;
-            #endif
-            #ifndef BASE_SKIP_SQUARE
-            case Base_Square_t:
-                return Square_compute_area((Square) member, scale);
-                break;
-            #endif
-        }
-        return 0;
-    }
-    '''
-]
+        xo.Method(
+            c_name="compute_area",
+            args=[xo.Arg(xo.Float64, name="scale")],
+            ret=xo.Arg(xo.Float64),
+        )
+    ]
 
 class Prism(xo.Struct):
     base = Base
     height = xo.Float64
     volume = xo.Float64
 
-Prism.extra_sources = [
-    '''
+    _extra_c_source = """
     void Prism_compute_volume(Prism pr){
         Base base = Prism_getp_base(pr);
         double height = Prism_get_height(pr);
-
         double base_area = Base_compute_area(base, 3.);
-
         Prism_set_volume(pr, base_area*height);
     }
-    '''
-]
+    """
+
 
 context = xo.ContextCpu()
-context.add_kernels(sources=(Triangle.extra_sources + Square.extra_sources +
-                             Base.extra_sources + Prism.extra_sources),
-    kernels = {'Prism_compute_volume': xo.Kernel(
-        args = [xo.Arg(Prism, name='prism')])})
+context.add_kernels(
+    kernels={
+        "Prism_compute_volume": xo.Kernel(args=[xo.Arg(Prism, name="prism")])
+    }
+)
+
 
 triangle = Triangle(b=2, h=3)
 prism_triangle = Prism(base=triangle, height=5)
@@ -86,3 +68,4 @@ context.kernels.Prism_compute_volume(prism=prism_square)
 
 assert prism_triangle.volume == 45
 assert prism_square.volume == 120
+

@@ -422,8 +422,43 @@ def gen_method_member(cls, path, conf):
     lst.append("}")
     return "\n".join(lst), kernel
 
-def gen_unionref_methods(cls, path, conf):
-    pass
+
+def gen_method_switch(cls, path, conf, method):
+    "generate switch methods declared in _methods"
+    lasttype = path[-1]
+
+    kernel = gen_fun_kernel(
+        cls,
+        path,
+        const=True,
+        action=method.c_name,
+        extra=method.args,
+        ret=method.ret,
+    )
+    refname=lasttype.__name__
+
+    decl = gen_c_decl_from_kernel(kernel, conf)
+    lst = [decl + "{"]
+    lst.append(f"  void* member = {refname}_member(obj);")
+    lst.append(f"  switch ({refname}_typeid(obj)){{")
+    for atype in lasttype._reftypes:
+        atname=atype.__name__
+        targs=[f"({atname}) member"]
+        for arg in kernel.args[1:]:
+            targs.append(f"{arg.name}")
+        targs=','.join(targs)
+        lst.append(f"""\
+        #ifndef {refname.upper()}_SKIP_{atname.upper()}
+        case {refname}_{atname}_t:
+            return {atname}_{method.c_name}({targs});
+            break;
+        #endif"""
+        )
+    lst.append ("  }")
+    lst.append ("  return 0;")
+    lst.append("}")
+    return "\n".join(lst), kernel
+
 
 def gen_typedef(cls, conf):
     gpumem = conf.get("gpumem", "")
@@ -464,8 +499,9 @@ def methods_from_path(cls, path, conf):
     if is_unionref(lasttype):
         out.append(gen_method_typeid(cls, path, conf))
         out.append(gen_method_member(cls, path, conf))
-        out.append(gen_unionref_methods(cls, path, conf))
-
+        if cls == lasttype:
+            for method in lasttype._methods:
+                out.append(gen_method_switch(cls, path, conf, method))
     return out
 
 

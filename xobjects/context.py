@@ -61,6 +61,8 @@ def sort_classes(classes):
                     cdict[cl.__name__] = cl
                     lst.append(cl)
                 cldeps.append(cl.__name__)
+        if hasattr(cls, "_depends_on"):
+            cldeps.extend(cls._depends_on)
         deps[cls.__name__] = cldeps
     lst, has_cycle = topological_sort(deps)
     if has_cycle:
@@ -401,6 +403,7 @@ class Kernel:
         if isinstance(self.ret, Arg) and hasattr(self.ret.atype, "_gen_c_api"):
             classes.append(self.ret.atype)
         return classes
+
 
 class Method:
     def __init__(self, args, c_name, ret):

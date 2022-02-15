@@ -129,6 +129,11 @@ def dress(XoStruct, rename={}):
                 out[ff] = vv._to_dict()
             else:
                 out[ff] = vv
+
+        if hasattr(obj, '_store_in_to_dict'):
+            for nn in obj._store_in_to_dict:
+                out[nn] = getattr(obj, nn)
+
         return out
 
     @classmethod

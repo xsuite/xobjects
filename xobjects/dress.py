@@ -88,7 +88,16 @@ def dress(XoStruct, rename={}):
                 pyname = self._rename.get(ff.name, ff.name)
                 setattr(self, pyname, vv)
 
-    def xoinitialize(self, _xobject=None, **kwargs):
+    def xoinitialize(self, _xobject=None, _kwargs_name_check=True, **kwargs):
+
+        if _kwargs_name_check:
+            fnames = [ff.name for ff in self.XoStruct._fields]
+            for kk in kwargs.keys():
+                if kk.startswith('_'):
+                    continue
+                if kk not in fnames:
+                    raise NameError(
+                        f'Invalid keyword argument `{kk}`')
 
         if _xobject is not None:
             self._reinit_from_xobject(_xobject=_xobject)

@@ -507,7 +507,9 @@ class KernelCpu:
                         self.ffi_interface.from_buffer(slice_first_elem.data),
                     )
                 elif hasattr(value, "_shape"):  # xobject array
-                    # TODO: check context
+                    assert isinstance(value._buffer.context, ContextCpu), (
+                        f"Incompatible context for argument `{arg.name}`."
+                    )
                     return self.ffi_interface.cast(
                         value._c_type + "*",
                         self.ffi_interface.from_buffer(
@@ -524,7 +526,9 @@ class KernelCpu:
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 return arg.atype(value)  # try to return a numpy scalar
             elif hasattr(arg.atype, "_size"):  # it is a compound xobject
-                # TODO: check context
+                assert isinstance(value._buffer.context, ContextCpu), (
+                    f"Incompatible context for argument `{arg.name}`."
+                )
                 buf = np.frombuffer(value._buffer.buffer, dtype="int8")
                 ptr = buf.ctypes.data + value._offset
                 return self.ffi_interface.cast(arg.atype._c_type, ptr)

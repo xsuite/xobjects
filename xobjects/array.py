@@ -11,6 +11,7 @@ from .typeutils import (
     default_conf,
 )
 from .scalar import Int64, is_scalar
+import xobjects as xo
 
 log = logging.getLogger(__name__)
 
@@ -211,6 +212,15 @@ class MetaArray(type):
         # need to applied to derived classes as well
         if "_c_type" not in data:
             data["_c_type"] = name
+
+        # determine has_refs
+        if '_itemtype' in data.keys():
+            if ((hasattr(data['_itemtype'], '_has_refs')
+                    and data['_itemtype']._has_refs)
+                or isinstance(data['_itemtype'], xo.Ref)):
+                data['_has_refs'] = True
+            else:
+                data['_has_refs'] = False
 
         return type.__new__(cls, name, bases, data)
 

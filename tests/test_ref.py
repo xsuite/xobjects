@@ -257,17 +257,36 @@ def test_unionref():
         assert prism_square.volume == 120
 
 def test_has_refs():
-    import xobjects as xo
 
     class StructWRef(xo.Struct):
         a = xo.Ref(xo.Float64[:])
+    assert StructWRef._has_refs
 
     class StructNoRef(xo.Struct):
         a = xo.Float64[:]
+    assert not StructNoRef._has_refs
 
     class NestedWRef(xo.Struct):
         s = StructWRef
-
-    assert StructWRef._has_refs
-    assert not StructNoRef._has_refs
     assert NestedWRef._has_refs
+
+    class NestedNoRef(xo.Struct):
+        s = StructNoRef
+    assert not NestedNoRef._has_refs
+
+    ArrNoRef = xo.Float64[:]
+    assert not ArrNoRef._has_refs
+
+    ArrWRef = xo.Ref(xo.Float64)[:]
+    assert ArrWRef._has_refs
+
+    class StructArrRef(xo.Struct):
+        arr = ArrWRef
+    assert StructArrRef._has_refs
+
+    class StructArrNoRef(xo.Struct):
+        arr = ArrNoRef
+    assert not StructArrNoRef._has_refs
+
+    ArrOfStructRef = NestedWRef[:]
+    assert ArrOfStructRef._has_refs

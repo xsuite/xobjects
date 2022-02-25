@@ -255,3 +255,19 @@ def test_unionref():
 
         assert prism_triangle.volume == 45
         assert prism_square.volume == 120
+
+def test_has_refs():
+    import xobjects as xo
+
+    class StructWRef(xo.Struct):
+        a = xo.Ref(xo.Float64[:])
+
+    class StructNoRef(xo.Struct):
+        a = xo.Float64[:]
+
+    class NestedWRef(xo.Struct):
+        s = StructWRef
+
+    assert StructWRef._has_refs
+    assert not StructNoRef._has_refs
+    assert NestedWRef._has_refs

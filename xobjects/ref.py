@@ -102,6 +102,8 @@ class MetaUnionRef(type):
         if "_methods" not in data:
             data["_methods"] = []
 
+        data['_has_refs'] = True
+
         return type.__new__(cls, name, bases, data)
 
     def _is_member(cls, value):

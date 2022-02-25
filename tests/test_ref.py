@@ -256,6 +256,8 @@ def test_unionref():
         assert prism_triangle.volume == 45
         assert prism_square.volume == 120
 
+        assert prism_triangle._has_refs
+
 def test_has_refs():
 
     class StructWRef(xo.Struct):

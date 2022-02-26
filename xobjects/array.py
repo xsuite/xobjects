@@ -11,7 +11,6 @@ from .typeutils import (
     default_conf,
 )
 from .scalar import Int64, is_scalar
-import xobjects as xo
 
 log = logging.getLogger(__name__)
 
@@ -215,9 +214,8 @@ class MetaArray(type):
 
         # determine has_refs
         if '_itemtype' in data.keys():
-            if ((hasattr(data['_itemtype'], '_has_refs')
-                    and data['_itemtype']._has_refs)
-                or isinstance(data['_itemtype'], xo.Ref)):
+            if (hasattr(data['_itemtype'], '_has_refs')
+                 and data['_itemtype']._has_refs):
                 data['_has_refs'] = True
             else:
                 data['_has_refs'] = False

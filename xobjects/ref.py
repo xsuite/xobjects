@@ -19,6 +19,9 @@ class MetaRef(type):
 
 
 class Ref(metaclass=MetaRef):
+
+    _has_refs = True
+
     def __init__(self, reftype):
         self._reftype = reftype
         self.__name__ = "Ref" + self._reftype.__name__

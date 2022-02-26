@@ -292,3 +292,8 @@ def test_has_refs():
 
     ArrOfStructRef = NestedWRef[:]
     assert ArrOfStructRef._has_refs
+
+    class MyUnion(xo.UnionRef):
+        _ref = [xo.Float64, xo.Int32]
+    assert MyUnion._has_refs
+

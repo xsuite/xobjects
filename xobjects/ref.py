@@ -19,6 +19,9 @@ class MetaRef(type):
 
 
 class Ref(metaclass=MetaRef):
+
+    _has_refs = True
+
     def __init__(self, reftype):
         self._reftype = reftype
         self.__name__ = "Ref" + self._reftype.__name__
@@ -101,6 +104,8 @@ class MetaUnionRef(type):
             data["_c_type"] = name
         if "_methods" not in data:
             data["_methods"] = []
+
+        data['_has_refs'] = True
 
         return type.__new__(cls, name, bases, data)
 

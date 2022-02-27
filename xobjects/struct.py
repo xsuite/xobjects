@@ -43,7 +43,6 @@ Field instance:
 import logging
 from typing import Callable, Optional
 
-
 from .typeutils import (
     get_a_buffer,
     dispatch_arg,
@@ -245,6 +244,15 @@ class MetaStruct(type):
         data["_inspect_args"] = classmethod(_inspect_args)
         if "_c_type" not in data:
             data["_c_type"] = name
+
+        # determine owndata
+        _has_refs = False
+        for ff in data['_fields']:
+            ftype = ff.ftype
+            if hasattr(ftype, '_has_refs') and ftype._has_refs:
+                _has_refs = True
+                break
+        data['_has_refs'] = _has_refs
 
         return type.__new__(cls, name, bases, data)
 

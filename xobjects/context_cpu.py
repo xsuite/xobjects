@@ -472,7 +472,7 @@ class BufferNumpy(XBuffer):
         if dest_dtype != value.dtype:
             value = value.astype(dtype=dest_dtype)  # make a copy
         src = value.view("int8")
-        self.buffer[offset : offset + src.nbytes] = value.view("int8")
+        self.buffer[offset : offset + src.nbytes] = value.flatten().view("int8")
 
     def to_bytearray(self, offset, nbytes):
         """copy in byte array: used in update_from_xbuffer"""

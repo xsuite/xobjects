@@ -88,7 +88,16 @@ def dress(XoStruct, rename={}):
                 pyname = self._rename.get(ff.name, ff.name)
                 setattr(self, pyname, vv)
 
-    def xoinitialize(self, _xobject=None, **kwargs):
+    def xoinitialize(self, _xobject=None, _kwargs_name_check=True, **kwargs):
+
+        if _kwargs_name_check:
+            fnames = [ff.name for ff in self.XoStruct._fields]
+            for kk in kwargs.keys():
+                if kk.startswith('_'):
+                    continue
+                if kk not in fnames:
+                    raise NameError(
+                        f'Invalid keyword argument `{kk}`')
 
         if _xobject is not None:
             self._reinit_from_xobject(_xobject=_xobject)
@@ -129,11 +138,17 @@ def dress(XoStruct, rename={}):
                 out[ff] = vv._to_dict()
             else:
                 out[ff] = vv
+
+        if hasattr(obj, '_store_in_to_dict'):
+            for nn in obj._store_in_to_dict:
+                out[nn] = getattr(obj, nn)
+
         return out
 
     @classmethod
     def from_dict(cls, dct, _context=None, _buffer=None, _offset=None):
-        return cls(**dct, _context=_context, _buffer=_buffer, _offset=_offset)
+        return cls(**dct, _context=_context, _buffer=_buffer, _offset=_offset,
+                   _kwargs_name_check=False)
 
     def copy(self, _context=None, _buffer=None, _offset=None):
         if _context is None and _buffer is None:

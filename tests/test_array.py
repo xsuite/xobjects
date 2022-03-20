@@ -206,3 +206,13 @@ def test_initialize_from_array():
 def test_init_with_nparray():
     a = xo.Float64[:](np.array([1, 2, 3], dtype=np.float64))
     assert a[1] == 2.0
+
+
+def test_init_with_nparray2d():
+    class Mys(xo.Struct):
+        m0=xo.Float64[6]
+        m1=xo.Float64[6,6]
+
+    m=Mys(m1=np.ones((6,6))*3,m0=np.ones(6) )
+    assert m.m1[3,4]==3
+    assert m.m0[3]==1

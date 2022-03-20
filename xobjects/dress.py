@@ -131,6 +131,9 @@ def dress(XoStruct, rename={}):
             obj = self
 
         for ff in obj._fields:
+            if (hasattr(self, '_skip_in_to_dict')
+                    and ff in self._skip_in_to_dict):
+                continue
             vv = getattr(obj, ff)
             if hasattr(vv, "to_dict"):
                 out[ff] = vv.to_dict()

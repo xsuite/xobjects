@@ -42,6 +42,11 @@ if _enabled:
             return cls(shape=a.shape, dtype=a.dtype, memptr=a.data,
                     strides=a.strides, order='C')
 
+        def copy(self):
+            res = cupy.zeros(shape=self.shape, dtype=self.dtype)
+            res[:] = self[:]
+            return res
+
 
 cudaheader = [
     """\

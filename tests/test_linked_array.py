@@ -50,3 +50,6 @@ def test_linked_arrays():
         m.a = 5
         assert np.all(ctx2np(m.a) == 5)
         assert np.all(ctx2np(m.asq) == 25)
+
+        b = m.a.copy()
+        assert np.all(ctx2np(m.a) == ctx2np(b))

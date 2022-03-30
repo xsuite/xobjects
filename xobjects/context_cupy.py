@@ -47,6 +47,19 @@ if _enabled:
             res[:] = self[:]
             return res
 
+        def _as_cupy(self):
+            return cupy.ndarray(shape=self.shape, dtype=self.dtype,
+                                   memptr=self.data,
+                                   strides=self.strides)
+
+        def __mul__(self, other):
+            if hasattr(other, '_as_cupy'):
+                other = other._as_cupy()
+            return cupy.ndarray.__mul__(self._as_cupy(), other)
+
+        def __rmul__(self, other):
+            return self.__mul__(other)
+
 
 cudaheader = [
     """\

@@ -262,40 +262,52 @@ if _enabled:
 #        for nn in inplace_operators:
 #            print(f"""
 #        def __i{nn}__(self, other):
-#            self._as_cupy()[:] = self.__{nn}__(other)""")
+#            self._as_cupy()[:] = self.__{nn}__(other)
+#            return self""")
 
         def __iadd__(self, other):
             self._as_cupy()[:] = self.__add__(other)
+            return self
 
         def __ifloordiv__(self, other):
             self._as_cupy()[:] = self.__floordiv__(other)
+            return self
 
         def __ilshift__(self, other):
             self._as_cupy()[:] = self.__lshift__(other)
+            return self
 
         def __imatmul__(self, other):
             self._as_cupy()[:] = self.__matmul__(other)
+            return self
 
         def __imod__(self, other):
             self._as_cupy()[:] = self.__mod__(other)
+            return self
 
         def __imul__(self, other):
             self._as_cupy()[:] = self.__mul__(other)
+            return self
 
         def __ipow__(self, other):
             self._as_cupy()[:] = self.__pow__(other)
+            return self
 
         def __irshift__(self, other):
             self._as_cupy()[:] = self.__rshift__(other)
+            return self
 
         def __isub__(self, other):
             self._as_cupy()[:] = self.__sub__(other)
+            return self
 
         def __itruediv__(self, other):
             self._as_cupy()[:] = self.__truediv__(other)
+            return self
 
         def __ixor__(self, other):
             self._as_cupy()[:] = self.__xor__(other)
+            return self
 
 cudaheader = [
     """\

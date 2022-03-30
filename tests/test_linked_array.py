@@ -53,3 +53,30 @@ def test_linked_arrays():
 
         b = m.a.copy()
         assert np.all(ctx2np(m.a) == ctx2np(b))
+
+        m.a = np2ctx(np.array([4,-5,6]))
+        b = m.a.copy() + 3
+        assert np.all(ctx2np(m.a - b)  == -3)
+        assert np.all(ctx2np(b - m.a)  == 3)
+        assert np.all(ctx2np(m.a/(m.a*2))  == 0.5)
+        assert np.all(ctx2np(-m.a)  == ctx2np(-10*m.a/10))
+
+        m.a = m.a*2
+        assert np.all(ctx2np(m.a) == np.array([8, -10, 12]))
+        assert np.all(ctx2np(m.asq) == np.array([64, 100, 144]))
+
+        m.a = np2ctx(np.array([4,-5,6]))
+        m.a *= 2
+        assert np.all(ctx2np(m.a) == np.array([8, -10, 12]))
+        assert np.all(ctx2np(m.asq) == np.array([64, 100, 144]))
+
+        m.a = np2ctx(np.array([1, 2, 3]))
+        m.a = m.a**2 +1
+        assert np.all(ctx2np(m.a) == np.array([2, 5, 10]))
+        assert np.all(ctx2np(m.asq) == np.array([4, 25, 100]))
+
+        if not(isinstance(context, xo.ContextPyopencl)): # masking not working
+            m.a = np2ctx(np.array([4,-5,6]))
+            m.a[m.a<0] += m.a[:1]
+            assert np.all(ctx2np(m.a) == np.array([4, -1, 6]))
+            assert np.all(ctx2np(m.asq) == np.array([16, 1, 36]))

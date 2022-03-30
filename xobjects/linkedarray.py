@@ -16,11 +16,14 @@ class BaseLinkedArray():
         self.container_setitem_name = container_setitem_name
         return self
 
+    def _basic_setitem(self, indx, val):
+            super().__setitem__(indx, val)
+
     def __setitem__(self, indx, val):
         if (self.mode is None or
             (hasattr(self.container, '_flag_bypass_linked')
                          and self.container._flag_bypass_linked)):
-            super().__setitem__(indx, val)
+            self._basic_setitem(indx, val)
         elif self.mode == 'setitem_from_container':
             getattr(self.container, self.container_setitem_name)(indx, val)
         elif self.mode == 'readonly':

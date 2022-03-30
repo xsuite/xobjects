@@ -262,40 +262,40 @@ if _enabled:
 #        for nn in inplace_operators:
 #            print(f"""
 #        def __i{nn}__(self, other):
-#            self[:] = self.__{nn}__(other)""")
+#            self._as_cupy()[:] = self.__{nn}__(other)""")
 
         def __iadd__(self, other):
-            self[:] = self.__add__(other)
+            self._as_cupy()[:] = self.__add__(other)
 
         def __ifloordiv__(self, other):
-            self[:] = self.__floordiv__(other)
+            self._as_cupy()[:] = self.__floordiv__(other)
 
         def __ilshift__(self, other):
-            self[:] = self.__lshift__(other)
+            self._as_cupy()[:] = self.__lshift__(other)
 
         def __imatmul__(self, other):
-            self[:] = self.__matmul__(other)
+            self._as_cupy()[:] = self.__matmul__(other)
 
         def __imod__(self, other):
-            self[:] = self.__mod__(other)
+            self._as_cupy()[:] = self.__mod__(other)
 
         def __imul__(self, other):
-            self[:] = self.__mul__(other)
+            self._as_cupy()[:] = self.__mul__(other)
 
         def __ipow__(self, other):
-            self[:] = self.__pow__(other)
+            self._as_cupy()[:] = self.__pow__(other)
 
         def __irshift__(self, other):
-            self[:] = self.__rshift__(other)
+            self._as_cupy()[:] = self.__rshift__(other)
 
         def __isub__(self, other):
-            self[:] = self.__sub__(other)
+            self._as_cupy()[:] = self.__sub__(other)
 
         def __itruediv__(self, other):
-            self[:] = self.__truediv__(other)
+            self._as_cupy()[:] = self.__truediv__(other)
 
         def __ixor__(self, other):
-            self[:] = self.__xor__(other)
+            self._as_cupy()[:] = self.__xor__(other)
 
 cudaheader = [
     """\

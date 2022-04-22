@@ -115,8 +115,8 @@ class ContextCpu(XContext):
         kernels=[],
         specialize=True,
         save_source_as=None,
-        extra_compile_args=["-O3", "-Wno-unused-function"],
-        extra_link_args=["-O3"],
+        extra_compile_args=[],#["-O3", "-Wno-unused-function"],
+        extra_link_args=[],#["-O3"],
         extra_cdef=None,
         extra_classes=[],
         extra_headers=[],
@@ -237,8 +237,8 @@ class ContextCpu(XContext):
         tempfname = str(uuid.uuid4().hex)
 
         # Compile
-        xtr_compile_args = ["-std=c99"]
-        xtr_link_args = ["-std=c99"]
+        xtr_compile_args = []#["-std=c99"]
+        xtr_link_args = []#["-std=c99"]
         xtr_compile_args += extra_compile_args
         xtr_link_args += extra_link_args
         if self.omp_num_threads > 0:
@@ -286,7 +286,7 @@ class ContextCpu(XContext):
             files_to_remove = [so_fname, tempfname + ".c", tempfname + ".o"]
             for ff in files_to_remove:
                 if os.path.exists(ff):
-                    os.remove(ff)
+                    pass#os.unlink(ff)
 
     def nparray_to_context_array(self, arr):
         """

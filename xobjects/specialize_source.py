@@ -110,8 +110,8 @@ def specialize_source(source, specialize_for, search_in_folders=[]):
     newfilecontent = newfilecontent.replace(
         "/*restrict*/",
         {
-            "cpu_serial": " restrict ",
-            "cpu_openmp": " restrict ",
+            "cpu_serial": "  ",
+            "cpu_openmp": "  ",
             "opencl": "",
             "cuda": "",
         }[specialize_for],

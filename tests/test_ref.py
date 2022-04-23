@@ -230,6 +230,7 @@ def test_unionref():
             Base base = Prism_getp_base(pr);
             double height = Prism_get_height(pr);
             double base_area = Base_compute_area(base, 3.);
+            printf("base_area = %e", base_area);
             Prism_set_volume(pr, base_area*height);
         }
         """

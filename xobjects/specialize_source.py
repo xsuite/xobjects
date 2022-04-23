@@ -107,11 +107,16 @@ def specialize_source(source, specialize_for, search_in_folders=[]):
             "cuda": " ",
         }[specialize_for],
     )
+
+    if os.name == 'nt': # windows
+        restrict_qualifier = " "
+    else: # other os
+        restrict_qualifier = " restrict "
     newfilecontent = newfilecontent.replace(
         "/*restrict*/",
         {
-            "cpu_serial": "  ",
-            "cpu_openmp": "  ",
+            "cpu_serial": restrict_qualifier,
+            "cpu_openmp": restrict_qualifier,
             "opencl": "",
             "cuda": "",
         }[specialize_for],

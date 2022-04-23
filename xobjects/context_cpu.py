@@ -284,9 +284,13 @@ class ContextCpu(XContext):
         finally:
             # Clean temp files
             files_to_remove = [so_fname, tempfname + ".c", tempfname + ".o"]
+
             for ff in files_to_remove:
                 if os.path.exists(ff):
-                    pass#os.unlink(ff)
+                    if os.name == 'nt' and ff.endswith('.pyd'): 
+                        # pyd files are protected on windows
+                        continue
+                    os.remove(ff)
 
     def nparray_to_context_array(self, arr):
         """

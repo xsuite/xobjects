@@ -237,8 +237,8 @@ class ContextCpu(XContext):
         tempfname = str(uuid.uuid4().hex)
 
         # Compile
-        xtr_compile_args = []#["-std=c99"]
-        xtr_link_args = []#["-std=c99"]
+        xtr_compile_args = ["-std=c99"]
+        xtr_link_args = ["-std=c99"]
         xtr_compile_args += extra_compile_args
         xtr_link_args += extra_link_args
         if self.omp_num_threads > 0:

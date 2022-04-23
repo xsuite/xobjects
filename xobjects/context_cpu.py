@@ -115,8 +115,8 @@ class ContextCpu(XContext):
         kernels=[],
         specialize=True,
         save_source_as=None,
-        extra_compile_args=[],#["-O3", "-Wno-unused-function"],
-        extra_link_args=[],#["-O3"],
+        extra_compile_args=["-O3", "-Wno-unused-function"],
+        extra_link_args=["-O3"],
         extra_cdef=None,
         extra_classes=[],
         extra_headers=[],
@@ -244,6 +244,11 @@ class ContextCpu(XContext):
         if self.omp_num_threads > 0:
             xtr_compile_args.append("-fopenmp")
             xtr_link_args.append("-fopenmp")
+
+        if os.name == 'nt': #windows
+            # TODO: to be handled properly
+            xtr_compile_args = []
+            xtr_link_args = []
 
         ffi_interface.set_source(
             tempfname,

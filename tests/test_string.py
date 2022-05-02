@@ -32,9 +32,11 @@ def test_string_init3():
 def test_string_array():
     import numpy as np
     StringArray=xo.String[:]
-    data=np.array(["asd","as"])
+    pdata=["asd","as"]
+    npdata=np.array(pdata)
     for ctx in xo.context.get_test_contexts():
-        xobj=StringArray(data,_context=ctx)
+        xobj=StringArray(npdata,_context=ctx)
+        xobj2=StringArray(pdata,_context=ctx)
         assert data[1]==xobj[1]
 
 

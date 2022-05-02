@@ -36,7 +36,9 @@ def test_string_array():
     npdata=np.array(pdata)
     for ctx in xo.context.get_test_contexts():
         xobj=StringArray(npdata,_context=ctx)
-        xobj2=StringArray(pdata,_context=ctx)
-        assert data[1]==xobj[1]
+        assert npdata[1]==xobj[1]
+    for ctx in xo.context.get_test_contexts():
+        xobj=StringArray(pdata,_context=ctx)
+        assert pdata[1]==xobj[1]
 
 

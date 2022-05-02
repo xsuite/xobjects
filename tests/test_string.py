@@ -28,3 +28,13 @@ def test_string_init3():
     for ctx in xo.context.get_test_contexts():
         ss = xo.String("test", _context=ctx)
         assert xo.String._from_buffer(ss._buffer, ss._offset) == "test"
+
+def test_string_array():
+    import numpy as np
+    StringArray=xo.String[:]
+    data=np.array(["asd","as"])
+    for ctx in xo.context.get_test_contexts():
+        xobj=StringArray(data,_context=ctx)
+        assert data[1]==xobj[1]
+
+

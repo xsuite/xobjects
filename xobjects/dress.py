@@ -119,6 +119,10 @@ def dress(XoStruct, rename={}):
                     pyname = kk
                 setattr(self, pyname, vv)
 
+            # dress what can be dressed
+            # (for example in case object is initalized from dict)
+            self._reinit_from_xobject(_xobject=self._xobject)
+
     def myinit(self, _xobject=None, **kwargs):
         self.xoinitialize(_xobject=_xobject, **kwargs)
 

@@ -55,14 +55,16 @@ def sort_classes(classes):
     lst = list(classes)
     for cls in lst:
         cldeps = []
+        cllist=[]
         if hasattr(cls, "_get_inner_types"):
-            for cl in cls._get_inner_types():
-                if not cl.__name__ in cdict:
-                    cdict[cl.__name__] = cl
-                    lst.append(cl)
-                cldeps.append(cl.__name__)
+            cllist.extend(cls._get_inner_types())
         if hasattr(cls, "_depends_on"):
-            cldeps.extend(cls._depends_on)
+            cllist.extend(cls._depends_on)
+        for cl in cllist:
+            if not cl.__name__ in cdict:
+                cdict[cl.__name__] = cl
+                lst.append(cl)
+            cldeps.append(cl.__name__)
         deps[cls.__name__] = cldeps
     lst, has_cycle = topological_sort(deps)
     if has_cycle:

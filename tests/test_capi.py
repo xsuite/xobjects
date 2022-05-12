@@ -234,3 +234,25 @@ def test_get_two_indices():
     m = Mesh(5)
     m[0][1].x = 3
     assert ctx.kernels.Mesh_get_x(obj=m, i0=0, i1=1) == 3
+
+
+def test_dependencies():
+    import xobjects as xo
+
+    class A(xo.Struct):
+        a=xo.Float64[:]
+        _extra_c_source="//blah blah A"
+
+    class C(xo.Struct):
+        c=xo.Float64[:]
+        _extra_c_source=" //blah blah C"
+
+    class B(xo.Struct):
+        b=A
+        c=xo.Float64[:]
+        _extra_c_source=" //blah blah B"
+        _depends_on=[C]
+
+    assert xo.context.sort_classes([B])[1:]==[A,C,B]
+
+

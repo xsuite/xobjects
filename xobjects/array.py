@@ -70,7 +70,9 @@ def get_shape_from_array(value):
         return value.shape
     elif hasattr(value, "_shape"):
         return value._shape
-    if hasattr(value, "__len__"):
+    if hasattr(value, "lower"):  # test for string
+        return ()
+    elif hasattr(value, "__len__"):
         shape = (len(value),)
         if len(value) > 0:
             shape0 = get_shape_from_array(value[0])
@@ -213,12 +215,14 @@ class MetaArray(type):
             data["_c_type"] = name
 
         # determine has_refs
-        if '_itemtype' in data.keys():
-            if (hasattr(data['_itemtype'], '_has_refs')
-                 and data['_itemtype']._has_refs):
-                data['_has_refs'] = True
+        if "_itemtype" in data.keys():
+            if (
+                hasattr(data["_itemtype"], "_has_refs")
+                and data["_itemtype"]._has_refs
+            ):
+                data["_has_refs"] = True
             else:
-                data['_has_refs'] = False
+                data["_has_refs"] = False
 
         return type.__new__(cls, name, bases, data)
 

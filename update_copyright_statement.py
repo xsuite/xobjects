@@ -1,15 +1,15 @@
-# copyright ############################### #
-# This file is part of the Xpart Package.   #
-# Copyright (c) CERN, 2021.                 #
-# ######################################### #
+# copyright ################################ #
+# This file is part of the Xobjects Package.  #
+# Copyright (c) CERN, 2021.                   #
+# ########################################## #
 
 import os
 
 copyright_statement = (
-"""copyright ###############################
-This file is part of the Xpart Package.  
-Copyright (c) CERN, 2021.                
-#########################################""")
+"""copyright ################################
+This file is part of the Xobjects Package. 
+Copyright (c) CERN, 2021.                  
+##########################################""")
 
 config = [
     {'extension': '.py', 'comment_char': '#'},

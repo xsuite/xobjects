@@ -1,3 +1,8 @@
+# copyright ################################# #
+# This file is part of the Xobjects Package.  #
+# Copyright (c) CERN, 2021.                   #
+# ########################################### #
+
 from collections import defaultdict
 from typing import NamedTuple, List, Type
 from abc import ABC, abstractmethod

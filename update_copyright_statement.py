@@ -1,15 +1,15 @@
-# copyright ################################ #
+# copyright ################################# #
 # This file is part of the Xobjects Package.  #
 # Copyright (c) CERN, 2021.                   #
-# ########################################## #
+# ########################################### #
 
 import os
 
 copyright_statement = (
-"""copyright ################################
+"""copyright #################################
 This file is part of the Xobjects Package. 
 Copyright (c) CERN, 2021.                  
-##########################################""")
+###########################################""")
 
 config = [
     {'extension': '.py', 'comment_char': '#'},

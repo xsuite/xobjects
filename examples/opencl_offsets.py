@@ -1,3 +1,8 @@
+# copyright ################################# #
+# This file is part of the Xobjects Package.  #
+# Copyright (c) CERN, 2021.                   #
+# ########################################### #
+
 import pyopencl as cl
 import pyopencl.array as cl_array
 

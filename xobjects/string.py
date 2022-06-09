@@ -1,3 +1,8 @@
+# copyright ################################# #
+# This file is part of the Xobjects Package.  #
+# Copyright (c) CERN, 2021.                   #
+# ########################################### #
+
 """
 String: holds a null terminated variable length string
 

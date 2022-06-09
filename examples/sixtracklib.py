@@ -1,3 +1,8 @@
+# copyright ################################# #
+# This file is part of the Xobjects Package.  #
+# Copyright (c) CERN, 2021.                   #
+# ########################################### #
+
 """
 struct Particle x f64 px f64 y f64 py f64
 array Particles Particle64 :

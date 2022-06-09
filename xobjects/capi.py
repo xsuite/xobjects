@@ -1,3 +1,8 @@
+# copyright ################################# #
+# This file is part of the Xobjects Package.  #
+# Copyright (c) CERN, 2021.                   #
+# ########################################### #
+
 from .context import Kernel, Arg
 
 from .scalar import Int64, Void, Int8, is_scalar

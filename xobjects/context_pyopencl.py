@@ -168,6 +168,7 @@ class ContextPyopencl(XContext):
         extra_cdef=None,
         extra_classes=[],
         extra_headers=[],
+        compile=True
     ):
 
         """
@@ -228,6 +229,9 @@ class ContextPyopencl(XContext):
             # can be called as follows:
             ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
         """
+
+        if not compile:
+            raise NotImplementedError("compile=False available only on CPU.")
 
         classes = classes_from_kernels(kernels)
         classes.update(extra_classes)

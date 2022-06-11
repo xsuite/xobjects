@@ -32,7 +32,7 @@ double my_mul(const int n, const double* x1,
         )
     }
 
-    ctx.add_kernels(sources=[src_code], kernels=kernel_descriptions)
+    ctx.add_kernels(sources=[src_code], kernels=kernel_descriptions) 
     a1 = np.arange(10.0)
     a2 = np.arange(10.0)
     y = ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
@@ -81,6 +81,7 @@ def test_kernels():
             kernels=kernel_descriptions,
             # save_src_as=f'_test_{name}.c')
             save_source_as=None,
+            compile=True
         )
 
         x1_host = np.array([1.0, 2.0, 3.0], dtype=np.float64)

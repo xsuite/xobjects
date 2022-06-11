@@ -78,15 +78,14 @@ def cdef_from_kernel(kernel, pyname=None):
     signature += ");"
     return signature
 
-if _enabled:
-    # order of base classes matters as it defines which __setitem__ is used
-    class LinkedArrayCpu(BaseLinkedArray, np.ndarray):
+# order of base classes matters as it defines which __setitem__ is used
+class LinkedArrayCpu(BaseLinkedArray, np.ndarray):
 
-        @classmethod
-        def _build_view(cls, a):
-            assert len(a.shape) == 1
-            return cls(shape=a.shape, dtype=a.dtype, buffer=a.data, offset=0,
-                    strides=a.strides, order='C')
+    @classmethod
+    def _build_view(cls, a):
+        assert len(a.shape) == 1
+        return cls(shape=a.shape, dtype=a.dtype, buffer=a.data, offset=0,
+                strides=a.strides, order='C')
 
 class ContextCpu(XContext):
     """
@@ -125,6 +124,7 @@ class ContextCpu(XContext):
         extra_cdef=None,
         extra_classes=[],
         extra_headers=[],
+        compile=True
     ):
 
         """
@@ -220,87 +220,100 @@ class ContextCpu(XContext):
             with open(save_source_as, "w") as fid:
                 fid.write(specialized_source)
 
-        ffi_interface = cffi.FFI()
+        if compile:
+            ffi_interface = cffi.FFI()
 
-        cdefs = "\n".join(cls._gen_c_decl({}) for cls in classes)
+            cdefs = "\n".join(cls._gen_c_decl({}) for cls in classes)
 
-        ffi_interface.cdef(cdefs)
+            ffi_interface.cdef(cdefs)
 
-        if extra_cdef is not None:
-            ffi_interface.cdef(extra_cdef)
+            if extra_cdef is not None:
+                ffi_interface.cdef(extra_cdef)
 
-        for pyname, kernel in kernels.items():
-            if pyname not in cdefs:  # check if kernel not already declared
-                signature = cdef_from_kernel(kernel, pyname)
-                ffi_interface.cdef(signature)
-                log.debug(f"cffi def {pyname} {signature}")
-
-        if self.omp_num_threads > 0:
-            ffi_interface.cdef("void omp_set_num_threads(int);")
-
-        # Generate temp fname
-        tempfname = str(uuid.uuid4().hex)
-
-        # Compile
-        xtr_compile_args = ["-std=c99"]
-        xtr_link_args = ["-std=c99"]
-        xtr_compile_args += extra_compile_args
-        xtr_link_args += extra_link_args
-        if self.omp_num_threads > 0:
-            xtr_compile_args.append("-fopenmp")
-            xtr_link_args.append("-fopenmp")
-
-        if os.name == 'nt': #windows
-            # TODO: to be handled properly
-            xtr_compile_args = []
-            xtr_link_args = []
-
-        ffi_interface.set_source(
-            tempfname,
-            specialized_source,
-            extra_compile_args=xtr_compile_args,
-            extra_link_args=xtr_link_args,
-        )
-
-        ffi_interface.compile(verbose=True)
-
-        # build full so filename, something like:
-        # 0e14651ea79740119c6e6c24754f935e.cpython-38-x86_64-linux-gnu.so
-        suffix = sysconfig.get_config_var("EXT_SUFFIX")
-        so_fname = tempfname + suffix
-
-        try:
-            # Import the compiled module
-            spec = importlib.util.spec_from_file_location(
-                tempfname, os.path.abspath("./" + tempfname + suffix)
-            )
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            for pyname, kernel in kernels.items():
+                if pyname not in cdefs:  # check if kernel not already declared
+                    signature = cdef_from_kernel(kernel, pyname)
+                    ffi_interface.cdef(signature)
+                    log.debug(f"cffi def {pyname} {signature}")
 
             if self.omp_num_threads > 0:
-                self.omp_set_num_threads = module.lib.omp_set_num_threads
+                ffi_interface.cdef("void omp_set_num_threads(int);")
 
-            # Get the methods
+            # Generate temp fname
+            tempfname = str(uuid.uuid4().hex)
+
+            # Compile
+            xtr_compile_args = ["-std=c99"]
+            xtr_link_args = ["-std=c99"]
+            xtr_compile_args += extra_compile_args
+            xtr_link_args += extra_link_args
+            if self.omp_num_threads > 0:
+                xtr_compile_args.append("-fopenmp")
+                xtr_link_args.append("-fopenmp")
+
+            if os.name == 'nt': #windows
+                # TODO: to be handled properly
+                xtr_compile_args = []
+                xtr_link_args = []
+
+            ffi_interface.set_source(
+                tempfname,
+                specialized_source,
+                extra_compile_args=xtr_compile_args,
+                extra_link_args=xtr_link_args,
+            )
+
+            ffi_interface.compile(verbose=True)
+
+            # build full so filename, something like:
+            # 0e14651ea79740119c6e6c24754f935e.cpython-38-x86_64-linux-gnu.so
+            suffix = sysconfig.get_config_var("EXT_SUFFIX")
+            so_fname = tempfname + suffix
+
+            try:
+                # Import the compiled module
+                spec = importlib.util.spec_from_file_location(
+                    tempfname, os.path.abspath("./" + tempfname + suffix)
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+
+                if self.omp_num_threads > 0:
+                    self.omp_set_num_threads = module.lib.omp_set_num_threads
+
+                # Get the methods
+                for pyname, kernel in kernels.items():
+                    self.kernels[pyname] = KernelCpu(
+                        function=getattr(module.lib, kernel.c_name),
+                        description=kernel,
+                        ffi_interface=module.ffi,
+                        context=self,
+                    )
+
+            finally:
+                # Clean temp files
+                files_to_remove = [so_fname, tempfname + ".c", tempfname + ".o"]
+
+                for ff in files_to_remove:
+                    if os.path.exists(ff):
+                        if os.name == 'nt' and ff.endswith('.pyd'):
+                            # pyd files are protected on windows
+                            continue
+                        os.remove(ff)
+        else:
+            # Only kernel information, but no possibility to call the kernel
             for pyname, kernel in kernels.items():
                 self.kernels[pyname] = KernelCpu(
-                    function=getattr(module.lib, kernel.c_name),
+                    function=None,
                     description=kernel,
-                    ffi_interface=module.ffi,
+                    ffi_interface=None,
                     context=self,
                 )
-                self.kernels[pyname].source = source
-                self.kernels[pyname].specialized_source = specialized_source
 
-        finally:
-            # Clean temp files
-            files_to_remove = [so_fname, tempfname + ".c", tempfname + ".o"]
-
-            for ff in files_to_remove:
-                if os.path.exists(ff):
-                    if os.name == 'nt' and ff.endswith('.pyd'): 
-                        # pyd files are protected on windows
-                        continue
-                    os.remove(ff)
+        for pyname, kernel in kernels.items():
+            self.kernels[pyname].source = source
+            self.kernels[pyname].specialized_source = specialized_source
+            self.kernels[pyname].description.pyname = pyname # TODO: find better implementation?
 
     def nparray_to_context_array(self, arr):
         """
@@ -559,6 +572,10 @@ class KernelCpu:
         return len(self.description.args)
 
     def __call__(self, **kwargs):
+        if self.function is None:
+            raise ValueError(
+                f"Kernel {self.description.pyname} is not compiled yet."
+            )
         assert len(kwargs.keys()) == self.num_args
         arg_list = []
         for arg in self.description.args:

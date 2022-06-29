@@ -110,6 +110,9 @@ class ContextCpu(XContext):
         super().__init__()
         self.omp_num_threads = omp_num_threads
 
+        if self.omp_num_threads > 1:
+            raise NotImplementedError("OpenMP parallelization not yet supported!")
+
     def _make_buffer(self, capacity):
         return BufferNumpy(capacity=capacity, context=self)
 

@@ -279,6 +279,7 @@ class ContextCpu(XContext):
                 spec.loader.exec_module(module)
 
                 if self.omp_num_threads > 0:
+                    raise NotImplementedError("OpenMP not supported for now!")
                     self.omp_set_num_threads = module.lib.omp_set_num_threads
 
                 # Get the methods

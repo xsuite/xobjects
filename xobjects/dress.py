@@ -125,7 +125,7 @@ def dress(XoStruct, rename={}):
                 setattr(self, pyname, vv)
 
             # dress what can be dressed
-            # (for example in case object is initalized from dict)
+            # (for example in case object is initialized from dict)
             self._reinit_from_xobject(_xobject=self._xobject)
 
     def myinit(self, _xobject=None, **kwargs):

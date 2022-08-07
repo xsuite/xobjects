@@ -59,9 +59,6 @@ def dress(XoStruct, rename={}):
 
     DressedXStruct._rename = rename
 
-    for ff in ["_buffer", "_offset"]:
-        setattr(DressedXStruct, ff, _FieldOfDressed(ff, XoStruct))
-
     pynames_list = []
     for ff in XoStruct._fields:
         fname = ff.name
@@ -128,7 +125,7 @@ def dress(XoStruct, rename={}):
             # (for example in case object is initialized from dict)
             self._reinit_from_xobject(_xobject=self._xobject)
 
-    def myinit(self, _xobject=None, **kwargs):
+    def _init(self, _xobject=None, **kwargs):
         self.xoinitialize(_xobject=_xobject, **kwargs)
 
     def to_dict(self, copy_to_cpu=True):
@@ -190,14 +187,29 @@ def dress(XoStruct, rename={}):
             save_source_as="temp.c",
         )
 
+    @property
+    def _buffer(self):
+        return self._xobject._buffer
+
+    @property
+    def _offset(self):
+        return self._xobject._offset
+
+    @property
+    def _context(self):
+        return self._xobject._buffer.context
+
     DressedXStruct.xoinitialize = xoinitialize
     DressedXStruct.compile_custom_kernels = compile_custom_kernels
     DressedXStruct.to_dict = to_dict
     DressedXStruct.from_dict = from_dict
     DressedXStruct.copy = copy
-    DressedXStruct.__init__ = myinit
+    DressedXStruct.__init__ = _init
     DressedXStruct._reinit_from_xobject = _reinit_from_xobject
     DressedXStruct._move_to = _move_to
+    DressedXStruct._buffer = _buffer
+    DressedXStruct._offset = _offset
+    DressedXStruct._context= _context
 
     return DressedXStruct
 

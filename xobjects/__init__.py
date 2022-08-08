@@ -30,6 +30,6 @@ from .specialize_source import specialize_source
 
 from .typeutils import context_default, get_a_buffer
 
-from .dress import dress, JEncoder, DressedStruct
+from .dress import dress, JEncoder, DressedStruct, MetaDressedStruct
 
 from .linkedarray import BypassLinked

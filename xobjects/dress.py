@@ -233,10 +233,10 @@ class MetaDressedStruct(type):
         xofields = {}
         if "_xofields" in data.keys():
             xofields.update(data["_xofields"])
-        else:
-            for bb in bases:
-                if hasattr(bb, "_xofields"):
-                    xofields.update(bb._xofields)
+
+        for bb in bases:
+            if hasattr(bb, "_xofields"):
+                xofields.update(bb._xofields)
 
         XoStruct = type(XoStruct_name, (Struct,), xofields)
 

@@ -168,7 +168,8 @@ def dress(XoStruct, rename={}):
         )
         return self.__class__(_xobject=xobject)
 
-    def compile_custom_kernels(self, only_if_needed=False):
+    def compile_custom_kernels(self, only_if_needed=False,
+                               save_source_as=None):
         context = self._buffer.context
 
         if only_if_needed:
@@ -184,7 +185,7 @@ def dress(XoStruct, rename={}):
             sources=self.XoStruct.extra_sources,
             kernels=self.XoStruct.custom_kernels,
             extra_classes=[self.XoStruct],
-            save_source_as="temp.c",
+            save_source_as=save_source_as,
         )
 
     @property
@@ -225,15 +226,18 @@ class JEncoder(json.JSONEncoder):
 
 
 class MetaDressedStruct(type):
+
     def __new__(cls, name, bases, data):
         XoStruct_name = name + "Data"
+
+        xofields = {}
         if "_xofields" in data.keys():
-            xofields = data["_xofields"]
+            xofields.update(data["_xofields"])
         else:
             for bb in bases:
                 if hasattr(bb, "_xofields"):
-                    xofields = bb._xofields
-                    break
+                    xofields.update(bb._xofields)
+
         XoStruct = type(XoStruct_name, (Struct,), xofields)
 
         if '_rename' in data.keys():
@@ -254,4 +258,4 @@ class MetaDressedStruct(type):
 
 
 class DressedStruct(metaclass=MetaDressedStruct):
-    _xofields = {}
+    pass

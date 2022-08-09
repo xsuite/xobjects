@@ -236,10 +236,19 @@ class MetaDressedStruct(type):
                     break
         XoStruct = type(XoStruct_name, (Struct,), xofields)
 
-        bases = (dress(XoStruct),) + bases
+        if '_rename' in data.keys():
+            rename = data['_rename']
+        else:
+            rename = {}
+
+        bases = (dress(XoStruct, rename=rename),) + bases
         new_class = type.__new__(cls, name, bases, data)
 
         XoStruct._DressingClass = new_class
+
+        XoStruct.extra_sources = []
+        if 'extra_sources' in data.keys():
+            new_class.XoStruct.extra_sources.extend(data['extra_sources'])
 
         return new_class
 

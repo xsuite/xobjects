@@ -47,32 +47,78 @@ class _FieldOfDressed:
             self.content = None
             setattr(container._xobject, self.name, value)
 
-
-def dress(XoStruct, rename={}):
-
-    if hasattr(XoStruct, "_DressingClass"):
-        raise ValueError("A Struct cannot be dressed multiple times")
-
-    DressedXStruct = type(
-        "Dressed" + XoStruct.__name__, (), {"XoStruct": XoStruct}
-    )
-
-    DressedXStruct._rename = rename
-
-    pynames_list = []
-    for ff in XoStruct._fields:
-        fname = ff.name
-        if fname in rename.keys():
-            pyname = rename[fname]
+class JEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif np.issubdtype(type(obj), np.integer):
+            return int(obj)
         else:
-            pyname = fname
-        pynames_list.append(pyname)
+            return json.JSONEncoder.default(self, obj)
 
-        setattr(DressedXStruct, pyname, _FieldOfDressed(fname, XoStruct))
+def _build_xofields_dict(bases, data):
+    if '_xofields' in data.keys():
+        xofields = data['_xofields'].copy()
+    elif any(map(lambda b: hasattr(b, '_xofields'), bases)):
+        n_filled = 0
+        for bb in bases:
+            if hasattr(bb, '_xofields') and len(bb._xofields.keys()) > 0:
+                n_filled += 1
+                if n_filled > 1:
+                    raise ValueError(
+                        f'Multiple bases have _xofields: {bases}')
+                xofields = bb._xofields.copy()
+    else:
+        xofields = {}
 
-        DressedXStruct._fields = pynames_list
+    return xofields
 
-    XoStruct._DressingClass = DressedXStruct
+
+class MetaDressedStruct(type):
+
+    def __new__(cls, name, bases, data):
+
+        XoStruct_name = name + "Data"
+
+        # Take xofields from data['_xofields'] or from bases
+        xofields = _build_xofields_dict(bases, data)
+
+        XoStruct = type(XoStruct_name, (Struct,), xofields)
+
+        if '_rename' in data.keys():
+            rename = data['_rename']
+        else:
+            rename = {}
+
+        new_class = type.__new__(cls, name, bases, data)
+
+        new_class.XoStruct = XoStruct
+
+        new_class._rename = rename
+
+        pynames_list = []
+        for ff in XoStruct._fields:
+            fname = ff.name
+            if fname in rename.keys():
+                pyname = rename[fname]
+            else:
+                pyname = fname
+            pynames_list.append(pyname)
+
+            setattr(new_class, pyname, _FieldOfDressed(fname, XoStruct))
+
+            new_class._fields = pynames_list
+
+        XoStruct._DressingClass = new_class
+
+        XoStruct.extra_sources = []
+        if 'extra_sources' in data.keys():
+            new_class.XoStruct.extra_sources.extend(data['extra_sources'])
+
+        return new_class
+
+
+class DressedStruct(metaclass=MetaDressedStruct):
 
     def _move_to(self, _context=None, _buffer=None, _offset=None):
         self._xobject = self._xobject.__class__(
@@ -125,7 +171,7 @@ def dress(XoStruct, rename={}):
             # (for example in case object is initialized from dict)
             self._reinit_from_xobject(_xobject=self._xobject)
 
-    def _init(self, _xobject=None, **kwargs):
+    def __init__(self, _xobject=None, **kwargs):
         self.xoinitialize(_xobject=_xobject, **kwargs)
 
     def to_dict(self, copy_to_cpu=True):
@@ -199,75 +245,3 @@ def dress(XoStruct, rename={}):
     @property
     def _context(self):
         return self._xobject._buffer.context
-
-    DressedXStruct.xoinitialize = xoinitialize
-    DressedXStruct.compile_custom_kernels = compile_custom_kernels
-    DressedXStruct.to_dict = to_dict
-    DressedXStruct.from_dict = from_dict
-    DressedXStruct.copy = copy
-    DressedXStruct.__init__ = _init
-    DressedXStruct._reinit_from_xobject = _reinit_from_xobject
-    DressedXStruct._move_to = _move_to
-    DressedXStruct._buffer = _buffer
-    DressedXStruct._offset = _offset
-    DressedXStruct._context= _context
-
-    return DressedXStruct
-
-
-class JEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif np.issubdtype(type(obj), np.integer):
-            return int(obj)
-        else:
-            return json.JSONEncoder.default(self, obj)
-
-def _build_xofields_dict(bases, data):
-    if '_xofields' in data.keys():
-        xofields = data['_xofields'].copy()
-    elif any(map(lambda b: hasattr(b, '_xofields'), bases)):
-        n_filled = 0
-        for bb in bases:
-            if hasattr(bb, '_xofields') and len(bb._xofields.keys()) > 0:
-                n_filled += 1
-                if n_filled > 1:
-                    raise ValueError(
-                        f'Multiple bases have _xofields: {bases}')
-                xofields = bb._xofields.copy()
-    else:
-        xofields = {}
-
-    return xofields
-
-
-class MetaDressedStruct(type):
-
-    def __new__(cls, name, bases, data):
-        XoStruct_name = name + "Data"
-
-        # Take xofields from data['_xofields'] or from bases
-        xofields = _build_xofields_dict(bases, data)
-
-        XoStruct = type(XoStruct_name, (Struct,), xofields)
-
-        if '_rename' in data.keys():
-            rename = data['_rename']
-        else:
-            rename = {}
-
-        bases = (dress(XoStruct, rename=rename),) + bases
-        new_class = type.__new__(cls, name, bases, data)
-
-        XoStruct._DressingClass = new_class
-
-        XoStruct.extra_sources = []
-        if 'extra_sources' in data.keys():
-            new_class.XoStruct.extra_sources.extend(data['extra_sources'])
-
-        return new_class
-
-
-class DressedStruct(metaclass=MetaDressedStruct):
-    pass

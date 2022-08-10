@@ -4,17 +4,17 @@
 # ########################################### #
 
 import numpy as np
-from xobjects import dress
 import xobjects as xo
 
 
-def test_dress():
-    class ElementData(xo.Struct):
-        n = xo.Int32
-        b = xo.Float64
-        vv = xo.Float64[:]
+def test_dressed_struct():
 
-    class Element(dress(ElementData)):
+    class Element(xo.DressedStruct):
+        _xofields = {
+            'n': xo.Int32,
+            'b': xo.Float64,
+            'vv': xo.Float64[:],
+        }
         def __init__(self, vv=None, **kwargs):
             if "_xobject" in kwargs.keys():
                 self.xoinitialize(**kwargs)
@@ -47,12 +47,13 @@ def test_dress():
 
 
 def test_explicit_buffer():
-    class ElementData(xo.Struct):
-        n = xo.Int32
-        b = xo.Float64
-        vv = xo.Float64[:]
 
-    class Element(dress(ElementData)):
+    class Element(xo.DressedStruct):
+        _xofields = {
+            'n': xo.Int32,
+            'b': xo.Float64,
+            'vv': xo.Float64[:],
+        }
         def __init__(self, vv=None, **kwargs):
             self.xoinitialize(n=len(vv), b=np.sum(vv), vv=vv, **kwargs)
 

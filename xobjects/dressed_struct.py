@@ -78,6 +78,11 @@ class MetaDressedStruct(type):
 
     def __new__(cls, name, bases, data):
 
+        if ('_xofields' not in data.keys()
+                and any(map(lambda b: hasattr(b, 'XoStruct'), bases))):
+            # No action, use XoStruct from base class (used to build PyHEADTAIL interface)
+            return type.__new__(cls, name, bases, data)
+
         XoStruct_name = name + "Data"
 
         # Take xofields from data['_xofields'] or from bases

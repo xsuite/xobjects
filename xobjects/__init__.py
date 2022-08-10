@@ -30,6 +30,6 @@ from .specialize_source import specialize_source
 
 from .typeutils import context_default, get_a_buffer
 
-from .dressed_struct import JEncoder, DressedStruct, MetaDressedStruct
+from .dressed_struct import JEncoder, HybridClass, MetaHybridClass
 
 from .linkedarray import BypassLinked

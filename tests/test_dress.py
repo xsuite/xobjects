@@ -9,7 +9,7 @@ import xobjects as xo
 
 def test_dressed_struct():
 
-    class Element(xo.DressedStruct):
+    class Element(xo.HybridClass):
         _xofields = {
             'n': xo.Int32,
             'b': xo.Float64,
@@ -48,7 +48,7 @@ def test_dressed_struct():
 
 def test_explicit_buffer():
 
-    class Element(xo.DressedStruct):
+    class Element(xo.HybridClass):
         _xofields = {
             'n': xo.Int32,
             'b': xo.Float64,

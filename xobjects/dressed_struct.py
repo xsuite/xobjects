@@ -74,7 +74,7 @@ def _build_xofields_dict(bases, data):
     return xofields
 
 
-class MetaDressedStruct(type):
+class MetaHybridClass(type):
 
     def __new__(cls, name, bases, data):
 
@@ -123,7 +123,7 @@ class MetaDressedStruct(type):
         return new_class
 
 
-class DressedStruct(metaclass=MetaDressedStruct):
+class HybridClass(metaclass=MetaHybridClass):
 
     def _move_to(self, _context=None, _buffer=None, _offset=None):
         self._xobject = self._xobject.__class__(

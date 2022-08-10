@@ -7,7 +7,7 @@ import numpy as np
 import xobjects as xo
 
 def test_linked_arrays():
-    class MyStruct(xo.DressedStruct):
+    class MyStruct(xo.HybridClass):
         _xofields = {
             '_a': xo.Float64[:],
             '_asq': xo.Float64[:]}

@@ -224,19 +224,31 @@ class JEncoder(json.JSONEncoder):
         else:
             return json.JSONEncoder.default(self, obj)
 
+def _build_xofields_dict(bases, data):
+    if '_xofields' in data.keys():
+        xofields = data['_xofields'].copy()
+    elif any(map(lambda b: hasattr(b, '_xofields'), bases)):
+        n_filled = 0
+        for bb in bases:
+            if hasattr(bb, '_xofields') and len(bb._xofields.keys()) > 0:
+                n_filled += 1
+                if n_filled > 1:
+                    raise ValueError(
+                        f'Multiple bases have _xofields: {bases}')
+                xofields = bb._xofields.copy()
+    else:
+        xofields = {}
+
+    return xofields
+
 
 class MetaDressedStruct(type):
 
     def __new__(cls, name, bases, data):
         XoStruct_name = name + "Data"
 
-        xofields = {}
-        if "_xofields" in data.keys():
-            xofields.update(data["_xofields"])
-
-        for bb in bases:
-            if hasattr(bb, "_xofields"):
-                xofields.update(bb._xofields)
+        # Take xofields from data['_xofields'] or from bases
+        xofields = _build_xofields_dict(bases, data)
 
         XoStruct = type(XoStruct_name, (Struct,), xofields)
 

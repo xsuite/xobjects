@@ -70,6 +70,10 @@ def _build_xofields_dict(bases, data):
     else:
         xofields = {}
 
+    for nn, tt in xofields.items():
+        if hasattr(tt, '_XoStruct'):
+            xofields[nn] = tt._XoStruct
+
     return xofields
 
 

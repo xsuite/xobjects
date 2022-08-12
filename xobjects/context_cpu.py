@@ -195,8 +195,6 @@ class ContextCpu(XContext):
         classes = sort_classes(classes)
         cls_sources = sources_from_classes(classes)
 
-        import pdb; pdb.set_trace()
-
         headers = ["#include <stdint.h>"]
 
         if self.omp_num_threads > 0:

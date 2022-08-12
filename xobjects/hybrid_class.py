@@ -116,9 +116,8 @@ class MetaHybridClass(type):
 
         XoStruct._DressingClass = new_class
 
-        XoStruct.extra_sources = []
-        if 'extra_sources' in data.keys():
-            new_class.XoStruct.extra_sources.extend(data['extra_sources'])
+        if '_extra_c_source' in data.keys():
+            new_class.XoStruct._extra_c_source.extend(data['_extra_c_source'])
 
         return new_class
 
@@ -233,7 +232,7 @@ class HybridClass(metaclass=MetaHybridClass):
                 return
 
         context.add_kernels(
-            sources=self.XoStruct.extra_sources,
+            sources=[],
             kernels=self.XoStruct.custom_kernels,
             extra_classes=[self.XoStruct],
             save_source_as=save_source_as,

@@ -146,11 +146,15 @@ class MetaHybridClass(type):
 
 class HybridClass(metaclass=MetaHybridClass):
 
-    def _move_to(self, _context=None, _buffer=None, _offset=None):
+    def move(self, _context=None, _buffer=None, _offset=None):
         self._xobject = self._xobject.__class__(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
         )
         self._reinit_from_xobject(_xobject=self._xobject)
+
+    @property
+    def _move_to(self):
+        raise NameError("`_move_to` has been removed. Use `move` instead.")
 
     def _reinit_from_xobject(self, _xobject):
         self._xobject = _xobject
@@ -251,6 +255,14 @@ class HybridClass(metaclass=MetaHybridClass):
     @property
     def _context(self):
         return self._xobject._buffer.context
+
+    @property
+    def XoStruct(self):
+        raise NameError("`XoStruct` has been removed. Use `_XoStruct` instead.")
+
+    @property
+    def extra_sources(self):
+        raise NameError("`extra_sources` has been removed. Use `_extra_c_sources` instead.")
 
     def compile_kernels(self, *args, **kwargs):
         return self._xobject.compile_kernels(*args, **kwargs)

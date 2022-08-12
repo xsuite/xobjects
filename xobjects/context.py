@@ -82,7 +82,7 @@ def sources_from_classes(classes):
     for cls in classes:
         sources.append(cls._gen_c_api())
         if hasattr(cls, "_extra_c_source"):
-            sources.append(cls._extra_c_source)
+            sources.extend(cls._extra_c_source)
     return sources
 
 
@@ -93,7 +93,7 @@ def classes_from_kernels(kernels):
     return classes
 
 
-def _concatenate_sources(sources):
+def _concatenate_sources(sources, apply_to_source=()):
     source = []
     folders = set()
     for ss in sources:
@@ -109,6 +109,9 @@ def _concatenate_sources(sources):
     source = "\n".join(source)
 
     folders = [str(ff) for ff in folders]
+
+    for ff in apply_to_source:
+        source = ff(source)
 
     return source, folders
 
@@ -166,6 +169,7 @@ class XContext(ABC):
         sources: list,
         kernels: dict,
         specialize: bool,
+        apply_to_source: list,
         save_source_as: str,
     ):
         pass

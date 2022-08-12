@@ -121,6 +121,7 @@ class ContextCpu(XContext):
         sources=[],
         kernels=[],
         specialize=True,
+        apply_to_source=(),
         save_source_as=None,
         extra_compile_args=["-O3", "-Wno-unused-function"],
         extra_link_args=["-O3"],
@@ -194,6 +195,8 @@ class ContextCpu(XContext):
         classes = sort_classes(classes)
         cls_sources = sources_from_classes(classes)
 
+        import pdb; pdb.set_trace()
+
         headers = ["#include <stdint.h>"]
 
         if self.omp_num_threads > 0:
@@ -203,7 +206,7 @@ class ContextCpu(XContext):
 
         sources = headers + cls_sources + sources
 
-        source, folders = _concatenate_sources(sources)
+        source, folders = _concatenate_sources(sources, apply_to_source)
 
         if specialize:
             if self.omp_num_threads > 0:

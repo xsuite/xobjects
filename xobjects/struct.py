@@ -258,6 +258,8 @@ class MetaStruct(type):
                 _has_refs = True
                 break
         data['_has_refs'] = _has_refs
+        if '_extra_c_source' not in data.keys():
+            data['_extra_c_source'] = []
 
         return type.__new__(cls, name, bases, data)
 

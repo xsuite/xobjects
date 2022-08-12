@@ -9,7 +9,6 @@ import numpy as np
 from .struct import Struct
 from .typeutils import context_default
 
-
 class _FieldOfDressed:
     def __init__(self, name, XoStruct):
         self.name = name
@@ -119,6 +118,17 @@ class MetaHybridClass(type):
         if '_extra_c_source' in data.keys():
             new_class.XoStruct._extra_c_source.extend(data['_extra_c_source'])
 
+        if '_depends_on' in data.keys():
+            new_class.XoStruct._depends_on.extend(data['_depends_on'])
+
+        if '_kernels' in data.keys():
+            kernels = data['_kernels'].copy()
+            for nn, kk in kernels.items():
+                for aa in kk.args:
+                    if aa.atype is ThisClass:
+                        aa.atype = new_class.XoStruct
+            new_class.XoStruct._kernels.update(kernels)
+
         return new_class
 
 
@@ -218,26 +228,6 @@ class HybridClass(metaclass=MetaHybridClass):
         )
         return self.__class__(_xobject=xobject)
 
-    def compile_custom_kernels(self, only_if_needed=False,
-                               save_source_as=None):
-        context = self._buffer.context
-
-        if only_if_needed:
-            all_found = True
-            for kk in self.XoStruct.custom_kernels.keys():
-                if kk not in context.kernels.keys():
-                    all_found = False
-                    break
-            if all_found:
-                return
-
-        context.add_kernels(
-            sources=[],
-            kernels=self.XoStruct.custom_kernels,
-            extra_classes=[self.XoStruct],
-            save_source_as=save_source_as,
-        )
-
     @property
     def _buffer(self):
         return self._xobject._buffer
@@ -249,3 +239,9 @@ class HybridClass(metaclass=MetaHybridClass):
     @property
     def _context(self):
         return self._xobject._buffer.context
+
+    def compile_kernels(self, *args, **kwargs):
+        return self._xobject.compile_kernels(*args, **kwargs)
+
+class ThisClass: # Place holder
+    pass

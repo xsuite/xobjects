@@ -260,6 +260,10 @@ class MetaStruct(type):
         data['_has_refs'] = _has_refs
         if '_extra_c_source' not in data.keys():
             data['_extra_c_source'] = []
+        if '_depends_on' not in data.keys():
+            data['_depends_on'] = []
+        if '_kernels' not in data.keys():
+            data['_kernels'] = {}
 
         return type.__new__(cls, name, bases, data)
 
@@ -437,6 +441,40 @@ class Struct(metaclass=MetaStruct):
     @classmethod
     def _get_inner_types(cls):
         return [fl.ftype for fl in cls._fields]
+
+    @property
+    def _context(self):
+        return self._buffer.context
+
+    @classmethod
+    def compile_class_kernels(cls, context, only_if_needed=False,
+                              apply_to_source=(),
+                              save_source_as=None,):
+
+        if only_if_needed:
+            all_found = True
+            for kk in cls._kernels.keys():
+                if kk not in context.kernels.keys():
+                    all_found = False
+                    break
+            if all_found:
+                return
+
+        context.add_kernels(
+            sources=[],
+            kernels=cls._kernels,
+            extra_classes=[cls],
+            apply_to_source=apply_to_source,
+            save_source_as=save_source_as,
+        )
+
+    def compile_kernels(self, only_if_needed=False,
+                        apply_to_source=(), save_source_as=None):
+        self.compile_class_kernels(
+            context=self._context, only_if_needed=only_if_needed,
+            apply_to_source=apply_to_source,
+            save_source_as=save_source_as)
+
 
 
 def is_struct(atype):

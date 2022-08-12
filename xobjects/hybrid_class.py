@@ -3,7 +3,9 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 
+from hashlib import new
 import json
+from inspect import isclass
 
 import numpy as np
 from .struct import Struct
@@ -71,7 +73,7 @@ def _build_xofields_dict(bases, data):
         xofields = {}
 
     for nn, tt in xofields.items():
-        if hasattr(tt, '_XoStruct'):
+        if isclass(tt) and issubclass(tt, HybridClass):
             xofields[nn] = tt._XoStruct
 
     return xofields
@@ -131,7 +133,13 @@ class MetaHybridClass(type):
                 for aa in kk.args:
                     if aa.atype is ThisClass:
                         aa.atype = new_class._XoStruct
+                    if isclass(aa.atype) and issubclass(aa.atype, HybridClass):
+                        aa.atype = aa.atype._XoStruct
             new_class._XoStruct._kernels.update(kernels)
+
+        for ii, tt in enumerate(new_class._XoStruct._depends_on):
+            if isclass(tt) and issubclass(tt, HybridClass):
+                new_class._XoStruct._depends_on[ii] = tt._XoStruct
 
         return new_class
 

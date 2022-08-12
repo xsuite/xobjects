@@ -10,13 +10,13 @@ from .struct import Struct
 from .typeutils import context_default
 
 class _FieldOfDressed:
-    def __init__(self, name, XoStruct):
+    def __init__(self, name, _XoStruct):
         self.name = name
         self.isnplikearray = False
 
-        fnames = [ff.name for ff in XoStruct._fields]
+        fnames = [ff.name for ff in _XoStruct._fields]
         if self.name in fnames:
-            ftype = getattr(XoStruct, self.name).ftype
+            ftype = getattr(_XoStruct, self.name).ftype
             if hasattr(ftype, "_itemtype"):  # is xo object
                 if hasattr(ftype._itemtype, "_dtype"):  # valid nplike object
                     self.isnplikearray = True
@@ -78,16 +78,16 @@ class MetaHybridClass(type):
     def __new__(cls, name, bases, data):
 
         if ('_xofields' not in data.keys()
-                and any(map(lambda b: hasattr(b, 'XoStruct'), bases))):
-            # No action, use XoStruct from base class (used to build PyHEADTAIL interface)
+                and any(map(lambda b: hasattr(b, '_XoStruct'), bases))):
+            # No action, use _XoStruct from base class (used to build PyHEADTAIL interface)
             return type.__new__(cls, name, bases, data)
 
-        XoStruct_name = name + "Data"
+        _XoStruct_name = name + "Data"
 
         # Take xofields from data['_xofields'] or from bases
         xofields = _build_xofields_dict(bases, data)
 
-        XoStruct = type(XoStruct_name, (Struct,), xofields)
+        _XoStruct = type(_XoStruct_name, (Struct,), xofields)
 
         if '_rename' in data.keys():
             rename = data['_rename']
@@ -96,12 +96,12 @@ class MetaHybridClass(type):
 
         new_class = type.__new__(cls, name, bases, data)
 
-        new_class.XoStruct = XoStruct
+        new_class._XoStruct = _XoStruct
 
         new_class._rename = rename
 
         pynames_list = []
-        for ff in XoStruct._fields:
+        for ff in _XoStruct._fields:
             fname = ff.name
             if fname in rename.keys():
                 pyname = rename[fname]
@@ -109,25 +109,25 @@ class MetaHybridClass(type):
                 pyname = fname
             pynames_list.append(pyname)
 
-            setattr(new_class, pyname, _FieldOfDressed(fname, XoStruct))
+            setattr(new_class, pyname, _FieldOfDressed(fname, _XoStruct))
 
             new_class._fields = pynames_list
 
-        XoStruct._DressingClass = new_class
+        _XoStruct._DressingClass = new_class
 
         if '_extra_c_sources' in data.keys():
-            new_class.XoStruct._extra_c_sources.extend(data['_extra_c_sources'])
+            new_class._XoStruct._extra_c_sources.extend(data['_extra_c_sources'])
 
         if '_depends_on' in data.keys():
-            new_class.XoStruct._depends_on.extend(data['_depends_on'])
+            new_class._XoStruct._depends_on.extend(data['_depends_on'])
 
         if '_kernels' in data.keys():
             kernels = data['_kernels'].copy()
             for nn, kk in kernels.items():
                 for aa in kk.args:
                     if aa.atype is ThisClass:
-                        aa.atype = new_class.XoStruct
-            new_class.XoStruct._kernels.update(kernels)
+                        aa.atype = new_class._XoStruct
+            new_class._XoStruct._kernels.update(kernels)
 
         return new_class
 
@@ -142,7 +142,7 @@ class HybridClass(metaclass=MetaHybridClass):
 
     def _reinit_from_xobject(self, _xobject):
         self._xobject = _xobject
-        for ff in self.XoStruct._fields:
+        for ff in self._XoStruct._fields:
             if hasattr(ff.ftype, "_DressingClass"):
                 vv = ff.ftype._DressingClass(
                     _xobject=getattr(_xobject, ff.name)
@@ -153,7 +153,7 @@ class HybridClass(metaclass=MetaHybridClass):
     def xoinitialize(self, _xobject=None, _kwargs_name_check=True, **kwargs):
 
         if _kwargs_name_check:
-            fnames = [ff.name for ff in self.XoStruct._fields]
+            fnames = [ff.name for ff in self._XoStruct._fields]
             for kk in kwargs.keys():
                 if kk.startswith('_'):
                     continue
@@ -171,7 +171,7 @@ class HybridClass(metaclass=MetaHybridClass):
                     dressed_kwargs[kk] = vv
                     kwargs[kk] = vv._xobject
 
-            self._xobject = self.XoStruct(**kwargs)
+            self._xobject = self._XoStruct(**kwargs)
 
             # Handle dressed inputs
             for kk, vv in dressed_kwargs.items():
@@ -223,7 +223,7 @@ class HybridClass(metaclass=MetaHybridClass):
         if _context is None and _buffer is None:
             _context = self._xobject._buffer.context
         # This makes a copy of the xobject
-        xobject = self.XoStruct(
+        xobject = self._XoStruct(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
         )
         return self.__class__(_xobject=xobject)

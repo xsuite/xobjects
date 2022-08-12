@@ -97,6 +97,9 @@ def _concatenate_sources(sources, apply_to_source=()):
     source = []
     folders = set()
     for ss in sources:
+        if isinstance(ss, Source):
+            ss = ss.source
+
         if hasattr(ss, "read"):
             source.append(ss.read())
             folders.add(os.path.dirname(ss.name))
@@ -415,6 +418,10 @@ class Kernel:
             classes.append(self.ret.atype)
         return classes
 
+class Source:
+    def __init__(self, source, name=None):
+        self.source = source
+        self.name = name
 
 class Method:
     def __init__(self, args, c_name, ret):

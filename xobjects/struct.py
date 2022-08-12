@@ -59,7 +59,7 @@ from .typeutils import (
 
 from .scalar import Int64
 from .array import Array
-
+from .context import Source
 
 log = logging.getLogger(__name__)
 
@@ -417,7 +417,10 @@ class Struct(metaclass=MetaStruct):
         from . import capi
 
         paths = cls._gen_data_paths()
-        return capi.gen_code(cls, paths, conf)
+
+        source = Source(source=capi.gen_code(cls, paths, conf),
+                        name=cls.__name__+'_gen_c_api')
+        return source
 
     @classmethod
     def _gen_c_decl(cls, conf=default_conf):

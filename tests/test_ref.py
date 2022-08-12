@@ -194,7 +194,7 @@ def test_unionref():
         b = xo.Float64
         h = xo.Float64
 
-        _extra_c_source = ["""
+        _extra_c_sources = ["""
             /*gpufun*/
             double Triangle_compute_area(Triangle tr, double scale){
                 double b = Triangle_get_b(tr);
@@ -206,7 +206,7 @@ def test_unionref():
     class Square(xo.Struct):
         a = xo.Float64
 
-        _extra_c_source = ["""
+        _extra_c_sources = ["""
             /*gpufun*/
             double Square_compute_area(Square sq, double scale){
                 double a = Square_get_a(sq);
@@ -229,7 +229,7 @@ def test_unionref():
         height = xo.Float64
         volume = xo.Float64
 
-        _extra_c_source = ["""
+        _extra_c_sources = ["""
             /*gpukern*/
             void Prism_compute_volume(Prism pr){
                 Base base = Prism_getp_base(pr);

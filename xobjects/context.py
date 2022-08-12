@@ -81,8 +81,8 @@ def sources_from_classes(classes):
     sources = []
     for cls in classes:
         sources.append(cls._gen_c_api())
-        if hasattr(cls, "_extra_c_source"):
-            sources.extend(cls._extra_c_source)
+        if hasattr(cls, "_extra_c_sources"):
+            sources.extend(cls._extra_c_sources)
     return sources
 
 

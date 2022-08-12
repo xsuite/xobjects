@@ -258,8 +258,8 @@ class MetaStruct(type):
                 _has_refs = True
                 break
         data['_has_refs'] = _has_refs
-        if '_extra_c_source' not in data.keys():
-            data['_extra_c_source'] = []
+        if '_extra_c_sources' not in data.keys():
+            data['_extra_c_sources'] = []
         if '_depends_on' not in data.keys():
             data['_depends_on'] = []
         if '_kernels' not in data.keys():

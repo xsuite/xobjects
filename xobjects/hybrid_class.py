@@ -115,8 +115,8 @@ class MetaHybridClass(type):
 
         XoStruct._DressingClass = new_class
 
-        if '_extra_c_source' in data.keys():
-            new_class.XoStruct._extra_c_source.extend(data['_extra_c_source'])
+        if '_extra_c_sources' in data.keys():
+            new_class.XoStruct._extra_c_sources.extend(data['_extra_c_sources'])
 
         if '_depends_on' in data.keys():
             new_class.XoStruct._depends_on.extend(data['_depends_on'])

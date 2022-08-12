@@ -10,26 +10,26 @@ class Triangle(xo.Struct):
     b = xo.Float64
     h = xo.Float64
 
-    _extra_c_source = """
+    _extra_c_sources = ["""
     /*gpufun*/
     double Triangle_compute_area(Triangle tr, double scale){
         double b = Triangle_get_b(tr);
         double h = Triangle_get_h(tr);
         return 0.5*b*h*scale;
     }
-    """
+    """]
 
 
 class Square(xo.Struct):
     a = xo.Float64
 
-    _extra_c_source = """
+    _extra_c_sources = ["""
     /*gpufun*/
     double Square_compute_area(Square sq, double scale){
         double a = Square_get_a(sq);
         return a*a*scale;
     }
-    """
+    """]
 
 
 class Base(xo.UnionRef):
@@ -48,7 +48,7 @@ class Prism(xo.Struct):
     height = xo.Float64
     volume = xo.Float64
 
-    _extra_c_source = """
+    _extra_c_sources = ["""
     /*gpukern*/
     void Prism_compute_volume(Prism pr){
         Base base = Prism_getp_base(pr);
@@ -56,7 +56,7 @@ class Prism(xo.Struct):
         double base_area = Base_compute_area(base, 3.);
         Prism_set_volume(pr, base_area*height);
     }
-    """
+    """]
 
 
 context = xo.ContextCpu()

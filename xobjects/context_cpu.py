@@ -121,6 +121,7 @@ class ContextCpu(XContext):
         sources=[],
         kernels=[],
         specialize=True,
+        apply_to_source=(),
         save_source_as=None,
         extra_compile_args=["-O3", "-Wno-unused-function"],
         extra_link_args=["-O3"],
@@ -203,7 +204,7 @@ class ContextCpu(XContext):
 
         sources = headers + cls_sources + sources
 
-        source, folders = _concatenate_sources(sources)
+        source, folders = _concatenate_sources(sources, apply_to_source)
 
         if specialize:
             if self.omp_num_threads > 0:

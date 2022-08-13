@@ -3,21 +3,22 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 
+from hashlib import new
 import json
+from inspect import isclass
 
 import numpy as np
 from .struct import Struct
 from .typeutils import context_default
 
-
 class _FieldOfDressed:
-    def __init__(self, name, XoStruct):
+    def __init__(self, name, _XoStruct):
         self.name = name
         self.isnplikearray = False
 
-        fnames = [ff.name for ff in XoStruct._fields]
+        fnames = [ff.name for ff in _XoStruct._fields]
         if self.name in fnames:
-            ftype = getattr(XoStruct, self.name).ftype
+            ftype = getattr(_XoStruct, self.name).ftype
             if hasattr(ftype, "_itemtype"):  # is xo object
                 if hasattr(ftype._itemtype, "_dtype"):  # valid nplike object
                     self.isnplikearray = True
@@ -71,6 +72,10 @@ def _build_xofields_dict(bases, data):
     else:
         xofields = {}
 
+    for nn, tt in xofields.items():
+        if isclass(tt) and issubclass(tt, HybridClass):
+            xofields[nn] = tt._XoStruct
+
     return xofields
 
 
@@ -79,16 +84,16 @@ class MetaHybridClass(type):
     def __new__(cls, name, bases, data):
 
         if ('_xofields' not in data.keys()
-                and any(map(lambda b: hasattr(b, 'XoStruct'), bases))):
-            # No action, use XoStruct from base class (used to build PyHEADTAIL interface)
+                and any(map(lambda b: hasattr(b, '_XoStruct'), bases))):
+            # No action, use _XoStruct from base class (used to build PyHEADTAIL interface)
             return type.__new__(cls, name, bases, data)
 
-        XoStruct_name = name + "Data"
+        _XoStruct_name = name + "Data"
 
         # Take xofields from data['_xofields'] or from bases
         xofields = _build_xofields_dict(bases, data)
 
-        XoStruct = type(XoStruct_name, (Struct,), xofields)
+        _XoStruct = type(_XoStruct_name, (Struct,), xofields)
 
         if '_rename' in data.keys():
             rename = data['_rename']
@@ -97,12 +102,12 @@ class MetaHybridClass(type):
 
         new_class = type.__new__(cls, name, bases, data)
 
-        new_class.XoStruct = XoStruct
+        new_class._XoStruct = _XoStruct
 
         new_class._rename = rename
 
         pynames_list = []
-        for ff in XoStruct._fields:
+        for ff in _XoStruct._fields:
             fname = ff.name
             if fname in rename.keys():
                 pyname = rename[fname]
@@ -110,30 +115,50 @@ class MetaHybridClass(type):
                 pyname = fname
             pynames_list.append(pyname)
 
-            setattr(new_class, pyname, _FieldOfDressed(fname, XoStruct))
+            setattr(new_class, pyname, _FieldOfDressed(fname, _XoStruct))
 
             new_class._fields = pynames_list
 
-        XoStruct._DressingClass = new_class
+        _XoStruct._DressingClass = new_class
 
-        XoStruct.extra_sources = []
-        if 'extra_sources' in data.keys():
-            new_class.XoStruct.extra_sources.extend(data['extra_sources'])
+        if '_extra_c_sources' in data.keys():
+            new_class._XoStruct._extra_c_sources.extend(data['_extra_c_sources'])
+
+        if '_depends_on' in data.keys():
+            new_class._XoStruct._depends_on.extend(data['_depends_on'])
+
+        if '_kernels' in data.keys():
+            kernels = data['_kernels'].copy()
+            for nn, kk in kernels.items():
+                for aa in kk.args:
+                    if aa.atype is ThisClass:
+                        aa.atype = new_class._XoStruct
+                    if isclass(aa.atype) and issubclass(aa.atype, HybridClass):
+                        aa.atype = aa.atype._XoStruct
+            new_class._XoStruct._kernels.update(kernels)
+
+        for ii, tt in enumerate(new_class._XoStruct._depends_on):
+            if isclass(tt) and issubclass(tt, HybridClass):
+                new_class._XoStruct._depends_on[ii] = tt._XoStruct
 
         return new_class
 
 
 class HybridClass(metaclass=MetaHybridClass):
 
-    def _move_to(self, _context=None, _buffer=None, _offset=None):
+    def move(self, _context=None, _buffer=None, _offset=None):
         self._xobject = self._xobject.__class__(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
         )
         self._reinit_from_xobject(_xobject=self._xobject)
 
+    @property
+    def _move_to(self):
+        raise NameError("`_move_to` has been removed. Use `move` instead.")
+
     def _reinit_from_xobject(self, _xobject):
         self._xobject = _xobject
-        for ff in self.XoStruct._fields:
+        for ff in self._XoStruct._fields:
             if hasattr(ff.ftype, "_DressingClass"):
                 vv = ff.ftype._DressingClass(
                     _xobject=getattr(_xobject, ff.name)
@@ -144,7 +169,7 @@ class HybridClass(metaclass=MetaHybridClass):
     def xoinitialize(self, _xobject=None, _kwargs_name_check=True, **kwargs):
 
         if _kwargs_name_check:
-            fnames = [ff.name for ff in self.XoStruct._fields]
+            fnames = [ff.name for ff in self._XoStruct._fields]
             for kk in kwargs.keys():
                 if kk.startswith('_'):
                     continue
@@ -162,7 +187,7 @@ class HybridClass(metaclass=MetaHybridClass):
                     dressed_kwargs[kk] = vv
                     kwargs[kk] = vv._xobject
 
-            self._xobject = self.XoStruct(**kwargs)
+            self._xobject = self._XoStruct(**kwargs)
 
             # Handle dressed inputs
             for kk, vv in dressed_kwargs.items():
@@ -214,30 +239,10 @@ class HybridClass(metaclass=MetaHybridClass):
         if _context is None and _buffer is None:
             _context = self._xobject._buffer.context
         # This makes a copy of the xobject
-        xobject = self.XoStruct(
+        xobject = self._XoStruct(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
         )
         return self.__class__(_xobject=xobject)
-
-    def compile_custom_kernels(self, only_if_needed=False,
-                               save_source_as=None):
-        context = self._buffer.context
-
-        if only_if_needed:
-            all_found = True
-            for kk in self.XoStruct.custom_kernels.keys():
-                if kk not in context.kernels.keys():
-                    all_found = False
-                    break
-            if all_found:
-                return
-
-        context.add_kernels(
-            sources=self.XoStruct.extra_sources,
-            kernels=self.XoStruct.custom_kernels,
-            extra_classes=[self.XoStruct],
-            save_source_as=save_source_as,
-        )
 
     @property
     def _buffer(self):
@@ -250,3 +255,17 @@ class HybridClass(metaclass=MetaHybridClass):
     @property
     def _context(self):
         return self._xobject._buffer.context
+
+    @property
+    def XoStruct(self):
+        raise NameError("`XoStruct` has been removed. Use `_XoStruct` instead.")
+
+    @property
+    def extra_sources(self):
+        raise NameError("`extra_sources` has been removed. Use `_extra_c_sources` instead.")
+
+    def compile_kernels(self, *args, **kwargs):
+        return self._xobject.compile_kernels(*args, **kwargs)
+
+class ThisClass: # Place holder
+    pass

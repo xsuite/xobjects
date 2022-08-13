@@ -395,6 +395,7 @@ class ContextCupy(XContext):
         sources=[],
         kernels=[],
         specialize=True,
+        apply_to_source=(),
         save_source_as=None,
         extra_cdef=None,
         extra_classes=[],
@@ -473,7 +474,7 @@ class ContextCupy(XContext):
 
         sources = headers + cls_sources + sources
 
-        source, folders = _concatenate_sources(sources)
+        source, folders = _concatenate_sources(sources, apply_to_source)
         source = "\n".join(['extern "C"{', source, "}"])
 
         if specialize:

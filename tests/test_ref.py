@@ -97,7 +97,7 @@ def test_ref_c_api():
 
         ms2 = MyStruct2(_buffer=ms._buffer, sr=ms, a=[0, 0, 0])
 
-        src = """
+        src = r"""
         /*gpukern*/
         void cp_sra_to_a(MyStruct2 ms, int64_t n){
 
@@ -194,25 +194,25 @@ def test_unionref():
         b = xo.Float64
         h = xo.Float64
 
-        _extra_c_source = """
-        /*gpufun*/
-        double Triangle_compute_area(Triangle tr, double scale){
-            double b = Triangle_get_b(tr);
-            double h = Triangle_get_h(tr);
-            return 0.5*b*h*scale;
-        }
-        """
+        _extra_c_sources = ["""
+            /*gpufun*/
+            double Triangle_compute_area(Triangle tr, double scale){
+                double b = Triangle_get_b(tr);
+                double h = Triangle_get_h(tr);
+                return 0.5*b*h*scale;
+            }
+            """]
 
     class Square(xo.Struct):
         a = xo.Float64
 
-        _extra_c_source = """
-        /*gpufun*/
-        double Square_compute_area(Square sq, double scale){
-            double a = Square_get_a(sq);
-            return a*a*scale;
-        }
-        """
+        _extra_c_sources = ["""
+            /*gpufun*/
+            double Square_compute_area(Square sq, double scale){
+                double a = Square_get_a(sq);
+                return a*a*scale;
+            }
+            """]
 
     class Base(xo.UnionRef):
         _reftypes = (Triangle, Square)
@@ -229,16 +229,16 @@ def test_unionref():
         height = xo.Float64
         volume = xo.Float64
 
-        _extra_c_source = """
-        /*gpukern*/
-        void Prism_compute_volume(Prism pr){
-            Base base = Prism_getp_base(pr);
-            double height = Prism_get_height(pr);
-            double base_area = Base_compute_area(base, 3.);
-            printf("base_area = %e", base_area);
-            Prism_set_volume(pr, base_area*height);
-        }
-        """
+        _extra_c_sources = ["""
+            /*gpukern*/
+            void Prism_compute_volume(Prism pr){
+                Base base = Prism_getp_base(pr);
+                double height = Prism_get_height(pr);
+                double base_area = Base_compute_area(base, 3.);
+                printf("base_area = %e", base_area);
+                Prism_set_volume(pr, base_area*height);
+            }
+            """]
 
     for context in xo.context.get_test_contexts():
         print(f"Test {context}")

@@ -246,16 +246,16 @@ def test_dependencies():
 
     class A(xo.Struct):
         a=xo.Float64[:]
-        _extra_c_source="//blah blah A"
+        _extra_c_sources=["//blah blah A"]
 
     class C(xo.Struct):
         c=xo.Float64[:]
-        _extra_c_source=" //blah blah C"
+        _extra_c_sources=[" //blah blah C"]
 
     class B(xo.Struct):
         b=A
         c=xo.Float64[:]
-        _extra_c_source=" //blah blah B"
+        _extra_c_sources=[" //blah blah B"]
         _depends_on=[C]
 
     assert xo.context.sort_classes([B])[1:]==[A,C,B]

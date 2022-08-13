@@ -164,6 +164,7 @@ class ContextPyopencl(XContext):
         sources=[],
         kernels=[],
         specialize=True,
+        apply_to_source=(),
         save_source_as=None,
         extra_cdef=None,
         extra_classes=[],
@@ -242,7 +243,7 @@ class ContextPyopencl(XContext):
 
         sources = headers + cls_sources + sources
 
-        source, folders = _concatenate_sources(sources)
+        source, folders = _concatenate_sources(sources, apply_to_source)
 
         if specialize:
             # included files are searched in the same folders od the src_filed

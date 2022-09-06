@@ -10,6 +10,7 @@ from inspect import isclass
 import numpy as np
 from .struct import Struct
 from .typeutils import context_default
+from .ref import Ref
 
 class _FieldOfDressed:
     def __init__(self, name, _XoStruct):
@@ -40,6 +41,8 @@ class _FieldOfDressed:
             self.__get__(container=container)[:] = value
         elif hasattr(value, "_xobject"):  # value is a dressed xobject
 
+            import pdb; pdb.set_trace()
+
             # Copy xobject from value inside self._xobject
             setattr(container._xobject, self.name, value._xobject)
 
@@ -53,7 +56,6 @@ class _FieldOfDressed:
 
             # Restore correct _xobject
             dressed_new._xobject = getattr(container._xobject, self.name)
-
         else:
             self.content = None
             setattr(container._xobject, self.name, value)

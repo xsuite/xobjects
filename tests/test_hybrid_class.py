@@ -71,6 +71,32 @@ def test_explicit_buffer():
         assert ele1._buffer is ele2._buffer
         assert ele1._offset != ele2._offset
 
+def test_nested_hybrid():
+    class InnerClass(xo.HybridClass):
+        _xofields = {
+            'a': xo.Int64,
+            'b': xo.Float64[:],
+        }
+
+    class OuterClass(xo.HybridClass):
+        _xofields = {
+            'inner': InnerClass,
+            's': xo.Float64,
+        }
+
+    inner = InnerClass(a=1, b=[2, 3, 4])
+    inner.z = 45
+    initial_xobject = inner._xobject
+    outer = OuterClass(inner=inner)
+
+    assert inner._xobject is initial_xobject
+    assert outer.inner.z == inner.z
+
+    inner.b[1] = 1000
+    assert inner.b[1] == 1000
+    assert outer.inner.b[1] == 3
+
+
 class InnerClass(xo.HybridClass):
     _xofields = {
         'a': xo.Int64,
@@ -79,16 +105,13 @@ class InnerClass(xo.HybridClass):
 
 class OuterClass(xo.HybridClass):
     _xofields = {
-        'inner': InnerClass._XoStruct,
+        'inner': xo.Ref(InnerClass),
         's': xo.Float64,
     }
 
-buf = xo.ContextCpu().new_buffer()
-inner = InnerClass(a=1, b=[2, 3, 4])
+buf = xo.context_default.new_buffer()
+
+inner = InnerClass(a=1, b=[2, 3, 4], _buffer=buf)
 inner.z = 45
-initial_xobject = inner._xobject
-outer = OuterClass(inner=inner, _buffer=buf)
-
-assert inner._xobject is initial_xobject
-assert outer.inner.z == inner.z
-
+outer1 = OuterClass(inner=inner, _buffer=buf)
+outer2 = OuterClass(inner=inner, _buffer=buf)

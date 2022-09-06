@@ -28,7 +28,12 @@ class Ref(metaclass=MetaRef):
     _has_refs = True
 
     def __init__(self, reftype):
-        self._reftype = reftype
+
+        if hasattr(reftype, "_XoStruct"):
+            self._reftype = reftype._XoStruct
+        else:
+            self._reftype = reftype
+
         self.__name__ = "Ref" + self._reftype.__name__
         self._c_type = self.__name__
 

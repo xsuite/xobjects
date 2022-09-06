@@ -3,13 +3,13 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 
-from hashlib import new
 import json
 from inspect import isclass
 
 import numpy as np
 from .struct import Struct
 from .typeutils import context_default
+from .ref import Ref
 
 class _FieldOfDressed:
     def __init__(self, name, _XoStruct):
@@ -39,11 +39,27 @@ class _FieldOfDressed:
         if self.isnplikearray:
             self.__get__(container=container)[:] = value
         elif hasattr(value, "_xobject"):  # value is a dressed xobject
-            setattr(container, "_dressed_" + self.name, value)
+
+            # Copy xobject from value inside self._xobject
+            # (unless Ref and same buffer, in which reference mechanism is used)
             setattr(container._xobject, self.name, value._xobject)
-            getattr(container, self.name)._xobject = getattr(
-                container._xobject, self.name
-            )
+
+            if isinstance(getattr(container._XoStruct, self.name).ftype, Ref):
+                if value._buffer is container._buffer:
+                    # Reference mechanism was used
+                    setattr(container, "_dressed_" + self.name, value)
+                    return
+
+            # Build a dressed version of the newly made copy
+            dressed_new = value.__class__(
+                _xobject=getattr(container._xobject, self.name))
+            setattr(container, "_dressed_" + self.name, dressed_new)
+
+            # Copy the python data (changes also dressed_new._xobject)
+            dressed_new.__dict__.update(value.__dict__)
+
+            # Restore correct _xobject
+            dressed_new._xobject = getattr(container._xobject, self.name)
         else:
             self.content = None
             setattr(container._xobject, self.name, value)
@@ -97,14 +113,29 @@ class MetaHybridClass(type):
 
         if '_rename' in data.keys():
             rename = data['_rename']
+            if set(rename.keys()) & set(rename.values()):
+                raise ValueError("Cannot rename fields to names of other fields")
+
+            inverse_rename = {v: k for k, v in rename.items()}
+            if len(rename.keys()) != len(inverse_rename.keys()):
+                raise ValueError("Two fields are renamed to the same name")
         else:
-            rename = {}
+            rename, inverse_rename = {}, {}
+
+        xo_fnames = [ff.name for ff in _XoStruct._fields]
+        py_fnames = xo_fnames.copy()
+        for kk, vv in rename.items():
+            py_fnames.remove(kk)
+            py_fnames.append(vv)
 
         new_class = type.__new__(cls, name, bases, data)
 
         new_class._XoStruct = _XoStruct
 
         new_class._rename = rename
+        new_class._inverse_rename = inverse_rename
+        new_class._py_fnames = py_fnames
+        new_class._xo_fnames = xo_fnames
 
         pynames_list = []
         for ff in _XoStruct._fields:
@@ -160,46 +191,44 @@ class HybridClass(metaclass=MetaHybridClass):
         self._xobject = _xobject
         for ff in self._XoStruct._fields:
             if hasattr(ff.ftype, "_DressingClass"):
-                vv = ff.ftype._DressingClass(
-                    _xobject=getattr(_xobject, ff.name)
-                )
-                pyname = self._rename.get(ff.name, ff.name)
-                setattr(self, pyname, vv)
+                if not hasattr(self, "_dressed_" + ff.name):
+                    vv = ff.ftype._DressingClass(
+                        _xobject=getattr(_xobject, ff.name)
+                    )
+                    pyname = self._rename.get(ff.name, ff.name)
+                    setattr(self, pyname, vv)
 
     def xoinitialize(self, _xobject=None, _kwargs_name_check=True, **kwargs):
 
         if _kwargs_name_check:
-            fnames = [ff.name for ff in self._XoStruct._fields]
             for kk in kwargs.keys():
                 if kk.startswith('_'):
                     continue
-                if kk not in fnames:
-                    raise NameError(
-                        f'Invalid keyword argument `{kk}`')
+                if kk not in self._py_fnames and kk not in self._xo_fnames:
+                    raise NameError(f'Invalid keyword argument `{kk}`')
 
         if _xobject is not None:
             self._reinit_from_xobject(_xobject=_xobject)
-        else:
-            # Handle dressed inputs
-            dressed_kwargs = {}
-            for kk, vv in kwargs.items():
-                if hasattr(vv, "_xobject"):  # vv is dressed
-                    dressed_kwargs[kk] = vv
-                    kwargs[kk] = vv._xobject
+            return
 
-            self._xobject = self._XoStruct(**kwargs)
+        # Handle dressed inputs
+        dressed_kwargs, xo_kwargs = {}, {}
+        for kk, vv in kwargs.items():
+            if hasattr(vv, "_xobject"):  # vv is dressed
+                dressed_kwargs[kk] = vv
+                xo_kwargs[self._inverse_rename.get(kk, kk)] = vv._xobject
+            else:
+                xo_kwargs[self._inverse_rename.get(kk, kk)] = vv
 
-            # Handle dressed inputs
-            for kk, vv in dressed_kwargs.items():
-                if kk in self._rename.keys():
-                    pyname = self._rename[kk]
-                else:
-                    pyname = kk
-                setattr(self, pyname, vv)
+        self._xobject = self._XoStruct(**xo_kwargs)
 
-            # dress what can be dressed
-            # (for example in case object is initialized from dict)
-            self._reinit_from_xobject(_xobject=self._xobject)
+        # Handle dressed inputs
+        for kk, vv in dressed_kwargs.items():
+            setattr(self, kk, vv)
+
+        # dress what can be dressed
+        # (for example in case object is initialized from dict)
+        self._reinit_from_xobject(_xobject=self._xobject)
 
     def __init__(self, _xobject=None, **kwargs):
         self.xoinitialize(_xobject=_xobject, **kwargs)

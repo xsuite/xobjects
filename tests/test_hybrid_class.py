@@ -7,7 +7,7 @@ import numpy as np
 import xobjects as xo
 
 
-def test_dressed_struct():
+def test_hybrid_struct():
 
     class Element(xo.HybridClass):
         _xofields = {
@@ -70,3 +70,25 @@ def test_explicit_buffer():
 
         assert ele1._buffer is ele2._buffer
         assert ele1._offset != ele2._offset
+
+class InnerClass(xo.HybridClass):
+    _xofields = {
+        'a': xo.Int64,
+        'b': xo.Float64[:],
+    }
+
+class OuterClass(xo.HybridClass):
+    _xofields = {
+        'inner': InnerClass._XoStruct,
+        's': xo.Float64,
+    }
+
+buf = xo.ContextCpu().new_buffer()
+inner = InnerClass(a=1, b=[2, 3, 4])
+inner.z = 45
+initial_xobject = inner._xobject
+outer = OuterClass(inner=inner, _buffer=buf)
+
+assert inner._xobject is initial_xobject
+assert outer.inner.z == inner.z
+

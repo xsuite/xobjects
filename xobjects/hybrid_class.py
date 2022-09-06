@@ -39,11 +39,21 @@ class _FieldOfDressed:
         if self.isnplikearray:
             self.__get__(container=container)[:] = value
         elif hasattr(value, "_xobject"):  # value is a dressed xobject
-            setattr(container, "_dressed_" + self.name, value)
+
+            # Copy xobject from value inside self._xobject
             setattr(container._xobject, self.name, value._xobject)
-            getattr(container, self.name)._xobject = getattr(
-                container._xobject, self.name
-            )
+
+            # Build a dressed version of the newly made copy
+            dressed_new = value.__class__(
+                _xobject=getattr(container._xobject, self.name))
+            setattr(container, "_dressed_" + self.name, dressed_new)
+
+            # Copy the python data (changes also dressed_new._xobject)
+            dressed_new.__dict__.update(value.__dict__)
+
+            # Restore correct _xobject
+            dressed_new._xobject = getattr(container._xobject, self.name)
+
         else:
             self.content = None
             setattr(container._xobject, self.name, value)
@@ -160,11 +170,12 @@ class HybridClass(metaclass=MetaHybridClass):
         self._xobject = _xobject
         for ff in self._XoStruct._fields:
             if hasattr(ff.ftype, "_DressingClass"):
-                vv = ff.ftype._DressingClass(
-                    _xobject=getattr(_xobject, ff.name)
-                )
-                pyname = self._rename.get(ff.name, ff.name)
-                setattr(self, pyname, vv)
+                if not hasattr(self, "_dressed_" + ff.name):
+                    vv = ff.ftype._DressingClass(
+                        _xobject=getattr(_xobject, ff.name)
+                    )
+                    pyname = self._rename.get(ff.name, ff.name)
+                    setattr(self, pyname, vv)
 
     def xoinitialize(self, _xobject=None, _kwargs_name_check=True, **kwargs):
 

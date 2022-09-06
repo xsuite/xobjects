@@ -96,22 +96,46 @@ def test_nested_hybrid():
     assert inner.b[1] == 1000
     assert outer.inner.b[1] == 3
 
+def test_nested_hybrid_with_ref():
 
-class InnerClass(xo.HybridClass):
-    _xofields = {
-        'a': xo.Int64,
-        'b': xo.Float64[:],
-    }
+    class InnerClass(xo.HybridClass):
+        _xofields = {
+            'a': xo.Int64,
+            'b': xo.Float64[:],
+        }
 
-class OuterClass(xo.HybridClass):
-    _xofields = {
-        'inner': xo.Ref(InnerClass),
-        's': xo.Float64,
-    }
+    class OuterClass(xo.HybridClass):
+        _xofields = {
+            'inner': xo.Ref(InnerClass),
+            'inner_to_rename': xo.Ref(InnerClass),
+            's': xo.Float64,
+        }
 
-buf = xo.context_default.new_buffer()
+        _rename = {'inner_to_rename': 'inner_renamed'}
 
-inner = InnerClass(a=1, b=[2, 3, 4], _buffer=buf)
-inner.z = 45
-outer1 = OuterClass(inner=inner, _buffer=buf)
-outer2 = OuterClass(inner=inner, _buffer=buf)
+    buf = xo.context_default.new_buffer()
+
+    inner = InnerClass(a=1, b=[2, 3, 4], _buffer=buf)
+    inner.z = 45
+    outer1 = OuterClass(inner=inner, inner_renamed=inner, _buffer=buf)
+    outer2 = OuterClass(inner=inner, inner_renamed=inner, _buffer=buf)
+
+    assert inner._buffer is buf
+    assert outer1.inner._buffer is buf
+    assert outer2.inner._buffer is buf
+    assert outer1.inner._offset == inner._offset
+    assert outer2.inner._offset == inner._offset
+
+    assert outer1.inner_renamed._buffer is buf
+    assert outer2.inner_renamed._buffer is buf
+    assert outer1.inner_renamed._offset == inner._offset
+    assert outer2.inner_renamed._offset == inner._offset
+
+    assert outer1.inner is outer1._dressed_inner
+    assert outer1.inner_renamed is outer1._dressed_inner_to_rename
+    assert outer2.inner is outer2._dressed_inner
+    assert outer2.inner_renamed is outer2._dressed_inner_to_rename
+
+    outer1.inner.z = 100
+    assert outer1.inner.z == 100
+    assert outer2.inner.z == 100

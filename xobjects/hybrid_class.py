@@ -3,7 +3,6 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 
-from hashlib import new
 import json
 from inspect import isclass
 
@@ -41,10 +40,15 @@ class _FieldOfDressed:
             self.__get__(container=container)[:] = value
         elif hasattr(value, "_xobject"):  # value is a dressed xobject
 
-            import pdb; pdb.set_trace()
-
             # Copy xobject from value inside self._xobject
+            # (unless Ref and same buffer, in which reference mechanism is used)
             setattr(container._xobject, self.name, value._xobject)
+
+            if isinstance(getattr(container._XoStruct, self.name).ftype, Ref):
+                if value._buffer is container._buffer:
+                    # Reference mechanism was used
+                    setattr(container, "_dressed_" + self.name, value)
+                    return
 
             # Build a dressed version of the newly made copy
             dressed_new = value.__class__(
@@ -183,6 +187,10 @@ class HybridClass(metaclass=MetaHybridClass):
 
         if _kwargs_name_check:
             fnames = [ff.name for ff in self._XoStruct._fields]
+            for nn in self._rename.keys():
+                fnames.remove(nn)
+                fnames.append(self._rename[nn])
+
             for kk in kwargs.keys():
                 if kk.startswith('_'):
                     continue

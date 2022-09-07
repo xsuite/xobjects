@@ -91,8 +91,7 @@ def classes_for_test_hybrid_class_no_ref():
 
     return InnerClass, OuterClass
 
-def test_nested_hybrid_init(classes_for_test_hybrid_class_no_ref):
-
+def test_nested_hybrid_init_no_ref(classes_for_test_hybrid_class_no_ref):
     InnerClass, OuterClass = classes_for_test_hybrid_class_no_ref
 
     inner = InnerClass(a=1, b=[2, 3, 4])
@@ -107,7 +106,7 @@ def test_nested_hybrid_init(classes_for_test_hybrid_class_no_ref):
     assert inner.b[1] == 1000
     assert outer.inner.b[1] == 3
 
-def test_nested_hybrid_setattr(classes_for_test_hybrid_class_no_ref):
+def test_nested_hybrid_setattr_no_ref(classes_for_test_hybrid_class_no_ref):
     InnerClass, OuterClass = classes_for_test_hybrid_class_no_ref
 
     inner = InnerClass(a=1, b=[2, 3, 4])
@@ -125,8 +124,9 @@ def test_nested_hybrid_setattr(classes_for_test_hybrid_class_no_ref):
     assert inner.b[1] == 1000
     assert outer.inner.b[1] == 3
 
-def test_nested_hybrid_with_ref():
 
+@pytest.fixture
+def classes_for_test_hybrid_class_ref():
     class InnerClass(xo.HybridClass):
         _xofields = {
             'a': xo.Int64,
@@ -141,6 +141,12 @@ def test_nested_hybrid_with_ref():
         }
 
         _rename = {'inner_to_rename': 'inner_renamed'}
+
+    return InnerClass, OuterClass
+
+
+def test_nested_hybrid_with_ref(classes_for_test_hybrid_class_ref):
+    InnerClass, OuterClass = classes_for_test_hybrid_class_ref
 
     buf = xo.context_default.new_buffer()
 

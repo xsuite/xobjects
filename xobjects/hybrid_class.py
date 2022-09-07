@@ -183,44 +183,46 @@ class HybridClass(metaclass=MetaHybridClass):
                     pyname = self._rename.get(ff.name, ff.name)
                     setattr(self, pyname, vv)
 
+    @property
+    def _inverse_rename(self):
+        return {v: k for k, v in self._rename.items()}
+
     def xoinitialize(self, _xobject=None, _kwargs_name_check=True, **kwargs):
 
         if _kwargs_name_check:
             fnames = [ff.name for ff in self._XoStruct._fields]
-            for nn in self._rename.keys():
-                fnames.remove(nn)
-                fnames.append(self._rename[nn])
+            for kk, vv in self._rename.items():
+                fnames.remove(kk)
+                fnames.append(vv)
 
             for kk in kwargs.keys():
                 if kk.startswith('_'):
                     continue
                 if kk not in fnames:
-                    raise NameError(
-                        f'Invalid keyword argument `{kk}`')
+                    raise NameError(f'Invalid keyword argument `{kk}`')
 
         if _xobject is not None:
             self._reinit_from_xobject(_xobject=_xobject)
-        else:
-            # Handle dressed inputs
-            dressed_kwargs = {}
-            for kk, vv in kwargs.items():
-                if hasattr(vv, "_xobject"):  # vv is dressed
-                    dressed_kwargs[kk] = vv
-                    kwargs[kk] = vv._xobject
+            return
 
-            self._xobject = self._XoStruct(**kwargs)
+        # Handle dressed inputs
+        dressed_kwargs, xo_kwargs = {}, {}
+        for kk, vv in kwargs.items():
+            if hasattr(vv, "_xobject"):  # vv is dressed
+                dressed_kwargs[kk] = vv
+                xo_kwargs[self._inverse_rename.get(kk, kk)] = vv._xobject
+            else:
+                xo_kwargs[self._inverse_rename.get(kk, kk)] = vv
 
-            # Handle dressed inputs
-            for kk, vv in dressed_kwargs.items():
-                if kk in self._rename.keys():
-                    pyname = self._rename[kk]
-                else:
-                    pyname = kk
-                setattr(self, pyname, vv)
+        self._xobject = self._XoStruct(**xo_kwargs)
 
-            # dress what can be dressed
-            # (for example in case object is initialized from dict)
-            self._reinit_from_xobject(_xobject=self._xobject)
+        # Handle dressed inputs
+        for kk, vv in dressed_kwargs.items():
+            setattr(self, kk, vv)
+
+        # dress what can be dressed
+        # (for example in case object is initialized from dict)
+        self._reinit_from_xobject(_xobject=self._xobject)
 
     def __init__(self, _xobject=None, **kwargs):
         self.xoinitialize(_xobject=_xobject, **kwargs)

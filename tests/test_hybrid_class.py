@@ -3,9 +3,10 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 
+import pytest
+
 import numpy as np
 import xobjects as xo
-
 
 def test_hybrid_struct():
 
@@ -71,7 +72,8 @@ def test_explicit_buffer():
         assert ele1._buffer is ele2._buffer
         assert ele1._offset != ele2._offset
 
-def test_nested_hybrid():
+@pytest.fixture
+def classes_for_test_hybrid_class_no_ref():
     class InnerClass(xo.HybridClass):
         _xofields = {
             'a': xo.Int64,
@@ -80,14 +82,23 @@ def test_nested_hybrid():
 
     class OuterClass(xo.HybridClass):
         _xofields = {
-            'inner': InnerClass,
+            'inner': xo.Ref(InnerClass),
+            'inner_to_rename': xo.Ref(InnerClass),
             's': xo.Float64,
         }
+
+        _rename = {'inner_to_rename': 'inner_renamed'}
+
+    return InnerClass, OuterClass
+
+def test_nested_hybrid(classes_for_test_hybrid_class_no_ref):
+
+    InnerClass, OuterClass = classes_for_test_hybrid_class_no_ref
 
     inner = InnerClass(a=1, b=[2, 3, 4])
     inner.z = 45
     initial_xobject = inner._xobject
-    outer = OuterClass(inner=inner)
+    outer = OuterClass(inner=inner, inner_renamed=inner)
 
     assert inner._xobject is initial_xobject
     assert outer.inner.z == inner.z
@@ -139,3 +150,4 @@ def test_nested_hybrid_with_ref():
     outer1.inner.z = 100
     assert outer1.inner.z == 100
     assert outer2.inner.z == 100
+

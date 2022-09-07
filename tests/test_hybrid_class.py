@@ -82,8 +82,8 @@ def classes_for_test_hybrid_class_no_ref():
 
     class OuterClass(xo.HybridClass):
         _xofields = {
-            'inner': xo.Ref(InnerClass),
-            'inner_to_rename': xo.Ref(InnerClass),
+            'inner': InnerClass,
+            'inner_to_rename': InnerClass,
             's': xo.Float64,
         }
 
@@ -91,7 +91,7 @@ def classes_for_test_hybrid_class_no_ref():
 
     return InnerClass, OuterClass
 
-def test_nested_hybrid(classes_for_test_hybrid_class_no_ref):
+def test_nested_hybrid_init(classes_for_test_hybrid_class_no_ref):
 
     InnerClass, OuterClass = classes_for_test_hybrid_class_no_ref
 
@@ -99,6 +99,24 @@ def test_nested_hybrid(classes_for_test_hybrid_class_no_ref):
     inner.z = 45
     initial_xobject = inner._xobject
     outer = OuterClass(inner=inner, inner_renamed=inner)
+
+    assert inner._xobject is initial_xobject
+    assert outer.inner.z == inner.z
+
+    inner.b[1] = 1000
+    assert inner.b[1] == 1000
+    assert outer.inner.b[1] == 3
+
+def test_nested_hybrid_setattr(classes_for_test_hybrid_class_no_ref):
+    InnerClass, OuterClass = classes_for_test_hybrid_class_no_ref
+
+    inner = InnerClass(a=1, b=[2, 3, 4])
+    inner.z = 45
+    initial_xobject = inner._xobject
+    outer = OuterClass(inner={'b': 3}, inner_renamed={'b': 3})
+
+    outer.inner = inner
+    outer.inner_renamed = inner
 
     assert inner._xobject is initial_xobject
     assert outer.inner.z == inner.z

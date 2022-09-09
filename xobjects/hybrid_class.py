@@ -114,6 +114,8 @@ class MetaHybridClass(type):
         if '_rename' in data.keys():
             rename = data['_rename']
             inverse_rename = {v: k for k, v in rename.items()}
+            if len(rename.keys()) != len(inverse_rename.keys()):
+                raise ValueError("Two fields are renamed to the same name")
         else:
             rename, inverse_rename = {}, {}
 

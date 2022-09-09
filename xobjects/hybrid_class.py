@@ -113,14 +113,16 @@ class MetaHybridClass(type):
 
         if '_rename' in data.keys():
             rename = data['_rename']
+            inverse_rename = {v: k for k, v in rename.items()}
         else:
-            rename = {}
+            rename, inverse_rename = {}, {}
 
         new_class = type.__new__(cls, name, bases, data)
 
         new_class._XoStruct = _XoStruct
 
         new_class._rename = rename
+        new_class._inverse_rename = inverse_rename
 
         pynames_list = []
         for ff in _XoStruct._fields:
@@ -182,10 +184,6 @@ class HybridClass(metaclass=MetaHybridClass):
                     )
                     pyname = self._rename.get(ff.name, ff.name)
                     setattr(self, pyname, vv)
-
-    @property
-    def _inverse_rename(self):
-        return {v: k for k, v in self._rename.items()}
 
     def xoinitialize(self, _xobject=None, _kwargs_name_check=True, **kwargs):
 

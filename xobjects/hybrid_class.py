@@ -119,12 +119,18 @@ class MetaHybridClass(type):
         else:
             rename, inverse_rename = {}, {}
 
+        py_fnames = [ff.name for ff in _XoStruct._fields]
+        for kk, vv in rename.items():
+            py_fnames.remove(kk)
+            py_fnames.append(vv)
+
         new_class = type.__new__(cls, name, bases, data)
 
         new_class._XoStruct = _XoStruct
 
         new_class._rename = rename
         new_class._inverse_rename = inverse_rename
+        new_class._py_fnames = py_fnames
 
         pynames_list = []
         for ff in _XoStruct._fields:
@@ -190,15 +196,10 @@ class HybridClass(metaclass=MetaHybridClass):
     def xoinitialize(self, _xobject=None, _kwargs_name_check=True, **kwargs):
 
         if _kwargs_name_check:
-            fnames = [ff.name for ff in self._XoStruct._fields]
-            for kk, vv in self._rename.items():
-                fnames.remove(kk)
-                fnames.append(vv)
-
             for kk in kwargs.keys():
                 if kk.startswith('_'):
                     continue
-                if kk not in fnames:
+                if kk not in self._py_fnames:
                     raise NameError(f'Invalid keyword argument `{kk}`')
 
         if _xobject is not None:

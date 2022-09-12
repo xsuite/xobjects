@@ -188,17 +188,17 @@ class HybridClass(metaclass=MetaHybridClass):
         self._xobject = self._xobject.__class__(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
         )
-        self._reinit_from_xobject(_xobject=self._xobject)
+        self._reinit_from_xobject(_xobject=self._xobject, override_dressed=True)
 
     @property
     def _move_to(self):
         raise NameError("`_move_to` has been removed. Use `move` instead.")
 
-    def _reinit_from_xobject(self, _xobject):
+    def _reinit_from_xobject(self, _xobject, override_dressed=False):
         self._xobject = _xobject
         for ff in self._XoStruct._fields:
             if hasattr(ff.ftype, "_DressingClass"):
-                if not hasattr(self, "_dressed_" + ff.name):
+                if override_dressed or not hasattr(self, "_dressed_" + ff.name):
                     vv = ff.ftype._DressingClass(
                         _xobject=getattr(_xobject, ff.name)
                     )

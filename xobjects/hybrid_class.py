@@ -54,6 +54,7 @@ class _FieldOfDressed:
             dressed_new = value.__class__(
                 _xobject=getattr(container._xobject, self.name))
             setattr(container, "_dressed_" + self.name, dressed_new)
+            dressed_new._movable = False
 
             # Copy the python data (changes also dressed_new._xobject)
             dressed_new.__dict__.update(value.__dict__)
@@ -113,7 +114,7 @@ class MetaHybridClass(type):
 
         if '_rename' in data.keys():
             rename = data['_rename']
-            if set(rename.keys()) & set(rename.values()):
+            if (set(rename.keys()) | set(xofields.keys())) & set(rename.values()):
                 raise ValueError("Cannot rename fields to names of other fields")
 
             inverse_rename = {v: k for k, v in rename.items()}
@@ -177,7 +178,13 @@ class MetaHybridClass(type):
 
 class HybridClass(metaclass=MetaHybridClass):
 
+    _movable = True
+
     def move(self, _context=None, _buffer=None, _offset=None):
+        if not self._movable:
+            raise MemoryError("This object cannot be moved, likely because it "
+                              "lives within another. Please, make a copy.")
+
         self._xobject = self._xobject.__class__(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
         )

@@ -185,6 +185,10 @@ class HybridClass(metaclass=MetaHybridClass):
             raise MemoryError("This object cannot be moved, likely because it "
                               "lives within another. Please, make a copy.")
 
+        if self._xobject._has_refs:
+            raise MemoryError("This object cannot be moved, as it contains "
+                              "references to other objects.")
+
         self._xobject = self._xobject.__class__(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
         )

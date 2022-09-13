@@ -248,3 +248,44 @@ def test_rename_with_ambiguous_fields_fails():
                 'a': 'b',
                 'b': 'c',
             }
+
+def test_move_nested_objects_between_contexts(classes_for_test_hybrid_class_no_ref):
+    test_contexts = {
+        ctx.__class__.__name__: ctx
+        for ctx in xo.context.get_test_contexts()
+    }
+    if 'ContextCpu' not in test_contexts:
+        pytest.skip('This test requires a CPU context available')
+    context_cpu = test_contexts['ContextCpu']
+
+    del test_contexts['ContextCpu']
+
+    if not test_contexts:
+        pytest.skip('Other contexts besides ContextCpu are needed for this test')
+
+    for other_context in test_contexts.values():
+        if isinstance(other_context, xo.ContextPyopencl):
+            import pyopencl.array as cl_array
+            array_class = cl_array.Array
+        elif isinstance(other_context, xo.ContextCupy):
+            import cupy
+            array_class = cupy.ndarray
+        else:
+             pytest.fail(f'Unsupported context type: {other_context.__class__}')
+
+        InnerClass, OuterClass = classes_for_test_hybrid_class_no_ref
+
+        inner = InnerClass(a=2, b=range(10), _context=context_cpu)
+        outer = OuterClass(inner=inner, inner_renamed=inner, _context=context_cpu)
+
+        outer.move(_context=other_context)
+
+        assert isinstance(outer._context, other_context.__class__)
+        assert isinstance(outer.inner._context, other_context.__class__)
+        assert isinstance(outer.inner.b, array_class)
+
+        outer.move(_context=context_cpu)
+
+        assert isinstance(outer._context, xo.ContextCpu)
+        assert isinstance(outer.inner._context, xo.ContextCpu)
+        assert isinstance(outer.inner.b, np.ndarray)

@@ -54,6 +54,7 @@ class _FieldOfDressed:
             dressed_new = value.__class__(
                 _xobject=getattr(container._xobject, self.name))
             setattr(container, "_dressed_" + self.name, dressed_new)
+
             dressed_new._movable = False
 
             # Copy the python data (changes also dressed_new._xobject)
@@ -192,22 +193,33 @@ class HybridClass(metaclass=MetaHybridClass):
         self._xobject = self._xobject.__class__(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
         )
-        self._reinit_from_xobject(_xobject=self._xobject, override_dressed=True)
+        self._reinit_from_xobject(_xobject=self._xobject)
 
     @property
     def _move_to(self):
         raise NameError("`_move_to` has been removed. Use `move` instead.")
 
-    def _reinit_from_xobject(self, _xobject, override_dressed=False):
+    def _reinit_from_xobject(self, _xobject):
         self._xobject = _xobject
         for ff in self._XoStruct._fields:
             if hasattr(ff.ftype, "_DressingClass"):
-                if override_dressed or not hasattr(self, "_dressed_" + ff.name):
-                    vv = ff.ftype._DressingClass(
-                        _xobject=getattr(_xobject, ff.name)
-                    )
-                    pyname = self._rename.get(ff.name, ff.name)
-                    setattr(self, pyname, vv)
+                if hasattr(self, "_dressed_" + ff.name):
+                    old_vv = getattr(self, "_dressed_" + ff.name)
+                else:
+                    old_vv = None
+
+                vv = ff.ftype._DressingClass(
+                    _xobject=getattr(_xobject, ff.name)
+                )
+
+                # preserve pure python attributes
+                if old_vv is not None:
+                    for kk in old_vv.__dict__.keys():
+                        if kk not in vv.__dict__.keys():
+                            vv.__dict__[kk] = old_vv.__dict__[kk]
+
+                pyname = self._rename.get(ff.name, ff.name)
+                setattr(self, pyname, vv)
 
     def xoinitialize(self, _xobject=None, _kwargs_name_check=True, **kwargs):
 

@@ -91,7 +91,6 @@ def classes_for_test_hybrid_class_no_ref():
 
     return InnerClass, OuterClass
 
-
 def test_nested_hybrid_init_no_ref(classes_for_test_hybrid_class_no_ref):
     InnerClass, OuterClass = classes_for_test_hybrid_class_no_ref
 

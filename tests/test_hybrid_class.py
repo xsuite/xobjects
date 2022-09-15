@@ -187,6 +187,29 @@ def test_nested_hybrid_init_with_ref(classes_for_test_hybrid_class_ref):
     assert outer2.inner.z == 100
 
 
+def test_nested_hybrid_init_with_ref_different_buf(classes_for_test_hybrid_class_ref):
+    InnerClass, OuterClass = classes_for_test_hybrid_class_ref
+
+    buf_inner = xo.context_default.new_buffer()
+    buf_outer = xo.context_default.new_buffer()
+
+    inner = InnerClass(a=1, b=[2, 3, 4], _buffer=buf_inner)
+    inner.z = 45
+    outer = OuterClass(inner=inner, inner_renamed=inner, _buffer=buf_outer)
+
+    assert inner._buffer is buf_inner
+    assert outer.inner._buffer is buf_outer
+    assert outer.inner_renamed._buffer is buf_outer
+
+    assert outer.inner is outer._dressed_inner
+    assert outer.inner_renamed is outer._dressed_inner_to_rename
+
+    assert outer.inner.z == 45
+    outer.inner.z = 100
+    assert inner.z == 45
+    assert outer.inner.z == 100
+
+
 def test_nested_hybrid_setattr_with_ref(classes_for_test_hybrid_class_ref):
     InnerClass, OuterClass = classes_for_test_hybrid_class_ref
 
@@ -249,57 +272,44 @@ def test_rename_with_ambiguous_fields_fails():
             }
 
 def test_move_nested_objects_between_contexts_no_ref(classes_for_test_hybrid_class_no_ref):
-    test_contexts = {
-        ctx.__class__.__name__: ctx
-        for ctx in xo.context.get_test_contexts()
-    }
-    if 'ContextCpu' not in test_contexts:
-        pytest.skip('This test requires a CPU context available')
-    context_cpu = test_contexts['ContextCpu']
+    InnerClass, OuterClass = classes_for_test_hybrid_class_no_ref
 
-    del test_contexts['ContextCpu']
+    buffer1 = xo.context_default.new_buffer()
+    buffer2 = xo.context_default.new_buffer()
 
-    if not test_contexts:
-        pytest.skip('Other contexts besides ContextCpu are needed for this test')
+    inner = InnerClass(a=2, b=range(10), _buffer=buffer1)
+    outer = OuterClass(inner=inner, inner_renamed=inner, _buffer=buffer1)
 
-    for other_context in test_contexts.values():
-        InnerClass, OuterClass = classes_for_test_hybrid_class_no_ref
+    outer.move(_buffer=buffer2)
 
-        inner = InnerClass(a=2, b=range(10), _context=context_cpu)
-        outer = OuterClass(inner=inner, inner_renamed=inner, _context=context_cpu)
+    assert outer._buffer is buffer2
+    assert outer.inner._buffer is buffer2
 
-        outer.move(_context=other_context)
+    outer.move(_buffer=buffer1)
 
-        assert isinstance(outer._context, other_context.__class__)
-        assert isinstance(outer.inner._context, other_context.__class__)
-        assert isinstance(outer.inner.b, other_context.nplike_array_type)
-
-        outer.move(_context=context_cpu)
-
-        assert isinstance(outer._context, xo.ContextCpu)
-        assert isinstance(outer.inner._context, xo.ContextCpu)
-        assert isinstance(outer.inner.b, np.ndarray)
+    assert outer._buffer is buffer1
+    assert outer.inner._buffer is buffer1
 
 
-def test_move_nested_objects_between_contexts_with_ref_fails(classes_for_test_hybrid_class_ref):
-    test_contexts = {
-        ctx.__class__.__name__: ctx
-        for ctx in xo.context.get_test_contexts()
-    }
-    if 'ContextCpu' not in test_contexts:
-        pytest.skip('This test requires a CPU context available')
-    context_cpu = test_contexts['ContextCpu']
+def test_move_nested_objects_with_ref_fails(classes_for_test_hybrid_class_ref):
+    InnerClass, OuterClass = classes_for_test_hybrid_class_ref
 
-    del test_contexts['ContextCpu']
+    inner = InnerClass(a=2, b=range(10))
+    outer = OuterClass(inner=inner, inner_renamed=inner)
 
-    if not test_contexts:
-        pytest.skip('Other contexts besides ContextCpu are needed for this test')
+    different_buffer = xo.context_default.new_buffer()
 
-    for other_context in test_contexts.values():
-        InnerClass, OuterClass = classes_for_test_hybrid_class_ref
+    with pytest.raises(MemoryError):
+        outer.move(_buffer=different_buffer)
 
-        inner = InnerClass(a=2, b=range(10), _context=context_cpu)
-        outer = OuterClass(inner=inner, inner_renamed=inner, _context=context_cpu)
 
-        with pytest.raises(MemoryError):
-            outer.move(_context=other_context)
+def test_move_field_of_nested_fails(classes_for_test_hybrid_class_ref):
+    InnerClass, OuterClass = classes_for_test_hybrid_class_ref
+
+    inner = InnerClass(a=2, b=range(10))
+    outer = OuterClass(inner=inner, inner_renamed=inner)
+
+    different_buffer = xo.context_default.new_buffer()
+
+    with pytest.raises(MemoryError):
+        outer.inner.move(_buffer=different_buffer)

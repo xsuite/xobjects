@@ -45,10 +45,13 @@ class _FieldOfDressed:
             setattr(container._xobject, self.name, value._xobject)
 
             if isinstance(getattr(container._XoStruct, self.name).ftype, Ref):
-                if value._buffer is container._buffer:
-                    # Reference mechanism was used
-                    setattr(container, "_dressed_" + self.name, value)
-                    return
+                if value._buffer is not container._buffer:
+                    raise MemoryError("Cannot make a reference to an object in "
+                                      "a different buffer.")
+                # Reference mechanism was used
+                setattr(container, "_dressed_" + self.name, value)
+                value._movable = False
+                return
 
             # Build a dressed version of the newly made copy
             dressed_new = value.__class__(

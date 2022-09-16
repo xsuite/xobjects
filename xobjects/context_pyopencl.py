@@ -283,6 +283,7 @@ class ContextPyopencl(XContext):
             pyopencl.array.Array:The same array copied to the device.
 
         """
+        arr = np.ascontiguousarray(arr)
         dev_arr = cla.to_device(self.queue, arr)
         return dev_arr
 

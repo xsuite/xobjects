@@ -31,7 +31,7 @@ TODO:
 - consider adding size in the class
 """
 
-from .typeutils import get_a_buffer, Info, _to_slot_size, is_integer
+from .typeutils import allocate_on_buffer, Info, _to_slot_size, is_integer
 
 from .scalar import Int64
 from .array import Array
@@ -109,7 +109,7 @@ class String(metaclass=MetaString):
     ):
         info = self.__class__._inspect_args(string_or_int)
         size = info.size
-        self._buffer, self._offset = get_a_buffer(
+        self._buffer, self._offset = allocate_on_buffer(
             size, _context, _buffer, _offset
         )
 

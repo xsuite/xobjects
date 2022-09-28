@@ -7,7 +7,7 @@ import logging
 
 import numpy as np
 
-from .typeutils import Info, dispatch_arg, get_a_buffer, default_conf
+from .typeutils import Info, dispatch_arg, allocate_on_buffer, default_conf
 from .scalar import Int64
 from .array import Array
 
@@ -235,7 +235,7 @@ class UnionRef(metaclass=MetaUnionRef):
 
         args, _ = self._pre_init(*args, **kwargs)
 
-        self._buffer, self._offset = get_a_buffer(
+        self._buffer, self._offset = allocate_on_buffer(
             cls._size, _context, _buffer, _offset
         )
 

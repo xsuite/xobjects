@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from .typeutils import get_a_buffer, Info
+from .typeutils import allocate_on_buffer, Info
 from .scalar import Int64
 from .array import Array
 
@@ -127,7 +127,7 @@ class Union(metaclass=MetaUnion):
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
         info = self.__class__._inspect_args(*args)
-        self._buffer, self._offset = get_a_buffer(
+        self._buffer, self._offset = allocate_on_buffer(
             info.size, _context, _buffer, _offset
         )
 

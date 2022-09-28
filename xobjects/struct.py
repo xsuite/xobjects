@@ -49,7 +49,7 @@ import logging
 from typing import Callable, Optional
 
 from .typeutils import (
-    get_a_buffer,
+    allocate_on_buffer,
     dispatch_arg,
     Info,
     _to_slot_size,
@@ -351,7 +351,7 @@ class Struct(metaclass=MetaStruct):
         info = cls._inspect_args(*args, **kwargs)
         self._size = info.size
         # acquire buffer
-        self._buffer, self._offset = get_a_buffer(
+        self._buffer, self._offset = allocate_on_buffer(
             info.size, _context, _buffer, _offset
         )
         # if dynamic struct store dynamic offsets

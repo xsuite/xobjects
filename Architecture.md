@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The librarties is based on:
+The library is based on:
 - Buffers: manage chunck of bytes on CPU and GPU (Cuda and OpenCL) memory using different backends
 - Contexts: keep track of buffers, launch functions operating on buffers
 - Basic types: a set of basic types that allow to describe structured data. Basic types are scalars, strings, structs, arrays and unions. User defined classes, composed with basic types, allow to interact with data on buffers and generate C functions to operate with data.

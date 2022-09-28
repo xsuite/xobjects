@@ -87,9 +87,9 @@ class MetaString(type):
         ll = Int64._from_buffer(buffer, offset)
         return buffer.to_bytearray(offset + 8, ll - 8)
 
-    def _from_buffer(cls, buffer, offset):
+    def _from_buffer(cls, buffer, offset=0, encoding="utf8"):
         # TODO keep in mind that in windows many funcitons returns wchar encoded in utf16
-        return cls._get_data(buffer, offset).decode("utf8").rstrip("\x00")
+        return cls._get_data(buffer, offset).decode(encoding).rstrip("\x00")
 
     def fixed(cls, size):
         if is_integer(size) and size > 0:

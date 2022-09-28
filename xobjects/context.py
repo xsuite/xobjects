@@ -330,7 +330,7 @@ class XBuffer(ABC):
 
     @abstractmethod
     def to_pointer_arg(self, offset, nbytes):
-        """return data that can be used as argument in kernel"""
+        """Return data that can be used as argument in kernel"""
 
     def update_from_xbuffer(self, offset, source, source_offset, nbytes):
         """Copy data from any xbuffer, don't pass through cpu if possible"""

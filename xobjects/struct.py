@@ -288,7 +288,7 @@ class Struct(metaclass=MetaStruct):
         pass
 
     @classmethod
-    def _from_buffer(cls, buffer, offset):
+    def _from_buffer(cls, buffer, offset=0):
         self = object.__new__(cls)
         self._buffer = buffer
         self._offset = offset

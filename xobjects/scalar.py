@@ -25,7 +25,7 @@ class NumpyScalar:
         self._size = self._dtype.itemsize
         self._c_type = cname
 
-    def _from_buffer(self, buffer, offset):
+    def _from_buffer(self, buffer, offset=0):
         data = buffer.to_bytearray(offset, self._size)
         return np.frombuffer(data, dtype=self._dtype)[0]
 

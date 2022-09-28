@@ -39,7 +39,7 @@ class Ref(metaclass=MetaRef):
 
         self._size = 8
 
-    def _from_buffer(self, buffer, offset):
+    def _from_buffer(self, buffer, offset=0):
         refoffset = Int64._from_buffer(buffer, offset)
         if refoffset == NULLVALUE:
             return None
@@ -154,7 +154,7 @@ class MetaUnionRef(type):
         # If no match found:
         raise TypeError(f"Invalid id: {typeid}!")
 
-    def _from_buffer(cls, buffer, offset):
+    def _from_buffer(cls, buffer, offset=0):
         refoffset, typeid = Int64._array_from_buffer(buffer, offset, 2)
         if refoffset == NULLVALUE:
             return None

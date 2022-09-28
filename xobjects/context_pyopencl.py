@@ -409,7 +409,7 @@ class BufferPyopencl(XBuffer):
             byte_count=nbytes,
         )
 
-    def copy_native(self, offset: int, nbytes: int):
+    def to_native(self, offset: int, nbytes: int):
         """return native data with content at from offset and nbytes"""
         buff = self._new_buffer(nbytes)
         cl.enqueue_copy(

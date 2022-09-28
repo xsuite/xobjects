@@ -607,7 +607,7 @@ class BufferCupy(XBuffer):
             source_offset : source_offset + nbytes
         ]
 
-    def copy_native(self, offset, nbytes):
+    def to_native(self, offset, nbytes):
         """Return a new cupy buffer with data from offset"""
         return self.buffer[offset : offset + nbytes].copy()
 

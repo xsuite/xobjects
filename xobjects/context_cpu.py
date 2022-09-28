@@ -425,7 +425,7 @@ class BufferByteArray(XBuffer):
             source_offset : source_offset + nbytes
         ]
 
-    def copy_native(self, offset, nbytes):
+    def to_native(self, offset, nbytes):
         """return native data with content at from offset and nbytes"""
         return self.buffer[offset : offset + nbytes].copy()
 
@@ -475,7 +475,7 @@ class BufferNumpy(XBuffer):
             source_offset : source_offset + nbytes
         ]
 
-    def copy_native(self, offset, nbytes):
+    def to_native(self, offset, nbytes):
         """return native data with content at from offset and nbytes"""
         return self.buffer[offset : offset + nbytes].copy()
 

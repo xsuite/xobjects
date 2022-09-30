@@ -204,7 +204,7 @@ class MetaStruct(type):
                 return Int64._from_buffer(self._buffer, self._offset)
 
             def _inspect_args(cls, *args, **kwargs):
-                #log.debug(f"get size for {cls} from {args} {kwargs}")
+                # log.debug(f"get size for {cls} from {args} {kwargs}")
                 info = Info()
                 if len(args) == 1:  # is a dict or xobj
                     arg = args[0]
@@ -215,12 +215,12 @@ class MetaStruct(type):
                         offset = d_fields[
                             0
                         ].offset  # offset first dynamic data
-                        #log.debug(f"{arg}")
+                        # log.debug(f"{arg}")
                         for field in cls._d_fields:
                             farg = field.value_from_args(arg)
-                            #log.debug(
+                            # log.debug(
                             #    f"get size for field `{field.name}` using `{farg}`"
-                            #)
+                            # )
                             finfo = dispatch_arg(
                                 field.ftype._inspect_args, farg
                             )
@@ -252,18 +252,18 @@ class MetaStruct(type):
 
         # determine owndata
         _has_refs = False
-        for ff in data['_fields']:
+        for ff in data["_fields"]:
             ftype = ff.ftype
-            if hasattr(ftype, '_has_refs') and ftype._has_refs:
+            if hasattr(ftype, "_has_refs") and ftype._has_refs:
                 _has_refs = True
                 break
-        data['_has_refs'] = _has_refs
-        if '_extra_c_sources' not in data.keys():
-            data['_extra_c_sources'] = []
-        if '_depends_on' not in data.keys():
-            data['_depends_on'] = []
-        if '_kernels' not in data.keys():
-            data['_kernels'] = {}
+        data["_has_refs"] = _has_refs
+        if "_extra_c_sources" not in data.keys():
+            data["_extra_c_sources"] = []
+        if "_depends_on" not in data.keys():
+            data["_depends_on"] = []
+        if "_kernels" not in data.keys():
+            data["_kernels"] = {}
 
         return type.__new__(cls, name, bases, data)
 
@@ -362,7 +362,7 @@ class Struct(metaclass=MetaStruct):
 
     @classmethod
     def _set_offsets(cls, buffer, offset, loffsets):
-        #log.debug(f"{cls} set offset {loffsets}")
+        # log.debug(f"{cls} set offset {loffsets}")
         for index, data_offset in loffsets.items():
             foffset = offset + cls._fields[index].offset
             Int64._to_buffer(buffer, foffset, data_offset)
@@ -418,8 +418,10 @@ class Struct(metaclass=MetaStruct):
 
         paths = cls._gen_data_paths()
 
-        source = Source(source=capi.gen_code(cls, paths, conf),
-                        name=cls.__name__+'_gen_c_api')
+        source = Source(
+            source=capi.gen_code(cls, paths, conf),
+            name=cls.__name__ + "_gen_c_api",
+        )
         return source
 
     @classmethod
@@ -450,9 +452,13 @@ class Struct(metaclass=MetaStruct):
         return self._buffer.context
 
     @classmethod
-    def compile_class_kernels(cls, context, only_if_needed=False,
-                              apply_to_source=(),
-                              save_source_as=None,):
+    def compile_class_kernels(
+        cls,
+        context,
+        only_if_needed=False,
+        apply_to_source=(),
+        save_source_as=None,
+    ):
 
         if only_if_needed:
             all_found = True
@@ -471,13 +477,15 @@ class Struct(metaclass=MetaStruct):
             save_source_as=save_source_as,
         )
 
-    def compile_kernels(self, only_if_needed=False,
-                        apply_to_source=(), save_source_as=None):
+    def compile_kernels(
+        self, only_if_needed=False, apply_to_source=(), save_source_as=None
+    ):
         self.compile_class_kernels(
-            context=self._context, only_if_needed=only_if_needed,
+            context=self._context,
+            only_if_needed=only_if_needed,
             apply_to_source=apply_to_source,
-            save_source_as=save_source_as)
-
+            save_source_as=save_source_as,
+        )
 
 
 def is_struct(atype):

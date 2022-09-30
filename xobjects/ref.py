@@ -13,7 +13,7 @@ from .array import Array
 
 log = logging.getLogger(__name__)
 
-NULLVALUE = -(2 ** 63)
+NULLVALUE = -(2**63)
 NULLTYPE = -1
 NULLREF = np.array([NULLVALUE, NULLTYPE], dtype="int64")
 
@@ -115,7 +115,7 @@ class MetaUnionRef(type):
         if "_methods" not in data:
             data["_methods"] = []
 
-        data['_has_refs'] = True
+        data["_has_refs"] = True
 
         return type.__new__(cls, name, bases, data)
 
@@ -172,7 +172,7 @@ class MetaUnionRef(type):
         - XObject
         - typename, dict
         """
-        #log.debug(f"get info for {cls} from {args}")
+        # log.debug(f"get info for {cls} from {args}")
         info = Info(size=cls._size)
         return info
 

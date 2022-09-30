@@ -3,23 +3,11 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 
-import math
-import time
-
 import numpy as np
 
 from .context_cpu import ContextCpu
 
 context_default = ContextCpu()
-
-
-def get_a_buffer(context=None, buffer=None, size=None):
-    if buffer is None:
-        if context is None:
-            context = context_default
-        buffer = context.new_buffer(size)
-    else:
-        return buffer
 
 
 def allocate_on_buffer(size, context=None, buffer=None, offset=None):

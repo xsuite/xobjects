@@ -73,8 +73,8 @@ Int8 = NumpyScalar("int8", "int8_t")
 UInt8 = NumpyScalar("uint8", "uint8_t")
 Complex64 = NumpyScalar("complex64", "float[2]")
 Complex128 = NumpyScalar("complex128", "double[2]")
-# Complex256 = NumpyScalar("complex256", "double[4]")  # incompatible with M1 CPU
-# Float128 = NumpyScalar("float128", "double[2]")      # incompatible with M1 CPU
+#Complex256 = NumpyScalar("complex256", "double[4]")  # incompatible with M1 CPU
+#Float128 = NumpyScalar("float128", "double[2]")      # incompatible with M1 CPU
 
 
 def is_scalar(cls):

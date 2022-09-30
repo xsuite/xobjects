@@ -11,7 +11,6 @@ from .struct import Struct
 from .typeutils import context_default
 from .ref import Ref
 
-
 class _FieldOfDressed:
     def __init__(self, name, _XoStruct):
         self.name = name
@@ -47,10 +46,8 @@ class _FieldOfDressed:
 
             if isinstance(getattr(container._XoStruct, self.name).ftype, Ref):
                 if value._buffer is not container._buffer:
-                    raise MemoryError(
-                        "Cannot make a reference to an object in "
-                        "a different buffer."
-                    )
+                    raise MemoryError("Cannot make a reference to an object in "
+                                      "a different buffer.")
                 # Reference mechanism was used
                 setattr(container, "_dressed_" + self.name, value)
                 value._movable = False
@@ -58,8 +55,7 @@ class _FieldOfDressed:
 
             # Build a dressed version of the newly made copy
             dressed_new = value.__class__(
-                _xobject=getattr(container._xobject, self.name)
-            )
+                _xobject=getattr(container._xobject, self.name))
             setattr(container, "_dressed_" + self.name, dressed_new)
 
             dressed_new._movable = False
@@ -73,7 +69,6 @@ class _FieldOfDressed:
             self.content = None
             setattr(container._xobject, self.name, value)
 
-
 class JEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
@@ -83,17 +78,17 @@ class JEncoder(json.JSONEncoder):
         else:
             return json.JSONEncoder.default(self, obj)
 
-
 def _build_xofields_dict(bases, data):
-    if "_xofields" in data.keys():
-        xofields = data["_xofields"].copy()
-    elif any(map(lambda b: hasattr(b, "_xofields"), bases)):
+    if '_xofields' in data.keys():
+        xofields = data['_xofields'].copy()
+    elif any(map(lambda b: hasattr(b, '_xofields'), bases)):
         n_filled = 0
         for bb in bases:
-            if hasattr(bb, "_xofields") and len(bb._xofields.keys()) > 0:
+            if hasattr(bb, '_xofields') and len(bb._xofields.keys()) > 0:
                 n_filled += 1
                 if n_filled > 1:
-                    raise ValueError(f"Multiple bases have _xofields: {bases}")
+                    raise ValueError(
+                        f'Multiple bases have _xofields: {bases}')
                 xofields = bb._xofields.copy()
     else:
         xofields = {}
@@ -106,11 +101,11 @@ def _build_xofields_dict(bases, data):
 
 
 class MetaHybridClass(type):
+
     def __new__(cls, name, bases, data):
 
-        if "_xofields" not in data.keys() and any(
-            map(lambda b: hasattr(b, "_XoStruct"), bases)
-        ):
+        if ('_xofields' not in data.keys()
+                and any(map(lambda b: hasattr(b, '_XoStruct'), bases))):
             # No action, use _XoStruct from base class (used to build PyHEADTAIL interface)
             return type.__new__(cls, name, bases, data)
 
@@ -121,14 +116,10 @@ class MetaHybridClass(type):
 
         _XoStruct = type(_XoStruct_name, (Struct,), xofields)
 
-        if "_rename" in data.keys():
-            rename = data["_rename"]
-            if (set(rename.keys()) | set(xofields.keys())) & set(
-                rename.values()
-            ):
-                raise ValueError(
-                    "Cannot rename fields to names of other fields"
-                )
+        if '_rename' in data.keys():
+            rename = data['_rename']
+            if (set(rename.keys()) | set(xofields.keys())) & set(rename.values()):
+                raise ValueError("Cannot rename fields to names of other fields")
 
             inverse_rename = {v: k for k, v in rename.items()}
             if len(rename.keys()) != len(inverse_rename.keys()):
@@ -166,16 +157,14 @@ class MetaHybridClass(type):
 
         _XoStruct._DressingClass = new_class
 
-        if "_extra_c_sources" in data.keys():
-            new_class._XoStruct._extra_c_sources.extend(
-                data["_extra_c_sources"]
-            )
+        if '_extra_c_sources' in data.keys():
+            new_class._XoStruct._extra_c_sources.extend(data['_extra_c_sources'])
 
-        if "_depends_on" in data.keys():
-            new_class._XoStruct._depends_on.extend(data["_depends_on"])
+        if '_depends_on' in data.keys():
+            new_class._XoStruct._depends_on.extend(data['_depends_on'])
 
-        if "_kernels" in data.keys():
-            kernels = data["_kernels"].copy()
+        if '_kernels' in data.keys():
+            kernels = data['_kernels'].copy()
             for nn, kk in kernels.items():
                 for aa in kk.args:
                     if aa.atype is ThisClass:
@@ -197,16 +186,12 @@ class HybridClass(metaclass=MetaHybridClass):
 
     def move(self, _context=None, _buffer=None, _offset=None):
         if not self._movable:
-            raise MemoryError(
-                "This object cannot be moved, likely because it "
-                "lives within another. Please, make a copy."
-            )
+            raise MemoryError("This object cannot be moved, likely because it "
+                              "lives within another. Please, make a copy.")
 
         if self._xobject._has_refs:
-            raise MemoryError(
-                "This object cannot be moved, as it contains "
-                "references to other objects."
-            )
+            raise MemoryError("This object cannot be moved, as it contains "
+                              "references to other objects.")
 
         self._xobject = self._xobject.__class__(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
@@ -243,10 +228,10 @@ class HybridClass(metaclass=MetaHybridClass):
 
         if _kwargs_name_check:
             for kk in kwargs.keys():
-                if kk.startswith("_"):
+                if kk.startswith('_'):
                     continue
                 if kk not in self._py_fnames and kk not in self._xo_fnames:
-                    raise NameError(f"Invalid keyword argument `{kk}`")
+                    raise NameError(f'Invalid keyword argument `{kk}`')
 
         if _xobject is not None:
             self._reinit_from_xobject(_xobject=_xobject)
@@ -283,10 +268,8 @@ class HybridClass(metaclass=MetaHybridClass):
             obj = self
 
         for ff in obj._fields:
-            if (
-                hasattr(self, "_skip_in_to_dict")
-                and ff in self._skip_in_to_dict
-            ):
+            if (hasattr(self, '_skip_in_to_dict')
+                    and ff in self._skip_in_to_dict):
                 continue
             vv = getattr(obj, ff)
             if hasattr(vv, "to_dict"):
@@ -296,7 +279,7 @@ class HybridClass(metaclass=MetaHybridClass):
             else:
                 out[ff] = vv
 
-        if hasattr(obj, "_store_in_to_dict"):
+        if hasattr(obj, '_store_in_to_dict'):
             for nn in obj._store_in_to_dict:
                 out[nn] = getattr(obj, nn)
 
@@ -304,13 +287,8 @@ class HybridClass(metaclass=MetaHybridClass):
 
     @classmethod
     def from_dict(cls, dct, _context=None, _buffer=None, _offset=None):
-        return cls(
-            **dct,
-            _context=_context,
-            _buffer=_buffer,
-            _offset=_offset,
-            _kwargs_name_check=False,
-        )
+        return cls(**dct, _context=_context, _buffer=_buffer, _offset=_offset,
+                   _kwargs_name_check=False)
 
     def copy(self, _context=None, _buffer=None, _offset=None):
         if _context is None and _buffer is None:
@@ -335,19 +313,14 @@ class HybridClass(metaclass=MetaHybridClass):
 
     @property
     def XoStruct(self):
-        raise NameError(
-            "`XoStruct` has been removed. Use `_XoStruct` instead."
-        )
+        raise NameError("`XoStruct` has been removed. Use `_XoStruct` instead.")
 
     @property
     def extra_sources(self):
-        raise NameError(
-            "`extra_sources` has been removed. Use `_extra_c_sources` instead."
-        )
+        raise NameError("`extra_sources` has been removed. Use `_extra_c_sources` instead.")
 
     def compile_kernels(self, *args, **kwargs):
         return self._xobject.compile_kernels(*args, **kwargs)
 
-
-class ThisClass:  # Place holder
+class ThisClass: # Place holder
     pass

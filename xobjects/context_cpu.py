@@ -78,21 +78,14 @@ def cdef_from_kernel(kernel, pyname=None):
     signature += ");"
     return signature
 
-
 # order of base classes matters as it defines which __setitem__ is used
 class LinkedArrayCpu(BaseLinkedArray, np.ndarray):
+
     @classmethod
     def _build_view(cls, a):
         assert len(a.shape) == 1
-        return cls(
-            shape=a.shape,
-            dtype=a.dtype,
-            buffer=a.data,
-            offset=0,
-            strides=a.strides,
-            order="C",
-        )
-
+        return cls(shape=a.shape, dtype=a.dtype, buffer=a.data, offset=0,
+                strides=a.strides, order='C')
 
 class ContextCpu(XContext):
     """
@@ -118,9 +111,7 @@ class ContextCpu(XContext):
         self.omp_num_threads = omp_num_threads
 
         if self.omp_num_threads > 1:
-            raise NotImplementedError(
-                "OpenMP parallelization not yet supported!"
-            )
+            raise NotImplementedError("OpenMP parallelization not yet supported!")
 
     def _make_buffer(self, capacity):
         return BufferNumpy(capacity=capacity, context=self)
@@ -137,7 +128,7 @@ class ContextCpu(XContext):
         extra_cdef=None,
         extra_classes=[],
         extra_headers=[],
-        compile=True,
+        compile=True
     ):
 
         """
@@ -264,7 +255,7 @@ class ContextCpu(XContext):
                 xtr_compile_args.append("-fopenmp")
                 xtr_link_args.append("-fopenmp")
 
-            if os.name == "nt":  # windows
+            if os.name == 'nt': #windows
                 # TODO: to be handled properly
                 xtr_compile_args = []
                 xtr_link_args = []
@@ -306,15 +297,11 @@ class ContextCpu(XContext):
 
             finally:
                 # Clean temp files
-                files_to_remove = [
-                    so_fname,
-                    tempfname + ".c",
-                    tempfname + ".o",
-                ]
+                files_to_remove = [so_fname, tempfname + ".c", tempfname + ".o"]
 
                 for ff in files_to_remove:
                     if os.path.exists(ff):
-                        if os.name == "nt" and ff.endswith(".pyd"):
+                        if os.name == 'nt' and ff.endswith('.pyd'):
                             # pyd files are protected on windows
                             continue
                         os.remove(ff)
@@ -331,9 +318,7 @@ class ContextCpu(XContext):
         for pyname, kernel in kernels.items():
             self.kernels[pyname].source = source
             self.kernels[pyname].specialized_source = specialized_source
-            self.kernels[
-                pyname
-            ].description.pyname = pyname  # TODO: find better implementation?
+            self.kernels[pyname].description.pyname = pyname # TODO: find better implementation?
 
     def nparray_to_context_array(self, arr):
         """
@@ -519,9 +504,7 @@ class BufferNumpy(XBuffer):
         if dest_dtype != value.dtype:
             value = value.astype(dtype=dest_dtype)  # make a copy
         src = value.view("int8")
-        self.buffer[offset : offset + src.nbytes] = value.flatten().view(
-            "int8"
-        )
+        self.buffer[offset : offset + src.nbytes] = value.flatten().view("int8")
 
     def to_bytearray(self, offset, nbytes):
         """copy in byte array: used in update_from_xbuffer"""
@@ -556,9 +539,9 @@ class KernelCpu:
                         self.ffi_interface.from_buffer(slice_first_elem.data),
                     )
                 elif hasattr(value, "_shape"):  # xobject array
-                    assert isinstance(
-                        value._buffer.context, ContextCpu
-                    ), f"Incompatible context for argument `{arg.name}`."
+                    assert isinstance(value._buffer.context, ContextCpu), (
+                        f"Incompatible context for argument `{arg.name}`."
+                    )
                     return self.ffi_interface.cast(
                         value._c_type + "*",
                         self.ffi_interface.from_buffer(
@@ -575,9 +558,9 @@ class KernelCpu:
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 return arg.atype(value)  # try to return a numpy scalar
             elif hasattr(arg.atype, "_size"):  # it is a compound xobject
-                assert isinstance(
-                    value._buffer.context, ContextCpu
-                ), f"Incompatible context for argument `{arg.name}`."
+                assert isinstance(value._buffer.context, ContextCpu), (
+                    f"Incompatible context for argument `{arg.name}`."
+                )
                 buf = np.frombuffer(value._buffer.buffer, dtype="int8")
                 ptr = buf.ctypes.data + value._offset
                 return self.ffi_interface.cast(arg.atype._c_type, ptr)

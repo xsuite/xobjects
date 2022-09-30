@@ -17,7 +17,7 @@ def get_a_buffer(context=None, buffer=None, size=None):
     if buffer is None:
         if context is None:
             context = context_default
-        buffer = context.new_buffer(size)
+        return context.new_buffer(size)
     else:
         return buffer
 

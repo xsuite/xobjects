@@ -383,7 +383,7 @@ class BufferPyopencl(XBuffer):
 
     def write(self, offset, data):
         # From python object with buffer interface on cpu
-        log.debug(f"write {self} {offset} {data}")
+        #log.debug(f"write {self} {offset} {data}")
         cl.enqueue_copy(
             self.context.queue, self.buffer, data, device_offset=offset
         )

@@ -292,7 +292,7 @@ class Array(metaclass=MetaArray):
         - offsets
         - value: None if args contains dimensions else args[0]
         """
-        log.debug(f"get size for {cls} from {args}")
+        #log.debug(f"get size for {cls} from {args}")
         info = Info()
         extra = {}
         if cls._size is not None:

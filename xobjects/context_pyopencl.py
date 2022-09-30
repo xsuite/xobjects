@@ -57,13 +57,20 @@ typedef unsigned int uint32_t;
 if _enabled:
     # order of base classes matters as it defines which __setitem__ is used
     class LinkedArrayPyopencl(BaseLinkedArray, cla.Array):
-
         @classmethod
         def _build_view(cls, a):
             assert len(a.shape) == 1
-            return cls(cq=a.queue, shape=a.shape, dtype=a.dtype,
-                    data=a.base_data, offset=a.offset, strides=a.strides, order='C',
-                    _flags=a.flags)
+            return cls(
+                cq=a.queue,
+                shape=a.shape,
+                dtype=a.dtype,
+                data=a.base_data,
+                offset=a.offset,
+                strides=a.strides,
+                order="C",
+                _flags=a.flags,
+            )
+
 
 class ContextPyopencl(XContext):
     @property
@@ -145,7 +152,7 @@ class ContextPyopencl(XContext):
         buff = self.new_buffer()
         i = 1
         found = False
-        while i < 2 ** 16:
+        while i < 2**16:
             try:
                 buff.buffer[i:]
                 found = True
@@ -169,7 +176,7 @@ class ContextPyopencl(XContext):
         extra_cdef=None,
         extra_classes=[],
         extra_headers=[],
-        compile=True
+        compile=True,
     ):
 
         """
@@ -383,7 +390,7 @@ class BufferPyopencl(XBuffer):
 
     def write(self, offset, data):
         # From python object with buffer interface on cpu
-        log.debug(f"write {self} {offset} {data}")
+        # log.debug(f"write {self} {offset} {data}")
         cl.enqueue_copy(
             self.context.queue, self.buffer, data, device_offset=offset
         )
@@ -512,9 +519,9 @@ class KernelPyopencl(object):
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 return arg.atype(value)  # try to return a numpy scalar
             elif hasattr(arg.atype, "_size"):  # it is a compound xobject
-                assert value._buffer.context is self.context, (
-                    f"Incompatible context for argument `{arg.name}`"
-                )
+                assert (
+                    value._buffer.context is self.context
+                ), f"Incompatible context for argument `{arg.name}`"
                 return value._buffer.buffer[value._offset :]
             else:
                 raise ValueError(

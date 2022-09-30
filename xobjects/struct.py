@@ -204,7 +204,7 @@ class MetaStruct(type):
                 return Int64._from_buffer(self._buffer, self._offset)
 
             def _inspect_args(cls, *args, **kwargs):
-                log.debug(f"get size for {cls} from {args} {kwargs}")
+                #log.debug(f"get size for {cls} from {args} {kwargs}")
                 info = Info()
                 if len(args) == 1:  # is a dict or xobj
                     arg = args[0]
@@ -215,12 +215,12 @@ class MetaStruct(type):
                         offset = d_fields[
                             0
                         ].offset  # offset first dynamic data
-                        log.debug(f"{arg}")
+                        #log.debug(f"{arg}")
                         for field in cls._d_fields:
                             farg = field.value_from_args(arg)
-                            log.debug(
-                                f"get size for field `{field.name}` using `{farg}`"
-                            )
+                            #log.debug(
+                            #    f"get size for field `{field.name}` using `{farg}`"
+                            #)
                             finfo = dispatch_arg(
                                 field.ftype._inspect_args, farg
                             )
@@ -362,7 +362,7 @@ class Struct(metaclass=MetaStruct):
 
     @classmethod
     def _set_offsets(cls, buffer, offset, loffsets):
-        log.debug(f"{cls} set offset {loffsets}")
+        #log.debug(f"{cls} set offset {loffsets}")
         for index, data_offset in loffsets.items():
             foffset = offset + cls._fields[index].offset
             Int64._to_buffer(buffer, foffset, data_offset)

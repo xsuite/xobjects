@@ -172,7 +172,7 @@ class MetaUnionRef(type):
         - XObject
         - typename, dict
         """
-        log.debug(f"get info for {cls} from {args}")
+        #log.debug(f"get info for {cls} from {args}")
         info = Info(size=cls._size)
         return info
 

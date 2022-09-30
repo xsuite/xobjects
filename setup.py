@@ -7,7 +7,7 @@ from setuptools import setup
 
 setup(
     name="xobjects",
-    version="0.1.24",
+    version="0.1.23",
     description="In-memory serialization and code generator for CPU and GPU",
     long_description="In-memory serialization and code generator for CPU and GPU",
     author="Riccardo De Maria",

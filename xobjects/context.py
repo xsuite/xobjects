@@ -60,7 +60,7 @@ def sort_classes(classes):
     lst = list(classes)
     for cls in lst:
         cldeps = []
-        cllist=[]
+        cllist = []
         if hasattr(cls, "_get_inner_types"):
             cllist.extend(cls._get_inner_types())
         if hasattr(cls, "_depends_on"):
@@ -418,10 +418,12 @@ class Kernel:
             classes.append(self.ret.atype)
         return classes
 
+
 class Source:
     def __init__(self, source, name=None):
         self.source = source
         self.name = name
+
 
 class Method:
     def __init__(self, args, c_name, ret):
@@ -478,7 +480,7 @@ def get_test_contexts():
     ctxstr = os.environ.get("XOBJECTS_TEST_CONTEXTS")
     if ctxstr is None:
         yield xo.ContextCpu()
-        #yield xo.ContextCpu(omp_num_threads=2)
+        # yield xo.ContextCpu(omp_num_threads=2)
         if xo.ContextCupy in xo.context.available:
             yield xo.ContextCupy()
         if xo.ContextPyopencl in xo.context.available:

@@ -62,7 +62,7 @@ class MetaString(type):
             return Info(size=cls._size)
 
     def _to_buffer(cls, buffer, offset, value, info=None):
-        log.debug(f"{cls} to buffer {offset}  `{value}`")
+        # log.debug(f"{cls} to buffer {offset}  `{value}`")
         if info is None:
             info = cls._inspect_args(value)
         size = info.size
@@ -76,7 +76,7 @@ class MetaString(type):
             data = info.data
             off = string_capacity - len(data)
             data += b"\x00" * off
-            log.debug(f"to_buffer {offset+8} {len(data)} {string_capacity}")
+            # log.debug(f"to_buffer {offset+8} {len(data)} {string_capacity}")
             buffer.update_from_buffer(offset + 8, data)
         elif is_integer(value):
             pass

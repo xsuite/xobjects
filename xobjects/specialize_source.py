@@ -113,9 +113,9 @@ def specialize_source(source, specialize_for, search_in_folders=[]):
         }[specialize_for],
     )
 
-    if os.name == 'nt': # windows
+    if os.name == "nt":  # windows
         restrict_qualifier = " "
-    else: # other os
+    else:  # other os
         restrict_qualifier = " restrict "
     newfilecontent = newfilecontent.replace(
         "/*restrict*/",

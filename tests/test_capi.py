@@ -12,71 +12,6 @@ import cffi
 ffi = cffi.FFI()
 
 
-def gen_classes():
-    class Struct1(xo.Struct):
-        field1 = xo.Int64
-        field2 = xo.Float64
-
-    class Struct2(xo.Struct):
-        field1 = xo.Int32
-        field2 = xo.Float64[:]
-
-    class Struct2r(xo.Struct):
-        field1 = xo.Int32
-        field2 = xo.Ref[xo.Float64[:]]
-
-    class Struct3(xo.Struct):
-        field1 = xo.Float64
-        field2 = xo.Float32[:]
-        field3 = xo.Float64[:]
-        field3 = xo.String
-
-    class Struct3r(xo.Struct):
-        field1 = xo.Float64
-        field2 = xo.Ref[xo.Float32[:]]
-        field3 = xo.Ref[xo.Float64[:]]
-
-    class Struct4(xo.Struct):
-        field1 = xo.Float64
-        field2 = xo.Float32[:]
-        field3 = xo.Float64[:]
-        field3 = xo.Int8[:]
-
-    class Struct5(xo.Struct):
-        field1 = Struct1
-        field2 = Struct2
-        field2r = Struct2r
-        field3 = Struct3
-        field3r = Struct3r
-        field4 = Struct4
-
-    class URef(xo.UnionRef):
-        _reftypes = [Struct1, Struct2]
-
-    Array1 = xo.Int64[2]
-    Array2 = xo.Int64[:]
-    Array3 = xo.Int64[2, 3]
-    Array4 = xo.Int64[2, :]
-    Array5 = xo.Int64[:, 2]
-    Array6 = xo.Int64[2, 3, 5]
-    Array7 = xo.Int64[:, 3, :]
-    Array8 = xo.Int64[2, :, 5]
-    Array9 = xo.Int8[3]
-    Array10 = xo.Int8[:]
-    Array11 = Struct1[3]
-    Array12 = Struct2[3]
-    Array12r = Struct2[3]
-    Array13 = Struct3[3]
-    Array13r = Struct3[3]
-    Array14 = Struct4[3]
-    Array15 = Struct5[3]
-
-    res = type("", (object,), {})()
-    res.__dict__.update(locals())
-
-    return res
-
-
 def test_struct1():
     class Struct1(xo.Struct):
         field1 = xo.Int64
@@ -203,23 +138,24 @@ def test_unionref():
     arr[2] = None
 
     kernels = ArrNURef._gen_kernels()
+    kernels.update(URef._gen_kernels())
     kernels.update(Struct1._gen_kernels())
     kernels.update(Struct2._gen_kernels())
     ctx = xo.ContextCpu()
     ctx.add_kernels(kernels=kernels)
 
-    ctx.kernels.ArrNURef_typeid(obj=arr, i0=0) == URef._typeid_from_type(
+    assert ctx.kernels.ArrNURef_typeid(obj=arr, i0=0) == URef._typeid_from_type(
         type(arr[0])
     )
-    ctx.kernels.ArrNURef_typeid(obj=arr, i0=1) == URef._typeid_from_type(
+    assert ctx.kernels.ArrNURef_typeid(obj=arr, i0=1) == URef._typeid_from_type(
         type(arr[1])
     )
-    ctx.kernels.ArrNURef_typeid(obj=arr, i0=2) == -1
+    assert ctx.kernels.ArrNURef_typeid(obj=arr, i0=2) == -1
 
-    p1 = ctx.kernels.Struct1_getp(obj=arr[0])
-    p2 = ctx.kernels.ArrNURef_member(obj=arr, i0=0)
-
-    assert int(ffi.cast("size_t", p1)) == int(ffi.cast("size_t", p2))
+    for ii in range(2):
+        p1 = ctx.kernels.Struct1_getp(obj=arr[ii])
+        p2 = ctx.kernels.ArrNURef_member(obj=arr, i0=ii)
+        assert int(ffi.cast("size_t", p1)) == int(ffi.cast("size_t", p2))
 
 
 def test_get_two_indices():
@@ -258,6 +194,69 @@ def test_dependencies():
         _extra_c_sources=[" //blah blah B"]
         _depends_on=[C]
 
-    assert xo.context.sort_classes([B])[1:]==[A,C,B]
+    assert xo.context.sort_classes([B])[1:] == [A, C, B]
 
 
+def test_getp1_dyn_length_static_type_array():
+    ArrNUint8 = xo.UInt8[:]
+    char_array = ArrNUint8([42, 43, 44])
+
+    kernels = ArrNUint8._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels)
+
+    assert ctx.kernels.ArrNUint8_len(obj=char_array) == 3
+
+    s1 = ctx.kernels.ArrNUint8_getp1(obj=char_array, i0=0)
+    s2 = ctx.kernels.ArrNUint8_getp1(obj=char_array, i0=1)
+    s3 = ctx.kernels.ArrNUint8_getp1(obj=char_array, i0=2)
+
+    assert s1[0] == 42
+    assert s2[0] == 43
+    assert s3[0] == 44
+
+
+def test_getp1_dyn_length_dyn_type_array():
+    ArrNUint8 = xo.UInt8[:]
+    ArrNArr = ArrNUint8[:]
+    ary = ArrNArr([[42, 43], [44, 45, 56]])
+
+    kernels = ArrNArr._gen_kernels()
+    kernels.update(ArrNUint8._gen_kernels())
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels, save_source_as='test-int.c')
+
+    assert ctx.kernels.ArrNArrNUint8_len(obj=ary) == 2
+
+    for ii in range(2):
+        expected = ctx.kernels.ArrNUint8_getp(obj=ary[ii])
+        result = ctx.kernels.ArrNArrNUint8_getp1(obj=ary, i0=ii)
+        assert expected == result
+
+
+def test_getp1_dyn_length_dyn_type_string_array():
+    ArrNString = xo.String[:]
+    string_array = ArrNString(['a', 'bcdefghi', 'jkl'])
+
+    kernels = ArrNString._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels, save_source_as='test.c')
+
+    assert ctx.kernels.ArrNString_len(obj=string_array) == 3
+
+    s0 = ctx.kernels.ArrNString_getp1(obj=string_array, i0=0)
+    s1 = ctx.kernels.ArrNString_getp1(obj=string_array, i0=1)
+    s2 = ctx.kernels.ArrNString_getp1(obj=string_array, i0=2)
+
+    # Each string is encoded in Pascal-style, where the string
+    # is preceded with its length (u64). Strings are also null
+    # terminated.
+
+    for ii, ch in enumerate(b'a\x00'):
+        assert ord(ffi.cast("char *", s0)[8 + ii]) == ch
+
+    for ii, ch in enumerate(b'bcdefghi\x00'):
+        assert ord(ffi.cast("char *", s1)[8 + ii]) == ch
+
+    for ii, ch in enumerate(b'jkl\x00'):
+        assert ord(ffi.cast("char *", s2)[8 + ii]) == ch

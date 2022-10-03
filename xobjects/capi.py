@@ -143,7 +143,8 @@ def Index_get_c_offset(part, conf, icount):
     if cls._is_static_type:
         out.append(f"  offset+={soffset};")
     else:
-        out.append(int_from_obj(f"offset+{soffset}", conf) + ";")
+        lookup_field_offset = f"offset+{soffset}"
+        out.append(f"  offset={int_from_obj(lookup_field_offset, conf)};")
     return out
 
 
@@ -202,7 +203,7 @@ def gen_fun_kernel(cls, path, action, const, extra, ret, add_nindex=False):
 def gen_c_pointed(target: Arg, conf):
     size = gen_c_size_from_arg(target, conf)
     ret = gen_c_type_from_arg(target, conf)
-    if target.pointer or is_compound(target.atype):
+    if target.pointer or is_compound(target.atype) or is_string(target.atype):
         chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
         return f"({ret})(({chartype}) obj+offset)"
     else:

@@ -143,7 +143,7 @@ def Index_get_c_offset(part, conf, icount):
     if cls._is_static_type:
         out.append(f"  offset+={soffset};")
     else:
-        out.append(int_from_obj(f"offset+{soffset}", conf))
+        out.append(int_from_obj(f"offset+{soffset}", conf) + ";")
     return out
 
 

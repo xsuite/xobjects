@@ -25,7 +25,7 @@ array itemtype d1 d2 ...
 array itemtype d1 : ...
 array itemtype (d1,1) (d1,0) ...  F contiguos
 
-There 6 kind of arrays from the combination of
+There ara 4 kind of arrays from the combination of
     shape: static, dynamic
     item: static, dynamic
 
@@ -52,6 +52,11 @@ Array instance:
     - _shape: present if dynamic
     - _strides: shape if dynamic
 
+Initialization:
+
+Arr(): if _size is not None
+Arr(d1,d2,...): using dimensions if _itemtype._size is not None
+Arr(arr): if arr is a list, tuple or np-like
 """
 
 
@@ -60,7 +65,6 @@ def get_suffix(shape):
     sshape = []
     ilst = 0
     lst = "NMOPQRSTUVWXYZABCDEFGHIJKLM"
-    # lst = "nmopqrstuvwxyzabcdefghijklm"
     for dd in shape:
         if dd is None:
             sshape.append(lst[ilst])
@@ -70,7 +74,7 @@ def get_suffix(shape):
     return "x".join(sshape)
 
 
-def get_shape_from_array(value):
+def get_shape_from_array(value,nd):
     if hasattr(value, "shape"):
         return value.shape
     elif hasattr(value, "_shape"):
@@ -79,12 +83,12 @@ def get_shape_from_array(value):
         return ()
     elif hasattr(value, "__len__"):
         shape = (len(value),)
-        if len(value) > 0:
-            shape0 = get_shape_from_array(value[0])
+        if len(value) > 0 and nd>1:
+            shape0 = get_shape_from_array(value[0],nd-1)
             if shape0 == ():
                 return shape
             for i in value[1:]:
-                shapei = get_shape_from_array(i)
+                shapei = get_shape_from_array(i,nd-1)
                 if shapei != shape0:
                     raise ValueError(f"{value} not an array")
             return shape + shape0
@@ -300,7 +304,7 @@ class Array(metaclass=MetaArray):
             if len(args) == 0:
                 value = None
             elif len(args) == 1:
-                shape = get_shape_from_array(args[0])
+                shape = get_shape_from_array(args[0],len(cls._shape))
                 if shape != cls._shape:
                     raise ValueError(f"shape not valid for {args[0]} ")
                 value = args[0]
@@ -326,9 +330,13 @@ class Array(metaclass=MetaArray):
                 items = np.prod(shape)
                 value = args[0]
             else:  # complete dimensions
+                if len(args) == 0:
+                    raise ValueError(
+                        "Cannot initialize array with dynamic shape without arguments"
+                    )
                 if not is_integer(args[0]):  # init with array
                     value = args[0]
-                    shape = get_shape_from_array(value)
+                    shape = get_shape_from_array(value, len(cls._shape))
                     dshape = []
                     for idim, ndim in enumerate(cls._shape):
                         if ndim is None:
@@ -340,6 +348,12 @@ class Array(metaclass=MetaArray):
                                 )
                     value = value
                 else:  # init with shapes
+                    if cls._itemtype._size is None:
+                        raise (
+                            ValueError(
+                                "Cannot initialize a dynamic array with a dynamic type using length"
+                            )
+                        )
                     value = None
                     shape = []
                     dshape = []  # index of dynamic shapes

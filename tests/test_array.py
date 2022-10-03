@@ -15,12 +15,12 @@ from xobjects.typeutils import Info
 def test_get_shape():
     from xobjects.array import get_shape_from_array
 
-    assert get_shape_from_array(0) == ()
-    assert get_shape_from_array([]) == (0,)
-    assert get_shape_from_array([1, 2, 3]) == (3,)
-    assert get_shape_from_array(range(3)) == (3,)
-    assert get_shape_from_array([[], []]) == (2, 0)
-    assert get_shape_from_array([[2], [2]]) == (2, 1)
+    assert get_shape_from_array(0,0) == ()
+    assert get_shape_from_array([],1) == (0,)
+    assert get_shape_from_array([1, 2, 3],1) == (3,)
+    assert get_shape_from_array(range(3),1) == (3,)
+    assert get_shape_from_array([[], []],2) == (2, 0)
+    assert get_shape_from_array([[2], [2]],2) == (2, 1)
 
 
 def mk_classes() -> xo.Array:
@@ -185,6 +185,13 @@ def test_array_dshape_dtype():
     ss1 = Array1(3)
     ss2 = Array1(4)
     assert ss0._shape == ss[0]._shape
+
+
+    ss = Array2([[1], [2,3], [4,5,6]])
+    assert ss[0][0]==1
+    assert ss[1][1]==3
+    assert ss[2][2]==6
+
 
 
 def test_array_in_struct():

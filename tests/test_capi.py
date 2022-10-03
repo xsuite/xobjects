@@ -258,6 +258,49 @@ def test_dependencies():
         _extra_c_sources=[" //blah blah B"]
         _depends_on=[C]
 
-    assert xo.context.sort_classes([B])[1:]==[A,C,B]
+    assert xo.context.sort_classes([B])[1:] == [A, C, B]
 
 
+def test_dynarray_getp1():
+    ArrNUInt8 = xo.UInt8[:]
+    char_array = ArrNUInt8([42, 43, 44])
+
+    kernels = ArrNUInt8._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels, save_source_as='test-u8.c')
+
+    assert ctx.kernels.ArrNUInt8_len(obj=char_array) == 3
+
+    s1 = ctx.kernels.ArrNUInt8_getp1(obj=char_array, i0=0)
+    s2 = ctx.kernels.ArrNUInt8_getp1(obj=char_array, i0=1)
+    s3 = ctx.kernels.ArrNUInt8_getp1(obj=char_array, i0=2)
+
+    import ipdb; ipdb.set_trace()
+
+    assert ffi.cast("char *", s1)[0] == 42
+    assert ffi.cast("char *", s2)[0] == 43
+    assert ffi.cast("char *", s3)[1] == 44
+
+
+def test_array_string():
+    ArrNString = xo.String[:]
+    string_array = ArrNString(['a', 'bc', 'def'])
+
+    kernels = ArrNString._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels, save_source_as='test.c')
+
+    assert ctx.kernels.ArrNString_len(obj=string_array) == 3
+
+    s1 = ctx.kernels.ArrNString_getp1(obj=string_array, i0=0)
+    s2 = ctx.kernels.ArrNString_getp1(obj=string_array, i0=1)
+    s3 = ctx.kernels.ArrNString_getp1(obj=string_array, i0=2)
+
+    # import ipdb; ipdb.set_trace()
+
+    assert ffi.cast("char *", s1)[0] == 0x61
+    assert ffi.cast("char *", s2)[0] == 0x62
+    assert ffi.cast("char *", s2)[1] == 0x63
+    assert ffi.cast("char *", s3)[0] == 0x64
+    assert ffi.cast("char *", s3)[1] == 0x65
+    assert ffi.cast("char *", s3)[2] == 0x66

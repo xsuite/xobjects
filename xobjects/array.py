@@ -74,7 +74,7 @@ def get_suffix(shape):
     return "x".join(sshape)
 
 
-def get_shape_from_array(value,nd):
+def get_shape_from_array(value, nd):
     if hasattr(value, "shape"):
         return value.shape
     elif hasattr(value, "_shape"):
@@ -83,14 +83,15 @@ def get_shape_from_array(value,nd):
         return ()
     elif hasattr(value, "__len__"):
         shape = (len(value),)
-        if len(value) > 0 and nd>1:
-            shape0 = get_shape_from_array(value[0],nd-1)
+        if len(value) > 0 and nd > 1:
+            shape0 = get_shape_from_array(value[0], nd-1)
             if shape0 == ():
                 return shape
             for i in value[1:]:
-                shapei = get_shape_from_array(i,nd-1)
+                shapei = get_shape_from_array(i, nd-1)
                 if shapei != shape0:
-                    raise ValueError(f"{value} not an array")
+                    raise ValueError(f"{value} does not have a "
+                                     f"consistent shape in dimension {nd}")
             return shape + shape0
         else:
             return shape

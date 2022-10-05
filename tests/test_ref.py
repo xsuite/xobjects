@@ -82,6 +82,53 @@ def test_ref_to_dynamic_type():
             assert mystructref.a[ii] == [7, 8, 9][ii]
 
 
+def test_ref_nested():
+    class S(xo.Struct):
+        f = xo.Float64[:]
+
+    class R(xo.Struct):
+        f = xo.Ref[xo.Float64[:]]
+
+    class B(xo.Struct):
+        s = S
+        r = R
+
+    ctx = xo.ContextCpu()
+    buf = ctx.new_buffer(0)
+
+    s = S(f=[1, 2, 3], _buffer=buf)
+    r = R(f=s.f, _buffer=buf)
+
+    assert np.isclose(r.f, [1, 2, 3]).all()
+    r.f[1] = 20
+    assert np.isclose(s.f, [1, 20, 3]).all()
+
+    b = B(s=s, r=r, _buffer=buf)
+    # now b.s is a copy of s, and b.r.f points to the original s.f
+    assert np.isclose(b.s.f, [1, 20, 3]).all()
+    assert np.isclose(b.r.f, [1, 20, 3]).all()
+
+    # verify that by making a change
+    b.r.f[0] = 10
+    assert np.isclose(b.r.f, [10, 20, 3]).all()
+    assert np.isclose(r.f, [10, 20, 3]).all()
+    assert np.isclose(s.f, [10, 20, 3]).all()
+    # indeed b.s.f did not change, because b.r.f points to s.f
+    assert np.isclose(b.s.f, [1, 20, 3]).all()
+
+    # we can rebind the reference to point to the array in b.s
+    b.r.f = b.s.f
+    assert np.isclose(b.r.f, [1, 20, 3]).all()
+
+    b.s.f[2] = 30
+    # b.r.f and b.s.f are the same
+    assert np.isclose(b.r.f, [1, 20, 30]).all()
+    assert np.isclose(b.s.f, [1, 20, 30]).all()
+    # original s.f and the reference r.f did not change
+    assert np.isclose(r.f, [10, 20, 3]).all()
+    assert np.isclose(s.f, [10, 20, 3]).all()
+
+
 def test_ref_c_api():
     for context in xo.context.get_test_contexts():
         print(f"Test {context}")
@@ -184,9 +231,6 @@ def no_test_array_of_unionrefs():
         for ii in range(10):
             print(f"aoref[{ii}]=", aoref[ii])
             assert aoref[ii].a == 10 * ii
-
-
-import xobjects as xo
 
 
 def test_unionref():

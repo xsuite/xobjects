@@ -82,6 +82,32 @@ def test_ref_to_dynamic_type():
             assert mystructref.a[ii] == [7, 8, 9][ii]
 
 
+def test_ref_nested():
+    class S(xo.Struct):
+        f = xo.Float64[:]
+
+    class R(xo.Struct):
+        f = xo.Ref[xo.Float64[:]]
+
+    class B(xo.Struct):
+        s = S
+        r = R
+
+    ctx = xo.ContextCpu()
+    buf = ctx.new_buffer(0)
+
+    s = S(f=[1, 2, 3], _buffer=buf)
+    r = R(f=s.f, _buffer=buf)
+
+    assert np.isclose(r.f, [1.0, 2.0, 3.0]).all()
+    r.f[1] = 20
+    assert np.isclose(s.f, [1.0, 20.0, 3.0]).all()
+
+    b = B(s=s, r=r, _buffer=buf)
+    assert np.isclose(b.s.f, [1.0, 20.0, 3.0]).all()
+    assert np.isclose(b.r.f, [1.0, 20.0, 3.0]).all()
+
+
 def test_ref_c_api():
     for context in xo.context.get_test_contexts():
         print(f"Test {context}")
@@ -184,9 +210,6 @@ def no_test_array_of_unionrefs():
         for ii in range(10):
             print(f"aoref[{ii}]=", aoref[ii])
             assert aoref[ii].a == 10 * ii
-
-
-import xobjects as xo
 
 
 def test_unionref():

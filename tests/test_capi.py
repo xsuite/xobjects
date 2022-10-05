@@ -5,18 +5,82 @@
 
 # pylint:disable=E1101
 
-import numpy as np
+import pytest
+import math
+
 import xobjects as xo
 import cffi
+
 
 ffi = cffi.FFI()
 
 
-def test_struct1():
-    class Struct1(xo.Struct):
-        field1 = xo.Int64
-        field2 = xo.Float64
+class Struct1(xo.Struct):
+    field1 = xo.Int64
+    field2 = xo.Float64
 
+
+class Struct2(xo.Struct):
+    field1 = xo.Int32
+    field2 = xo.Float64[:]
+
+
+class Struct2r(xo.Struct):
+    field1 = xo.Int32
+    field2 = xo.Ref[xo.Float64[:]]
+
+
+class Struct3(xo.Struct):
+    field1 = xo.Float64
+    field2 = xo.Float32[:]
+    field3 = xo.Float64[:]
+    field4 = xo.String
+
+
+class Struct3r(xo.Struct):
+    field1 = xo.Float64
+    field2 = xo.Ref[xo.Float32[:]]
+    field3 = xo.Ref[xo.Float64[:]]
+
+
+class Struct4(xo.Struct):
+    field1 = xo.Float64
+    field2 = xo.Float32[:]
+    field3 = xo.Float64[:]
+    field4 = xo.Int8[:]
+
+
+class Struct5(xo.Struct):
+    field1 = Struct1
+    field2 = Struct2
+    field2r = Struct2r
+    field3 = Struct3
+    field3r = Struct3r
+    field4 = Struct4
+
+
+class URef(xo.UnionRef):
+    _reftypes = [Struct1, Struct2]
+
+
+Array3 = xo.Int64[2, 3]
+Array4 = xo.Int64[2, :]
+Array5 = xo.Int64[:, 2]
+Array6 = xo.Int64[2, 3, 5]
+Array7 = xo.Int64[:, 3, :]
+Array8 = xo.Int64[2, :, 5]
+Array9 = xo.Int8[3]
+Array10 = xo.Int8[:]
+Array11 = Struct1[3]
+Array12 = Struct2[3]
+Array12r = Struct2r[3]
+Array13 = Struct3[3]
+Array13r = Struct3r[3]
+Array14 = Struct4[3]
+Array15 = Struct5[3]
+
+
+def test_struct1():
     kernels = Struct1._gen_kernels()
     ctx = xo.ContextCpu()
     ctx.add_kernels(kernels=kernels)
@@ -24,10 +88,10 @@ def test_struct1():
     s1 = Struct1(field1=2, field2=3.0)
 
     ctx.kernels.Struct1_set_field1(obj=s1, value=7)
-    ctx.kernels.Struct1_get_field1(obj=s1) == s1.field1
+    assert ctx.kernels.Struct1_get_field1(obj=s1) == s1.field1
 
     ctx.kernels.Struct1_set_field2(obj=s1, value=7)
-    ctx.kernels.Struct1_get_field2(obj=s1) == s1.field2
+    assert ctx.kernels.Struct1_get_field2(obj=s1) == s1.field2
 
     ps = ctx.kernels.Struct1_getp(obj=s1)
     p1 = ctx.kernels.Struct1_getp_field1(obj=s1)
@@ -67,54 +131,197 @@ def test_array2():
 
     ini = [2, 7, 3]
 
-    a1 = Array2(ini)
+    a2 = Array2(ini)
 
-    assert ctx.kernels.ArrNInt64_len(obj=a1) == len(ini)
+    assert ctx.kernels.ArrNInt64_len(obj=a2) == len(ini)
     for ii, vv in enumerate(ini):
-        a1[ii] = ii * 3
-        assert ctx.kernels.ArrNInt64_get(obj=a1, i0=ii) == ii * 3
-        ctx.kernels.ArrNInt64_set(obj=a1, i0=ii, value=ii * 4)
-        assert a1[ii] == ii * 4
+        a2[ii] = ii * 3
+        assert ctx.kernels.ArrNInt64_get(obj=a2, i0=ii) == ii * 3
+        ctx.kernels.ArrNInt64_set(obj=a2, i0=ii, value=ii * 4)
+        assert a2[ii] == ii * 4
 
 
 def test_struct2():
-    class Struct2(xo.Struct):
-        field1 = xo.Int32
-        field2 = xo.Float64[:]
-
-    s1 = Struct2(field1=2, field2=5)
+    s2 = Struct2(field1=2, field2=5)
 
     kernels = Struct2._gen_kernels()
     ctx = xo.ContextCpu()
     ctx.add_kernels(kernels=kernels)
 
-    assert ctx.kernels.Struct2_len_field2(obj=s1) == len(s1.field2)
-    for ii in range(len(s1.field2)):
-        s1.field2[ii] = ii * 3
-        assert ctx.kernels.Struct2_get_field2(obj=s1, i0=ii) == ii * 3
-        ctx.kernels.Struct2_set_field2(obj=s1, i0=ii, value=ii * 4)
-        assert s1.field2[ii] == ii * 4
+    assert ctx.kernels.Struct2_len_field2(obj=s2) == len(s2.field2)
+    for ii in range(len(s2.field2)):
+        s2.field2[ii] = ii * 3
+        assert ctx.kernels.Struct2_get_field2(obj=s2, i0=ii) == ii * 3
+        ctx.kernels.Struct2_set_field2(obj=s2, i0=ii, value=ii * 4)
+        assert s2.field2[ii] == ii * 4
 
 
 def test_struct2r():
-    class Struct2r(xo.Struct):
-        field1 = xo.Int32
-        field2 = xo.Ref[xo.Float64[:]]
-
-    s1 = Struct2r(field1=2)
-
-    s1.field2 = 5
+    s2 = Struct2r(field1=2)
+    s2.field2 = 5
 
     kernels = Struct2r._gen_kernels()
     ctx = xo.ContextCpu()
     ctx.add_kernels(kernels=kernels)
 
-    assert ctx.kernels.Struct2r_len_field2(obj=s1) == len(s1.field2)
-    for ii in range(len(s1.field2)):
-        s1.field2[ii] = ii * 3
-        assert ctx.kernels.Struct2r_get_field2(obj=s1, i0=ii) == ii * 3
-        ctx.kernels.Struct2r_set_field2(obj=s1, i0=ii, value=ii * 4)
-        assert s1.field2[ii] == ii * 4
+    assert ctx.kernels.Struct2r_len_field2(obj=s2) == len(s2.field2)
+    for ii in range(len(s2.field2)):
+        s2.field2[ii] = ii * 3
+        assert ctx.kernels.Struct2r_get_field2(obj=s2, i0=ii) == ii * 3
+        ctx.kernels.Struct2r_set_field2(obj=s2, i0=ii, value=ii * 4)
+        assert s2.field2[ii] == ii * 4
+
+
+def test_struct3():
+    s3 = Struct3(
+        field1=3,
+        field2=[1, 2, 3, 4],
+        field3=[11, 12, 13, 14, 15, 16, 17],
+        field4='hello',
+    )
+
+    kernels = Struct3._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels)
+
+    assert ctx.kernels.Struct3_len_field2(obj=s3) == 4
+    assert ctx.kernels.Struct3_len_field3(obj=s3) == 7
+
+    for ii in range(4):
+        assert ctx.kernels.Struct3_get_field2(obj=s3, i0=ii) == ii + 1
+        ctx.kernels.Struct3_set_field2(obj=s3, i0=ii, value=ii * 4)
+        assert s3.field2[ii] == ii * 4
+
+    for ii in range(7):
+        assert ctx.kernels.Struct3_get_field3(obj=s3, i0=ii) == 11 + ii
+        ctx.kernels.Struct3_set_field3(obj=s3, i0=ii, value=ii)
+        assert s3.field3[ii] == ii
+
+
+def test_struct3r():
+    s3 = Struct3r(
+        field1=3,
+        field2=[1, 2, 3, 4],
+        field3=[11, 12, 13, 14, 15, 16, 17],
+    )
+
+    kernels = Struct3r._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels)
+
+    assert ctx.kernels.Struct3r_len_field2(obj=s3) == 4
+    assert ctx.kernels.Struct3r_len_field3(obj=s3) == 7
+
+    for ii in range(4):
+        assert ctx.kernels.Struct3r_get_field2(obj=s3, i0=ii) == ii + 1
+        ctx.kernels.Struct3r_set_field2(obj=s3, i0=ii, value=ii * 4)
+        assert s3.field2[ii] == ii * 4
+
+    for ii in range(7):
+        assert ctx.kernels.Struct3r_get_field3(obj=s3, i0=ii) == 11 + ii
+        ctx.kernels.Struct3r_set_field3(obj=s3, i0=ii, value=ii)
+        assert s3.field3[ii] == ii
+
+
+def test_struct4():
+    af32 = [2.1, 2.2]
+    af64 = [3.1, 3.2, 3.3]
+    ai8 = [-9, -3, 11, 18]
+
+    s4 = Struct4(
+        field1=1.,
+        field2=af32,
+        field3=af64,
+        field4=ai8,
+    )
+
+    kernels = Struct4._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels)
+
+    assert ctx.kernels.Struct4_len_field2(obj=s4) == len(af32)
+    assert ctx.kernels.Struct4_len_field3(obj=s4) == len(af64)
+    assert ctx.kernels.Struct4_len_field4(obj=s4) == len(ai8)
+
+    for ii, expected in enumerate(af32):
+        assert math.isclose(
+            ctx.kernels.Struct4_get_field2(obj=s4, i0=ii),
+            expected,
+            rel_tol=1e-7,  # single precision floats
+        )
+        ctx.kernels.Struct4_set_field2(obj=s4, i0=ii, value=7*expected)
+        assert math.isclose(
+            ctx.kernels.Struct4_get_field2(obj=s4, i0=ii),
+            7 * expected,
+            rel_tol=1e-7,  # single precision float
+        )
+
+    for ii, expected in enumerate(af64):
+        assert math.isclose(
+            ctx.kernels.Struct4_get_field3(obj=s4, i0=ii),
+            expected
+        )
+        ctx.kernels.Struct4_set_field3(obj=s4, i0=ii, value=7*expected)
+        assert math.isclose(
+            ctx.kernels.Struct4_get_field3(obj=s4, i0=ii),
+            7 * expected
+        )
+
+    for ii, expected in enumerate(ai8):
+        assert ctx.kernels.Struct4_get_field4(obj=s4, i0=ii) == expected
+        ctx.kernels.Struct4_set_field4(obj=s4, i0=ii, value=7*expected)
+        assert ctx.kernels.Struct4_get_field4(obj=s4, i0=ii) == 7 * expected
+
+
+def test_struct5():
+    ctx = xo.ContextCpu()
+    buff = ctx.new_buffer(0)
+
+    s1 = Struct1(field1=2, field2=3.0, _buffer=buff)
+    s2 = Struct2(field1=2, field2=[2., 2.], _buffer=buff)
+    import ipdb; ipdb.set_trace()
+    s2r = Struct2r(field1=2, field2=s2.field2, _buffer=buff)
+    s3 = Struct3(
+        field1=3,
+        field2=[1, 2, 3, 4],
+        field3=[11, 12, 13, 14, 15, 16, 17],
+        field4='hello',
+        _buffer=buff,
+    )
+    s3r = Struct3r(
+        field1=3,
+        field2=s3.field2,
+        field3=s3.field3,
+        _buffer=buff,
+    )
+    s4 = Struct4(
+        field1=1.,
+        field2=[2.1, 2.2],
+        field3=[3.1, 3.2, 3.3],
+        field4=[-9, -3, 11, 18],
+        _buffer=buff,
+    )
+    s5 = Struct5(
+        field1=s1,
+        field2=s2,
+        field2r=s2r,
+        field3=s3,
+        field3r=s3r,
+        field4=s4,
+        _buffer=buff,
+    )
+
+    kernels = Struct5._gen_kernels()
+    ctx.add_kernels(kernels=kernels)
+
+    assert ctx.kernels.Struct5_get_field1_field1(obj=s5) == s5.field1.field1
+    ctx.kernels.Struct5_set_field1_field1(obj=s5, value=10)
+    assert ctx.kernels.Struct5_get_field1_field1(obj=s5) == 10
+
+    assert math.isclose(ctx.kernels.Struct5_get_field2_field2(obj=s5, i0=0), 2)
+    assert math.isclose(ctx.kernels.Struct5_get_field2r_field2(obj=s5, i0=0), 2)
+    ctx.kernels.Struct5_set_field2_field2(obj=s5, value=4., i0=0)
+    assert math.isclose(ctx.kernels.Struct5_get_field2_field2(obj=s5, i0=0), 4)
 
 
 def test_unionref():

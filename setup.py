@@ -4,10 +4,18 @@
 # ########################################### #
 
 from setuptools import setup
+from pathlib import Path
+
+version_file = Path(__file__).parent / 'xobjects/_version.py'
+dd = {}
+with open(version_file.absolute(), 'r') as fp:
+    exec(fp.read(), dd)
+__version__ = dd['__version__']
+
 
 setup(
     name="xobjects",
-    version="0.1.24",
+    version=__version__,
     description="In-memory serialization and code generator for CPU and GPU",
     long_description="In-memory serialization and code generator for CPU and GPU",
     author="Riccardo De Maria",
@@ -24,4 +32,7 @@ setup(
             "Documentation": 'https://xsuite.readthedocs.io/',
             "Source Code": "https://github.com/xsuite/xobjects",
         },
+    extras_require={
+        'tests': ['pytest'],
+    },
 )

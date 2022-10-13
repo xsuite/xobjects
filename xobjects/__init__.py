@@ -33,3 +33,5 @@ from .typeutils import context_default, get_a_buffer
 from .hybrid_class import JEncoder, HybridClass, MetaHybridClass, ThisClass
 
 from .linkedarray import BypassLinked
+
+from ._version import __version__

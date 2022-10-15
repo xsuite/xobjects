@@ -29,14 +29,20 @@ def allocate_on_buffer(size, context=None, buffer=None, offset=None):
         if context is None:
             context = context_default
         buffer = context.new_buffer(size)
+    elif buffer.context is not context and context is not None:
+        raise ValueError(
+            f"Mismatched buffer ({buffer}) and context ({context})")
+
     if offset is None:
         offset = buffer.allocate(size)
     elif offset == "aligned":
         offset = buffer.allocate(size, align=True)
     elif offset == "packed":
         offset = buffer.allocate(size, align=False)
-    if isinstance(offset, str):
-        raise ValueError(f"Invalid offset {offset}")
+    else:
+        raise ValueError(
+            f"Value of `offset` can only be 'packed', 'aligned', or None"
+        )
     return buffer, offset
 
 

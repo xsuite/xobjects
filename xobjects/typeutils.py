@@ -39,10 +39,9 @@ def allocate_on_buffer(size, context=None, buffer=None, offset=None):
         offset = buffer.allocate(size, align=True)
     elif offset == "packed":
         offset = buffer.allocate(size, align=False)
-    else:
-        raise ValueError(
-            f"Value of `offset` can only be 'packed', 'aligned', or None"
-        )
+
+    # if offset is provided by the user we assume that we can write there
+
     return buffer, offset
 
 

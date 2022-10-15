@@ -71,7 +71,10 @@ Types can be composed of:
   - [ dynamic-fieldn ]
 
 ### Array:
-- example: array f64 d1 d2 d3 'C' ; array i64 d1 : d3 'F' ;
+- example: 'array' 'f64' d1 d2 d3 'C' ; 'array' 'i64' d1 ':' d3 'F' ;
+- where:
+   - 'C'/'F' is C-contiguos or F-contiguous
+   - d1, d2, .. are the dimensions for each axis and ':' means not specified
 - create: Array(d1,d2,...) or Array([...]) or Array(np-array)
 - memory layout:
   - [size] if not _is_static_shape or not _is_static_type

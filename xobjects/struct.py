@@ -304,7 +304,7 @@ class Struct(metaclass=MetaStruct):
 
     @classmethod
     def _to_buffer(cls, buffer, offset, value, info=None):
-        if isinstance(value, cls):  # binary copy
+        if isinstance(value, cls) and not cls._has_refs:  # binary copy
             buffer.update_from_xbuffer(
                 offset, value._buffer, value._offset, value._size
             )

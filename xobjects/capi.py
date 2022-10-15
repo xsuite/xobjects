@@ -130,11 +130,11 @@ def Index_get_c_offset(part, conf, icount):
     else:
         nd = len(cls._shape)
         strides = []
-        stride_offset = 8 + nd * 8
         for ii in range(nd):
-            sname = f"{inttype} {cls.__name__}_s{ii}"
+            stride_offset = 8 + (len(cls._dshape_idx) * 8) + (ii * 8)
+            sname = f"{cls.__name__}_s{ii}"
             svalue = int_from_obj(f"offset+{stride_offset}", conf)
-            out.append(f"{sname}={svalue};")
+            out.append(f"  {inttype} {sname}={svalue};")
             strides.append(sname)
 
     soffset = "+".join([f"i{ii+icount}*{ss}" for ii, ss in enumerate(strides)])
@@ -143,7 +143,8 @@ def Index_get_c_offset(part, conf, icount):
     if cls._is_static_type:
         out.append(f"  offset+={soffset};")
     else:
-        out.append(int_from_obj(f"offset+{soffset}", conf))
+        lookup_field_offset = f"offset+{soffset}"
+        out.append(f"  offset={int_from_obj(lookup_field_offset, conf)};")
     return out
 
 
@@ -163,6 +164,7 @@ def gen_method_offset(path, conf):
             soffset = Ref_get_c_offset(part, conf)
         else:
             soffset = None
+
         if type(soffset) is int:
             offset += soffset
         elif type(soffset) is list:
@@ -202,7 +204,7 @@ def gen_fun_kernel(cls, path, action, const, extra, ret, add_nindex=False):
 def gen_c_pointed(target: Arg, conf):
     size = gen_c_size_from_arg(target, conf)
     ret = gen_c_type_from_arg(target, conf)
-    if target.pointer or is_compound(target.atype):
+    if target.pointer or is_compound(target.atype) or is_string(target.atype):
         chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
         return f"({ret})(({chartype}) obj+offset)"
     else:
@@ -310,16 +312,17 @@ def gen_method_len(cls, path, conf):
         arrarg = Arg(Int64, pointer=True)
         pointed = gen_c_pointed(arrarg, conf)
         typearr = gen_pointer("int64_t*", conf)
-        lst.append(f"  {typearr} arr= {pointed};")
+        lst.append(f"  {typearr} arr = {pointed};")
+        dim_len_idx = 1
         terms = []
-        ii = 1
-        for sh in lasttype._shape:
-            if sh is None:
-                terms.append(f"arr[{ii}]")
+        for dim_len in lasttype._shape:
+            if dim_len:
+                terms.append(str(dim_len))
             else:
-                terms.append(str(sh))
-        terms = "*".join(terms)
-        lst.append(f"  return {terms};")
+                terms.append(f"arr[{dim_len_idx}]")
+                dim_len_idx += 1
+        length_expr = "*".join(terms)
+        lst.append(f"  return {length_expr};")
     lst.append("}")
     return "\n".join(lst), kernel
 

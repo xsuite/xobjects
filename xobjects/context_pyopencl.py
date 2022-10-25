@@ -383,23 +383,23 @@ class BufferPyopencl(XBuffer):
             self.context.queue,
             self.buffer,
             source,
-            src_offset,
-            dest_offset,
-            byte_count,
+            src_offset=src_offset,
+            dst_offset=dest_offset,
+            byte_count=byte_count,
         )
 
     def write(self, offset, data):
         # From python object with buffer interface on cpu
         # log.debug(f"write {self} {offset} {data}")
         cl.enqueue_copy(
-            self.context.queue, self.buffer, data, device_offset=offset
+            self.context.queue, self.buffer, data, src_offset=offset
         )
 
     def read(self, offset, size):
         # To bytearray on cpu
         data = bytearray(size)
         cl.enqueue_copy(
-            self.context.queue, data, self.buffer, device_offset=offset
+            self.context.queue, data, self.buffer, src_offset=offset
         )
         return data
 
@@ -412,7 +412,7 @@ class BufferPyopencl(XBuffer):
             self.buffer,
             source,
             src_offset=source_offset,
-            dest_offset=offset,
+            dst_offset=offset,
             byte_count=nbytes,
         )
 
@@ -446,7 +446,7 @@ class BufferPyopencl(XBuffer):
             queue=self.context.queue,
             dest=self.buffer,
             src=source,  # nbytes taken from min(len(source),len(buffer))
-            device_offset=offset,
+            dst_offset=offset,
         )
 
     def to_nplike(self, offset, dtype, shape):
@@ -471,7 +471,7 @@ class BufferPyopencl(XBuffer):
             queue=self.context.queue,
             dest=data,  # nbytes taken from min(len(data),len(buffer))
             src=self.buffer,
-            device_offset=offset,
+            src_offset=offset,
         )
         return data
 

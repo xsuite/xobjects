@@ -51,7 +51,11 @@ openclheader = [
 typedef long int64_t;
 typedef char int8_t;
 typedef unsigned int uint32_t;
-#endif"""
+#endif
+#ifndef NULL
+#define NULL 0L
+#endif
+"""
 ]
 
 if _enabled:

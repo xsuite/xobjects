@@ -84,14 +84,16 @@ def get_shape_from_array(value, nd):
     elif hasattr(value, "__len__"):
         shape = (len(value),)
         if len(value) > 0 and nd > 1:
-            shape0 = get_shape_from_array(value[0], nd-1)
+            shape0 = get_shape_from_array(value[0], nd - 1)
             if shape0 == ():
                 return shape
             for i in value[1:]:
-                shapei = get_shape_from_array(i, nd-1)
+                shapei = get_shape_from_array(i, nd - 1)
                 if shapei != shape0:
-                    raise ValueError(f"{value} does not have a "
-                                     f"consistent shape in dimension {nd}")
+                    raise ValueError(
+                        f"{value} does not have a "
+                        f"consistent shape in dimension {nd}"
+                    )
             return shape + shape0
         else:
             return shape
@@ -305,7 +307,7 @@ class Array(metaclass=MetaArray):
             if len(args) == 0:
                 value = None
             elif len(args) == 1:
-                shape = get_shape_from_array(args[0],len(cls._shape))
+                shape = get_shape_from_array(args[0], len(cls._shape))
                 if shape != cls._shape:
                     raise ValueError(f"shape not valid for {args[0]} ")
                 value = args[0]
@@ -580,6 +582,21 @@ class Array(metaclass=MetaArray):
                     + get_offset(index, self._strides)
                 )
             cls._itemtype._to_buffer(self._buffer, offset, value)
+
+    def _update(self, value):
+        if is_integer(value):
+            ll = value
+        else:
+            ll = len(value)
+        if len(self) == ll:
+            self.__class__._to_buffer(self._buffer, self._offset, value)
+        else:
+            if is_integer(value):
+                raise ValueError(f"Cannot specify new length {ll} for {self}")
+            else:
+                raise ValueError(
+                    f"len({value})={ll} is incompatible with len({self})={len(self)}"
+                )
 
     def _get_offset(self, index):
         if isinstance(index, (int, np.integer)):

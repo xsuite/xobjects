@@ -581,6 +581,19 @@ class Array(metaclass=MetaArray):
                 )
             cls._itemtype._to_buffer(self._buffer, offset, value)
 
+    def _update(self,value):
+        if is_integer(value):
+            ll=value
+        else:
+            ll=len(value)
+        if len(self)==ll:
+               self.__class__._to_buffer(self._buffer,self._offset,value)
+        else:
+            if is_integer(value):
+                raise ValueError(f"Cannot specify new length {ll} for {self}")
+            else:
+                raise ValueError(f"len({value})={ll} is incompatible with len({self})={len(self)}")
+
     def _get_offset(self, index):
         if isinstance(index, (int, np.integer)):
             index = (index,)

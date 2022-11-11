@@ -234,3 +234,19 @@ def test_init_with_nparray2d():
     m=Mys(m1=np.ones((6,6))*3,m0=np.ones(6) )
     assert m.m1[3,4]==3
     assert m.m0[3]==1
+
+def test_update():
+    class A(xo.Struct):
+       a=xo.Float64[:]
+       b=xo.Float64[10]
+
+    a=A(a=3)
+    with pytest.raises(Exception) as e:
+        a.a=2
+        assert e.type == ValueError
+
+    with pytest.raises(Exception) as e:
+        a.a=[1,2]
+        assert e.type == ValueError
+
+    a.a=[1,2,3]

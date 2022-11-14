@@ -4,6 +4,7 @@
 # ########################################### #
 
 import xobjects as xo
+from xobjects.test_helpers import for_all_test_contexts
 
 
 def test_string_class():
@@ -29,21 +30,21 @@ def test_string_init2():
     assert ss.to_str() == "test"
 
 
-def test_string_init3():
-    for ctx in xo.context.get_test_contexts():
-        ss = xo.String("test", _context=ctx)
-        assert xo.String._from_buffer(ss._buffer, ss._offset) == "test"
+@for_all_test_contexts
+def test_string_init3(test_context):
+    ss = xo.String("test", _context=test_context)
+    assert xo.String._from_buffer(ss._buffer, ss._offset) == "test"
 
-def test_string_array():
+
+@for_all_test_contexts
+def test_string_array(test_context):
     import numpy as np
-    StringArray=xo.String[:]
-    pdata=["asd","as"]
-    npdata=np.array(pdata)
-    for ctx in xo.context.get_test_contexts():
-        xobj=StringArray(npdata,_context=ctx)
-        assert npdata[1]==xobj[1]
-    for ctx in xo.context.get_test_contexts():
-        xobj=StringArray(pdata,_context=ctx)
-        assert pdata[1]==xobj[1]
+    StringArray = xo.String[:]
+    pdata = ["asd", "as"]
+    npdata = np.array(pdata)
 
+    xobj = StringArray(npdata, _context=test_context)
+    assert npdata[1] == xobj[1]
 
+    xobj = StringArray(pdata, _context=test_context)
+    assert pdata[1] == xobj[1]

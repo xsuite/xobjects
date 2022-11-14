@@ -31,7 +31,8 @@ def allocate_on_buffer(size, context=None, buffer=None, offset=None):
         buffer = context.new_buffer(size)
     elif buffer.context is not context and context is not None:
         raise ValueError(
-            f"Mismatched buffer ({buffer}) and context ({context})")
+            f"Mismatched buffer ({buffer}) and context ({context})"
+        )
 
     if offset is None:
         offset = buffer.allocate(size)

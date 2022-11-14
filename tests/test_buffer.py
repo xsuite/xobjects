@@ -6,6 +6,7 @@
 import numpy as np
 
 import xobjects as xo
+from xobjects.test_helpers import for_all_test_contexts, requires_context
 
 
 class Check:
@@ -44,110 +45,102 @@ class Check:
             assert self.buffer.to_bytearray(offset, len(value)) == value
 
 
+@requires_context('ContextPyopencl')
 def test_cl_print_devices():
     xo.ContextPyopencl.print_devices()
 
 
+@requires_context('ContextPyopencl')
 def test_cl_init():
-    ctx = xo.ContextPyopencl(device="0.0")
+    _ = xo.ContextPyopencl(device="0.0")
 
 
-def test_new_buffer():
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
-        buff1 = ctx.new_buffer()
-        buff2 = ctx.new_buffer(capacity=200)
+@for_all_test_contexts
+def test_new_buffer(test_context):
+    _ = test_context.new_buffer()
+    _ = test_context.new_buffer(capacity=200)
 
 
-def test_read_write():
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
-        buff = ctx.new_buffer()
-        bb = b"asdfasdfafsdf"
-        buff.update_from_buffer(23, bb)
-        assert buff.to_bytearray(23, len(bb)) == bb
+@for_all_test_contexts
+def test_read_write(test_context):
+    buff = test_context.new_buffer()
+    bb = b"asdfasdfafsdf"
+    buff.update_from_buffer(23, bb)
+    assert buff.to_bytearray(23, len(bb)) == bb
 
 
-def test_to_from_byterarray():
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
-        buff = ctx.new_buffer()
-        bb = b"asdfasdfafsdf"
-        buff.update_from_buffer(23, bb)
-        assert buff.to_bytearray(23, len(bb)) == bb
+@for_all_test_contexts
+def test_to_from_byterarray(test_context):
+    buff = test_context.new_buffer()
+    bb = b"asdfasdfafsdf"
+    buff.update_from_buffer(23, bb)
+    assert buff.to_bytearray(23, len(bb)) == bb
 
 
-def test_allocate_simple():
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
-        ch = Check(ctx, 200)
-        ch.new_string(30)
+@for_all_test_contexts
+def test_allocate_simple(test_context):
+    ch = Check(test_context, 200)
+    ch.new_string(30)
+    ch.check()
+
+
+@for_all_test_contexts
+def test_free_simple(test_context):
+    ch = Check(test_context, 200)
+    offsets = [ch.new_string(ii * 2 + 1) for ii in range(10)]
+    print(offsets)
+    for offset in offsets:
+        print(offset)
+        ch.free_string(offset)
         ch.check()
 
 
-def test_free_simple():
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
-        ch = Check(ctx, 200)
-        offsets = [ch.new_string(ii * 2 + 1) for ii in range(10)]
-        print(offsets)
-        for offset in offsets:
-            print(offset)
-            ch.free_string(offset)
-            ch.check()
+@for_all_test_contexts
+def test_grow(test_context):
+    ch = Check(test_context, 200)
+    st = ch.new_string(150)
+    st = ch.new_string(60)
+    ch.check()
+    assert ch.buffer.capacity == 400
+    assert ch.buffer.chunks[0].start == st + 60
+    assert ch.buffer.chunks[0].end == 400
+    st = ch.new_string(500)
+    assert ch.buffer.capacity == 900 + ch.buffer.default_alignment - 1
+    ch.check()
 
 
-def test_grow():
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
-        ch = Check(ctx, 200)
-        st = ch.new_string(150)
-        st = ch.new_string(60)
-        ch.check()
-        assert ch.buffer.capacity == 400
-        assert ch.buffer.chunks[0].start == st + 60
-        assert ch.buffer.chunks[0].end == 400
-        st = ch.new_string(500)
-        assert ch.buffer.capacity == 900 + ch.buffer.default_alignment - 1
+@for_all_test_contexts
+def test_random_string(test_context):
+    ch = Check(test_context, 200)
+
+    for i in range(50):
+        ch.random_string(maxlength=2000)
         ch.check()
 
-
-def test_random_string():
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
-        ch = Check(ctx, 200)
-
-        for i in range(50):
-            ch.random_string(maxlength=2000)
-            ch.check()
-
-        for i in range(50):
-            ch.random_string(maxlength=2000)
-            ch.check()
-            ch.random_free()
-            ch.check()
+    for i in range(50):
+        ch.random_string(maxlength=2000)
+        ch.check()
+        ch.random_free()
+        ch.check()
 
 
-def test_nplike():
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
-        buff = ctx.new_buffer(capacity=80)
-        arr = np.arange(6.0).reshape((2, 3))
-        offset = 3
-        buff.update_from_buffer(offset, arr.tobytes())
-        arr2 = buff.to_nplike(offset, "float64", (2, 3))
-        arr3 = ctx.nparray_from_context_array(arr2)
-        assert np.all(arr == arr3)
+@for_all_test_contexts
+def test_nplike(test_context):
+    buff = test_context.new_buffer(capacity=80)
+    arr = np.arange(6.0).reshape((2, 3))
+    offset = 3
+    buff.update_from_buffer(offset, arr.tobytes())
+    arr2 = buff.to_nplike(offset, "float64", (2, 3))
+    arr3 = test_context.nparray_from_context_array(arr2)
+    assert np.all(arr == arr3)
 
 
+@requires_context('ContextPyopencl')
+@requires_context('ContextCupy')
 def test_type_matrix():
-    try:
-        import pyopencl
-        import cupy
-    except ImportError:
-        return
-
+    import cupy
     import numpy as np
+    import pyopencl
 
     sources = []
     sources.append(bytearray(24))
@@ -155,16 +148,12 @@ def test_type_matrix():
     sources.append(np.zeros((6, 4), dtype="double"))
     sources.append(np.zeros((6, 2, 4), dtype="double")[:, 1, :])
 
-    try:
-        import pyopencl
-        import pyopencl.array
+    import pyopencl.array
 
-        ctx = pyopencl.create_some_context(0)
-        queue = pyopencl.CommandQueue(ctx)
-        sources.append(pyopencl.Buffer(ctx, pyopencl.mem_flags.READ_WRITE, 24))
-        sources.append(pyopencl.array.Array(queue, shape=24, dtype="uint8"))
-        sources.append(
-            pyopencl.array.Array(queue, shape=(6, 2, 4), dtype="uint8")
-        )[:, 1, :]
-    except:
-        pass
+    ctx = pyopencl.create_some_context(0)
+    queue = pyopencl.CommandQueue(ctx)
+    sources.append(pyopencl.Buffer(ctx, pyopencl.mem_flags.READ_WRITE, 24))
+    sources.append(pyopencl.array.Array(queue, shape=24, dtype="uint8"))
+    sources.append(
+        pyopencl.array.Array(queue, shape=(6, 2, 4), dtype="uint8")[:, 1, :]
+    )

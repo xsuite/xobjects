@@ -4,8 +4,7 @@
 # ########################################### #
 
 import xobjects as xo
-
-from xobjects.typeutils import Info
+from xobjects.test_helpers import for_all_test_contexts
 
 
 def test_static_struct_def():
@@ -21,7 +20,8 @@ def test_static_struct_def():
     assert StructA.c.index == 2
 
 
-def test_static_struct():
+@for_all_test_contexts
+def test_static_struct(test_context):
     class StructA(xo.Struct):
         a = xo.Field(xo.Float64, default=3.5)
         b = xo.Int8
@@ -33,24 +33,22 @@ def test_static_struct():
     assert StructA.b.index == 1
     assert StructA.c.index == 2
 
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
+    s = StructA(_context=test_context)
 
-        s = StructA(_context=xo.ContextCpu())
+    assert s._size is not None
+    assert s.a == 3.5
+    assert s.b == 0
+    assert s.c == 0.0
 
-        assert s._size is not None
-        assert s.a == 3.5
-        assert s.b == 0
-        assert s.c == 0.0
-
-        s.a = 5.2
-        assert s.a == 5.2
-        s.c = 7
-        assert s.c == 7
-        s.b = -4
+    s.a = 5.2
+    assert s.a == 5.2
+    s.c = 7
+    assert s.c == 7
+    s.b = -4
 
 
-def test_nested_struct():
+@for_all_test_contexts
+def test_nested_struct(test_context):
     class StructB(xo.Struct):
         a = xo.Field(xo.Float64, default=3.5)
         b = xo.Field(xo.Int64, default=-4)
@@ -64,18 +62,16 @@ def test_nested_struct():
     assert StructB._size is not None
     assert StructC._size is not None
 
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
+    b = StructC(_context=test_context)
 
-        b = StructC(_context=ctx)
-
-        assert b._size is not None
-        assert b.a == 3.6
-        assert b.b.a == 3.5
-        assert b.b.c == 0
+    assert b._size is not None
+    assert b.a == 3.6
+    assert b.b.a == 3.5
+    assert b.b.c == 0
 
 
-def test_dynamic_struct():
+@for_all_test_contexts
+def test_dynamic_struct(test_context):
     class StructD(xo.Struct):
         a = xo.Field(xo.Float64, default=3.5)
         b = xo.Field(xo.String, default=10)
@@ -83,17 +79,15 @@ def test_dynamic_struct():
 
     assert StructD._size is None
 
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
-
-        d = StructD(b="this is a test", _context=ctx)
-        assert d._size is not None
-        assert d.a == 3.5
-        assert d.b == "this is a test"
-        assert d.c == -1
+    d = StructD(b="this is a test", _context=test_context)
+    assert d._size is not None
+    assert d.a == 3.5
+    assert d.b == "this is a test"
+    assert d.c == -1
 
 
-def test_dynamic_nested_struct():
+@for_all_test_contexts
+def test_dynamic_nested_struct(test_context):
     class StructE(xo.Struct):
         a = xo.Field(xo.Float64, default=3.5)
         b = xo.Field(xo.String, default=10)
@@ -116,17 +110,15 @@ def test_dynamic_nested_struct():
     assert info.size == 80
     assert info._offsets == {2: 32}
 
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
-
-        s = StructF(g={"b": "this is a test"}, _context=ctx)
-        assert s._size is not None
-        assert s.e == 3.5
-        assert s.f == 1.5
-        assert s.g.b == "this is a test"
+    s = StructF(g={"b": "this is a test"}, _context=test_context)
+    assert s._size is not None
+    assert s.e == 3.5
+    assert s.f == 1.5
+    assert s.g.b == "this is a test"
 
 
-def test_assign_full_struct():
+@for_all_test_contexts
+def test_assign_full_struct(test_context):
     class StructE(xo.Struct):
         a = xo.Field(xo.Float64, default=3.5)
         b = xo.Field(xo.String, default=10)
@@ -141,17 +133,14 @@ def test_assign_full_struct():
     assert StructE._size is None
     assert StructF._size is None
 
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
+    s = StructF(g={"b": "this is a test"}, _context=test_context)
+    assert s._size is not None
+    assert s.e == 3.5
+    assert s.f == 1.5
+    assert s.g.b == "this is a test"
 
-        s = StructF(g={"b": "this is a test"}, _context=ctx)
-        assert s._size is not None
-        assert s.e == 3.5
-        assert s.f == 1.5
-        assert s.g.b == "this is a test"
-
-        e = StructE(b="hello")
-        s.g = e
+    e = StructE(b="hello")
+    s.g = e
     # assert f.h==-1
 
 
@@ -202,10 +191,10 @@ def test_nestednested():
     class MyStructB(xo.Struct):
         s = MyStructA
 
-    b = MyStructB(s={'a':10, 'b':10})
+    b = MyStructB(s={'a': 10, 'b': 10})
 
-    assert b.s.a._size==96
-    assert b.s.b._size==96
-    assert b.s._size==208
-    assert b._size==216
+    assert b.s.a._size == 96
+    assert b.s.b._size == 96
+    assert b.s._size == 208
+    assert b._size == 216
 

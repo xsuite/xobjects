@@ -318,7 +318,11 @@ class XBuffer(ABC):
 
     @abstractmethod
     def to_nplike(self, offset, dtype, shape):
-        """Return a view in of an nplike"""
+        """Return a view in a nplike"""
+
+    @abstractmethod
+    def to_nparray(self, offset, dtype, shape):
+        """Return a view or copy in a numpy array"""
 
     @abstractmethod
     def update_from_nplike(self, offset, dest_dtype, value):

@@ -463,6 +463,9 @@ class BufferPyopencl(XBuffer):
             shape=tuple(shape),
         )
 
+    def to_nparray(self, offset, dtype, shape):
+        return self.to_nplike(offset, dtype, shape).get()
+
     def update_from_nplike(self, offset, dest_dtype, arr):
         if arr.dtype != dest_dtype:
             arr = arr.astype(dest_dtype)

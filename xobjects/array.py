@@ -631,6 +631,18 @@ class Array(metaclass=MetaArray):
         else:
             raise NotImplementedError
 
+    def to_nparray(self):
+        shape = self._shape
+        cshape = [shape[ii] for ii in self._order]
+        if hasattr(self._itemtype, "_dtype"):
+            arr = self._buffer.to_nparray(
+                self._offset + self._data_offset, self._itemtype._dtype, cshape
+            ).transpose(self._order)
+            assert arr.strides == self._strides
+            return arr
+        else:
+            raise NotImplementedError
+
     @classmethod
     def _gen_data_paths(cls, base=None):
         paths = []

@@ -114,3 +114,31 @@ def test_nplike_from_xoarray():
         a_nl = a_xo.to_nplike()
         a_nl[2, 3] = 5
         assert a_xo[2, 3] == 5
+
+def test_nparray_from_xoarray():
+    for ctx in xo.context.get_test_contexts():
+        print(f"Test {ctx}")
+
+        Array = xo.Float64[:]
+        a_xo = Array(10, _context=ctx)
+        a_xo[2] = 5
+        a_nl = a_xo.to_nparray()
+        assert a_nl[2] == 5
+
+        Array = xo.Float64[10]
+        a_xo = Array(_context=ctx)
+        a_xo[2] = 5
+        a_nl = a_xo.to_nparray()
+        assert a_nl[2] == 5
+
+        Array = xo.Float64[:, :]
+        a_xo = Array(10, 20, _context=ctx)
+        a_xo[2,3] = 5
+        a_nl = a_xo.to_nparray()
+        assert a_nl[2, 3] == 5
+
+        Array = xo.Float64[10, 20]
+        a_xo = Array(_context=ctx)
+        a_xo[2, 3] = 5
+        a_nl = a_xo.to_nparray()
+        assert a_nl[2, 3] == 5

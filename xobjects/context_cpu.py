@@ -462,7 +462,7 @@ class BufferByteArray(XBuffer):
             self.buffer, dtype=dtype, count=count, offset=offset
         ).reshape(*shape)
 
-    to_nparray=to_nplike
+    to_nparray = to_nplike
 
     def update_from_nplike(self, offset, dest_dtype, value):
         value = nplike_to_numpy(value)
@@ -516,7 +516,7 @@ class BufferNumpy(XBuffer):
             self.buffer, dtype=dtype, count=count, offset=offset
         ).reshape(*shape)
 
-    to_nparray=to_nplike
+    to_nparray = to_nplike
 
     def update_from_nplike(self, offset, dest_dtype, value):
         value = nplike_to_numpy(value)

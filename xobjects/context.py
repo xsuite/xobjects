@@ -449,7 +449,7 @@ def get_context_from_string(ctxstr):
     import xobjects as xo
 
     if ctxstr is None:
-        return xo.ContexCPU()
+        return xo.ContextCpu()
     else:
         ll = ctxstr.split(":")
         if len(ll) <= 1:

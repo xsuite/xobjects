@@ -133,27 +133,3 @@ def test_nplike(test_context):
     arr2 = buff.to_nplike(offset, "float64", (2, 3))
     arr3 = test_context.nparray_from_context_array(arr2)
     assert np.all(arr == arr3)
-
-
-@requires_context('ContextPyopencl')
-@requires_context('ContextCupy')
-def test_type_matrix():
-    import cupy
-    import numpy as np
-    import pyopencl
-
-    sources = []
-    sources.append(bytearray(24))
-    sources.append(np.zeros(24, dtype="uint8"))
-    sources.append(np.zeros((6, 4), dtype="double"))
-    sources.append(np.zeros((6, 2, 4), dtype="double")[:, 1, :])
-
-    import pyopencl.array
-
-    ctx = pyopencl.create_some_context(0)
-    queue = pyopencl.CommandQueue(ctx)
-    sources.append(pyopencl.Buffer(ctx, pyopencl.mem_flags.READ_WRITE, 24))
-    sources.append(pyopencl.array.Array(queue, shape=24, dtype="uint8"))
-    sources.append(
-        pyopencl.array.Array(queue, shape=(6, 2, 4), dtype="uint8")[:, 1, :]
-    )

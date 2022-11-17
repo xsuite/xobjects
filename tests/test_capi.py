@@ -5,13 +5,13 @@
 
 # pylint:disable=E1101
 
-import pytest
 import math
-import numpy as np
+
 import cffi
+import numpy as np
+import pytest
 
 import xobjects as xo
-
 
 ffi = cffi.FFI()
 
@@ -492,7 +492,7 @@ def test_getp1_dyn_length_dyn_type_array():
     kernels = ArrNArr._gen_kernels()
     kernels.update(ArrNUint8._gen_kernels())
     ctx = xo.ContextCpu()
-    ctx.add_kernels(kernels=kernels, save_source_as='test-int.c')
+    ctx.add_kernels(kernels=kernels)
 
     assert ctx.kernels.ArrNArrNUint8_len(obj=ary) == 2
 
@@ -508,7 +508,7 @@ def test_getp1_dyn_length_dyn_type_string_array():
 
     kernels = ArrNString._gen_kernels()
     ctx = xo.ContextCpu()
-    ctx.add_kernels(kernels=kernels, save_source_as='test.c')
+    ctx.add_kernels(kernels=kernels)
 
     assert ctx.kernels.ArrNString_len(obj=string_array) == 3
 

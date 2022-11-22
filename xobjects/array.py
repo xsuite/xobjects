@@ -683,6 +683,18 @@ class Array(metaclass=MetaArray):
     def _get_inner_types(cls):
         return [cls._itemtype]
 
+    def _to_json(self):
+        out = []
+        for v in self:
+            if hasattr(v, "_to_json"):
+                vdata = v._to_json()
+            else:
+                vdata = v
+            if self._has_refs and v is not None:
+                vdata = (v.__class__.__name__, vdata)
+            out.append(vdata)
+        return out
+
 
 def is_index(atype):
     return isinstance(atype, Index)

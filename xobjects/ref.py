@@ -295,6 +295,12 @@ class UnionRef(metaclass=MetaUnionRef):
     def _get_inner_types(cls):
         return cls._reftypes
 
+    def _to_json(self):
+        v=self.get()
+        if hasattr(v,'_to_json'):
+            v=v._to_json()
+        return (self.__class__.__name__,v)
+
 
 def is_ref(atype):
     return isinstance(atype, Ref)

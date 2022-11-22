@@ -370,6 +370,15 @@ class Struct(metaclass=MetaStruct):
     def _to_dict(self):
         return {field.name: field.__get__(self) for field in self._fields}
 
+    def _to_json(self):
+        out={}
+        for field in self._fields:
+            v=field.__get__(self)
+            if hasattr(v, '_to_json'):
+                v=v._to_json()
+            out[field.name]=v
+        return out
+
     def __iter__(self):
         for field in self._fields:
             yield field.name

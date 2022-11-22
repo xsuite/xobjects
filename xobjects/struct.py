@@ -371,12 +371,12 @@ class Struct(metaclass=MetaStruct):
         return {field.name: field.__get__(self) for field in self._fields}
 
     def _to_json(self):
-        out={}
+        out = {}
         for field in self._fields:
-            v=field.__get__(self)
-            if hasattr(v, '_to_json'):
-                v=v._to_json()
-            out[field.name]=v
+            v = field.__get__(self)
+            if hasattr(v, "_to_json"):
+                v = v._to_json()
+            out[field.name] = v
         return out
 
     def __iter__(self):

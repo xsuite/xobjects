@@ -296,10 +296,10 @@ class UnionRef(metaclass=MetaUnionRef):
         return cls._reftypes
 
     def _to_json(self):
-        v=self.get()
-        if hasattr(v,'_to_json'):
-            v=v._to_json()
-        return (self.__class__.__name__,v)
+        v = self.get()
+        if hasattr(v, "_to_json"):
+            v = v._to_json()
+        return (self.__class__.__name__, v)
 
 
 def is_ref(atype):

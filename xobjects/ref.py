@@ -131,21 +131,21 @@ class MetaUnionRef(type):
             if tt.__name__ == typ.__name__:
                 return ii
         # If no match found:
-        raise TypeError(f"{typ} is not memberof {cls}!")
+        raise TypeError(f"{typ} is not member of {cls}!")
 
     def _typeid_from_name(cls, name):
         for ii, tt in enumerate(cls._reftypes):
             if tt.__name__ == name:
                 return ii
         # If no match found:
-        raise TypeError(f"{name} is not memberof {cls}")
+        raise TypeError(f"{name} is not member of {cls}")
 
     def _type_from_name(cls, name):
         for tt in cls._reftypes:
             if tt.__name__ == name:
                 return tt
         # If no match found:
-        raise TypeError(f"{name} is not memberof {cls}")
+        raise TypeError(f"{name} is not member of {cls}")
 
     def _type_from_typeid(cls, typeid):
         for ii, tt in enumerate(cls._reftypes):
@@ -299,7 +299,7 @@ class UnionRef(metaclass=MetaUnionRef):
         v = self.get()
         if hasattr(v, "_to_json"):
             v = v._to_json()
-        return (self.__class__.__name__, v)
+        return (self.get().__class__.__name__, v)
 
 
 def is_ref(atype):

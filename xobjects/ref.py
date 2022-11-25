@@ -297,9 +297,10 @@ class UnionRef(metaclass=MetaUnionRef):
 
     def _to_json(self):
         v = self.get()
+        w = v
         if hasattr(v, "_to_json"):
-            v = v._to_json()
-        return (self.get().__class__.__name__, v)
+            w = v._to_json()
+        return (v.__class__.__name__, w)
 
 
 def is_ref(atype):

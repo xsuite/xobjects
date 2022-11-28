@@ -1,5 +1,27 @@
+import xobjects as xo
+
+
+
 def test_to_json():
-    import xobjects as xo
+
+    class A(xo.Struct):
+        a = xo.Float64[:]
+        b = xo.Int64
+
+    class Uref(xo.UnionRef):
+        _reftypes = (A,)
+
+    x = A(a=[2,3], b=1)
+    u = Uref(x)
+    v = Uref(*u._to_json())
+
+    assert v.get().a[0] == 2
+    assert v.get().a[1] == 3
+    assert v.get().b == 1
+
+
+
+def test_to_json_array():
 
     class A(xo.Struct):
         a = xo.Float64[:]

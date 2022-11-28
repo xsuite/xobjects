@@ -209,3 +209,15 @@ def test_nestednested():
     assert b.s._size==208
     assert b._size==216
 
+
+def test_copy_dynamic():
+    class MyStruct(xo.Struct):
+        a = xo.Float64
+        b = xo.Float64[:]
+        c = xo.Float64[:]
+    s1 = MyStruct(a=2, b=[3,4], c=[5,6])
+    s2 = MyStruct(s1)
+    assert s1.a==s2.a
+    assert s1.b[1]==s2.b[1]
+    s1.b[1]=33
+    assert s2.b[1]==4

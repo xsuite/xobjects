@@ -233,11 +233,9 @@ class MetaStruct(type):
                         info._offsets = offsets
                         if len(extra) > 0:
                             info.extra = extra
-                    elif isinstance(arg, cls):
+                    elif isinstance(arg, cls): #is the same size
                         info.size = arg._get_size()
-                        info._offsets = {
-                            kk: vv for kk, vv in arg._offsets.items()
-                        }
+                        info._offsets = arg._offsets
                     else:
                         raise ValueError(f"{arg} Not valid type for {cls}")
                 else:  # python argument

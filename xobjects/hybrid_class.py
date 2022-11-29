@@ -41,9 +41,13 @@ class _FieldOfDressed:
             self.__get__(container=container)[:] = value
         elif hasattr(value, "_xobject"):  # value is a dressed xobject
 
-            # Copy xobject from value inside self._xobject
-            # (unless Ref and same buffer, in which reference mechanism is used)
-            setattr(container._xobject, self.name, value._xobject)
+            # Copy xobject data from value inside self._xobject
+            # (unless same memory area or Ref and same buffer,
+            #  in the latter case reference mechanism is used)
+            if not (container._xobject._buffer is value._xobject._buffer and
+                    getattr(container._xobject, self.name)._offset
+                        == value._xobject._offset):
+                setattr(container._xobject, self.name, value._xobject)
 
             if isinstance(getattr(container._XoStruct, self.name).ftype, Ref):
                 if value._buffer is not container._buffer:

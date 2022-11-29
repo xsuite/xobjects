@@ -46,6 +46,8 @@ def gen_c_type_from_arg(arg: Arg, conf):
         cdec = "void"
     else:
         cdec = arg.atype._c_type
+        if cdec.endswith("*"):  # handle literal char*
+            cdec = f"{gpumem}{cdec}"
         if arg.pointer:
             cdec = f"{gpumem}{cdec}*"
         if arg.const:
@@ -264,6 +266,7 @@ def gen_method_getp(cls, path, conf):
         retarg = Arg(Void, pointer="True")
     else:
         retarg = Arg(lasttype)
+    #    if is_scalar(lasttype) or is_string(lasttype):
     if is_scalar(lasttype):
         retarg.pointer = True
 

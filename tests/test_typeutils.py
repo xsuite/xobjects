@@ -9,7 +9,6 @@ from xobjects.typeutils import allocate_on_buffer
 import pytest
 
 
-
 def test_allocate_on_buffer_ctx_none_buff_none_offset_none():
     buffer, offset = allocate_on_buffer(size=16)
     assert buffer.context.__class__ == xo.context_default.__class__
@@ -31,7 +30,9 @@ def test_allocate_on_buffer_ctx_none_buff_given_offset_none():
 
 def test_allocate_on_buffer_ctx_none_buff_given_offset_given():
     original_buffer = xo.context_default.new_buffer(16)
-    buffer, offset = allocate_on_buffer(size=16, buffer=original_buffer, offset=3)
+    buffer, offset = allocate_on_buffer(
+        size=16, buffer=original_buffer, offset=3
+    )
     assert buffer is original_buffer
     assert offset == 3
 
@@ -75,7 +76,7 @@ def test_allocate_on_buffer_ctx_given_buff_given_offset_none():
         )
 
 
-@pytest.mark.parametrize('input_offset', ['packed', 'aligned'])
+@pytest.mark.parametrize("input_offset", ["packed", "aligned"])
 def test_allocate_on_buffer_ctx_given_buff_given_offset_given_ok(input_offset):
     context = xo.ContextCpu()
     original_buffer = context.new_buffer(16)
@@ -94,10 +95,10 @@ def test_allocate_on_buffer_ctx_given_buff_given_offset_given():
     context = xo.ContextCpu()
     original_buffer = context.new_buffer(10000)
     buffer, offset = allocate_on_buffer(
-            size=32,
-            context=context,
-            buffer=original_buffer,
-            offset=1234,
-        )
+        size=32,
+        context=context,
+        buffer=original_buffer,
+        offset=1234,
+    )
     assert buffer is original_buffer
     assert offset == 1234

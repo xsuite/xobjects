@@ -233,7 +233,7 @@ class MetaStruct(type):
                         info._offsets = offsets
                         if len(extra) > 0:
                             info.extra = extra
-                    elif isinstance(arg, cls): #is the same size
+                    elif isinstance(arg, cls):  # is the same size
                         info.size = arg._get_size()
                         info._offsets = arg._offsets
                     else:

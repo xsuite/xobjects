@@ -160,7 +160,7 @@ def test_preinit():
             return (), kwargs
 
         def _post_init(self):
-            assert self.cx ** 2 + self.sx ** 2 == 1
+            assert self.cx**2 + self.sx**2 == 1
 
         def myprint(self):
             return self.cx, self.sx
@@ -191,7 +191,7 @@ def test_nestednested():
     class MyStructB(xo.Struct):
         s = MyStructA
 
-    b = MyStructB(s={'a': 10, 'b': 10})
+    b = MyStructB(s={"a": 10, "b": 10})
 
     assert b.s.a._size == 96
     assert b.s.b._size == 96
@@ -204,9 +204,10 @@ def test_copy_dynamic():
         a = xo.Float64
         b = xo.Float64[:]
         c = xo.Float64[:]
-    s1 = MyStruct(a=2, b=[3,4], c=[5,6])
+
+    s1 = MyStruct(a=2, b=[3, 4], c=[5, 6])
     s2 = MyStruct(s1)
-    assert s1.a==s2.a
-    assert s1.b[1]==s2.b[1]
-    s1.b[1]=33
-    assert s2.b[1]==4
+    assert s1.a == s2.a
+    assert s1.b[1] == s2.b[1]
+    s1.b[1] = 33
+    assert s2.b[1] == 4

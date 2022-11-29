@@ -238,25 +238,29 @@ def test_unionref():
         b = xo.Float64
         h = xo.Float64
 
-        _extra_c_sources = ["""
+        _extra_c_sources = [
+            """
             /*gpufun*/
             double Triangle_compute_area(Triangle tr, double scale){
                 double b = Triangle_get_b(tr);
                 double h = Triangle_get_h(tr);
                 return 0.5*b*h*scale;
             }
-            """]
+            """
+        ]
 
     class Square(xo.Struct):
         a = xo.Float64
 
-        _extra_c_sources = ["""
+        _extra_c_sources = [
+            """
             /*gpufun*/
             double Square_compute_area(Square sq, double scale){
                 double a = Square_get_a(sq);
                 return a*a*scale;
             }
-            """]
+            """
+        ]
 
     class Base(xo.UnionRef):
         _reftypes = (Triangle, Square)
@@ -273,7 +277,8 @@ def test_unionref():
         height = xo.Float64
         volume = xo.Float64
 
-        _extra_c_sources = ["""
+        _extra_c_sources = [
+            """
             /*gpukern*/
             void Prism_compute_volume(Prism pr){
                 Base base = Prism_getp_base(pr);
@@ -282,7 +287,8 @@ def test_unionref():
                 printf("base_area = %e", base_area);
                 Prism_set_volume(pr, base_area*height);
             }
-            """]
+            """
+        ]
 
     for context in xo.context.get_test_contexts():
         print(f"Test {context}")
@@ -308,22 +314,26 @@ def test_unionref():
 
         assert prism_triangle._has_refs
 
-def test_has_refs():
 
+def test_has_refs():
     class StructWRef(xo.Struct):
         a = xo.Ref(xo.Float64[:])
+
     assert StructWRef._has_refs
 
     class StructNoRef(xo.Struct):
         a = xo.Float64[:]
+
     assert not StructNoRef._has_refs
 
     class NestedWRef(xo.Struct):
         s = StructWRef
+
     assert NestedWRef._has_refs
 
     class NestedNoRef(xo.Struct):
         s = StructNoRef
+
     assert not NestedNoRef._has_refs
 
     ArrNoRef = xo.Float64[:]
@@ -334,10 +344,12 @@ def test_has_refs():
 
     class StructArrRef(xo.Struct):
         arr = ArrWRef
+
     assert StructArrRef._has_refs
 
     class StructArrNoRef(xo.Struct):
         arr = ArrNoRef
+
     assert not StructArrNoRef._has_refs
 
     ArrOfStructRef = NestedWRef[:]
@@ -345,5 +357,5 @@ def test_has_refs():
 
     class MyUnion(xo.UnionRef):
         _ref = [xo.Float64, xo.Int32]
-    assert MyUnion._has_refs
 
+    assert MyUnion._has_refs

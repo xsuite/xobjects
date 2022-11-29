@@ -34,16 +34,16 @@ def test_string_init3():
         ss = xo.String("test", _context=ctx)
         assert xo.String._from_buffer(ss._buffer, ss._offset) == "test"
 
+
 def test_string_array():
     import numpy as np
-    StringArray=xo.String[:]
-    pdata=["asd","as"]
-    npdata=np.array(pdata)
-    for ctx in xo.context.get_test_contexts():
-        xobj=StringArray(npdata,_context=ctx)
-        assert npdata[1]==xobj[1]
-    for ctx in xo.context.get_test_contexts():
-        xobj=StringArray(pdata,_context=ctx)
-        assert pdata[1]==xobj[1]
 
-
+    StringArray = xo.String[:]
+    pdata = ["asd", "as"]
+    npdata = np.array(pdata)
+    for ctx in xo.context.get_test_contexts():
+        xobj = StringArray(npdata, _context=ctx)
+        assert npdata[1] == xobj[1]
+    for ctx in xo.context.get_test_contexts():
+        xobj = StringArray(pdata, _context=ctx)
+        assert pdata[1] == xobj[1]

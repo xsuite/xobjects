@@ -115,6 +115,22 @@ def test_nplike_from_xoarray():
         a_nl[2, 3] = 5
         assert a_xo[2, 3] == 5
 
+        Array = xo.Int8[2:1, 3:0, 4:2]
+        a_xo = Array(_context=ctx)
+        assert a_xo._strides == (4, 8, 1)
+
+        j = 0
+        for i0, i1, i2 in np.ndindex(2, 3, 4):
+            a_xo[i0, i1, i2] = j
+            j += 1
+
+        result = a_xo.to_nplike()
+        expected = np.arange(2 * 3 * 4, dtype='int8').reshape((2, 3, 4))
+
+        assert np.all(result == expected)
+        assert result.strides == (4, 8, 1)
+
+
 def test_nparray_from_xoarray():
     for ctx in xo.context.get_test_contexts():
         print(f"Test {ctx}")
@@ -133,7 +149,7 @@ def test_nparray_from_xoarray():
 
         Array = xo.Float64[:, :]
         a_xo = Array(10, 20, _context=ctx)
-        a_xo[2,3] = 5
+        a_xo[2, 3] = 5
         a_nl = a_xo.to_nparray()
         assert a_nl[2, 3] == 5
 
@@ -142,3 +158,18 @@ def test_nparray_from_xoarray():
         a_xo[2, 3] = 5
         a_nl = a_xo.to_nparray()
         assert a_nl[2, 3] == 5
+
+        Array = xo.Int8[2:1, 3:0, 4:2]
+        a_xo = Array(_context=ctx)
+        assert a_xo._strides == (4, 8, 1)
+
+        j = 0
+        for i0, i1, i2 in np.ndindex(2, 3, 4):
+            a_xo[i0, i1, i2] = j
+            j += 1
+
+        result = a_xo.to_nparray()
+        expected = np.arange(2 * 3 * 4, dtype='int8').reshape((2, 3, 4))
+
+        assert np.all(result == expected)
+        assert result.strides == (4, 8, 1)

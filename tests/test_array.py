@@ -250,3 +250,28 @@ def test_update():
         assert e.type == ValueError
 
     a.a = [1, 2, 3]
+
+
+def test_array_custom_strides():
+    for ctx in xo.context.get_test_contexts():
+        Array = xo.Int8[2:1, 3:0, 4:2]
+        a_xo = Array(_context=ctx)
+
+        assert a_xo._strides == (4, 8, 1)
+
+        for i0, i1, i2 in np.ndindex(2, 3, 4):
+            a_xo[i0, i1, i2] = (i0 * 3 + i1) * 4 + i2
+
+        assert np.all(a_xo._buffer.buffer == [
+            0, 1, 2, 3,
+            12, 13, 14, 15,
+            4, 5, 6, 7,
+            16, 17, 18, 19,
+            8, 9, 10, 11,
+            20, 21, 22, 23,
+        ])
+
+        j = 0
+        for i0, i1, i2 in np.ndindex(2, 3, 4):
+            assert a_xo[i0, i1, i2] == j
+            j += 1

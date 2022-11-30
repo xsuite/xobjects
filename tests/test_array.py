@@ -263,15 +263,39 @@ def test_array_custom_strides(test_context):
         j += 1
 
     buffer_contents = a_xo._buffer.to_bytearray(
-        offset=0, nbytes=a_xo._buffer.capacity)
-    assert np.all(buffer_contents == bytearray([
-        0, 1, 2, 3,
-        12, 13, 14, 15,
-        4, 5, 6, 7,
-        16, 17, 18, 19,
-        8, 9, 10, 11,
-        20, 21, 22, 23,
-    ]))
+        offset=0, nbytes=a_xo._buffer.capacity
+    )
+    assert np.all(
+        buffer_contents
+        == bytearray(
+            [
+                0,
+                1,
+                2,
+                3,
+                12,
+                13,
+                14,
+                15,
+                4,
+                5,
+                6,
+                7,
+                16,
+                17,
+                18,
+                19,
+                8,
+                9,
+                10,
+                11,
+                20,
+                21,
+                22,
+                23,
+            ]
+        )
+    )
 
     j = 0
     for i0, i1, i2 in np.ndindex(2, 3, 4):

@@ -44,9 +44,11 @@ class _FieldOfDressed:
             # Copy xobject data from value inside self._xobject
             # (unless same memory area or Ref and same buffer,
             #  in the latter case reference mechanism is used)
-            if not (container._xobject._buffer is value._xobject._buffer and
-                    getattr(container._xobject, self.name)._offset
-                        == value._xobject._offset):
+            if not (
+                container._xobject._buffer is value._xobject._buffer
+                and getattr(container._xobject, self.name)._offset
+                == value._xobject._offset
+            ):
                 setattr(container._xobject, self.name, value._xobject)
 
             if isinstance(getattr(container._XoStruct, self.name).ftype, Ref):

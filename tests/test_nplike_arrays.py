@@ -47,7 +47,7 @@ def test_ffts(test_context):
 
 
 @for_all_test_contexts
-@pytest.mark.parametrize('order', ('C', 'F'))
+@pytest.mark.parametrize("order", ("C", "F"))
 def test_slicing(order, test_context):
     n_x = 100
     a_host = np.array(np.random.rand(n_x, n_x), order=order)
@@ -59,16 +59,12 @@ def test_slicing(order, test_context):
     assert np.allclose(b_host, a_host[: n_x // 2, : n_x // 3])
 
     # Test copy and setattr
-    c_dev = a_dev.copy()[
-        : n_x // 2, : n_x // 3
-    ]  # Non-countiguous array
+    c_dev = a_dev.copy()[: n_x // 2, : n_x // 3]  # Non-countiguous array
     c_dev[: n_x // 2 // 2, : n_x // 3 // 2] = (
         b_dev[: n_x // 2 // 2, : n_x // 3 // 2].copy() * 3
     )
 
-    c_host = a_host.copy()[
-        : n_x // 2, : n_x // 3
-    ]  # Non-countiguous array
+    c_host = a_host.copy()[: n_x // 2, : n_x // 3]  # Non-countiguous array
     c_host[: n_x // 2 // 2, : n_x // 3 // 2] = (
         b_host[: n_x // 2 // 2, : n_x // 3 // 2].copy() * 3
     )
@@ -118,7 +114,7 @@ def test_nplike_from_xoarray(test_context):
         j += 1
 
     result = a_xo.to_nplike()
-    expected = np.arange(2 * 3 * 4, dtype='int8').reshape((2, 3, 4))
+    expected = np.arange(2 * 3 * 4, dtype="int8").reshape((2, 3, 4))
 
     for i0, i1, i2 in np.ndindex(2, 3, 4):
         assert result[i0, i1, i2] == expected[i0, i1, i2]
@@ -161,7 +157,7 @@ def test_nparray_from_xoarray(test_context):
         j += 1
 
     result = a_xo.to_nparray()
-    expected = np.arange(2 * 3 * 4, dtype='int8').reshape((2, 3, 4))
+    expected = np.arange(2 * 3 * 4, dtype="int8").reshape((2, 3, 4))
 
     assert np.all(result == expected)
     assert result.strides == (4, 8, 1)

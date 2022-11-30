@@ -76,12 +76,12 @@ def test_linked_arrays(test_context):
     assert np.all(ctx2np(m.asq) == np.array([64, 100, 144]))
 
     m.a = np2ctx(np.array([1, 2, 3]))
-    m.a = m.a ** 2 + 1
+    m.a = m.a**2 + 1
     assert np.all(ctx2np(m.a) == np.array([2, 5, 10]))
     assert np.all(ctx2np(m.asq) == np.array([4, 25, 100]))
 
     if not (
-            isinstance(test_context, xo.ContextPyopencl)
+        isinstance(test_context, xo.ContextPyopencl)
     ):  # masking not working
         m.a = np2ctx(np.array([4, -5, 6]))
         m.a[m.a < 0] += m.a[:1]

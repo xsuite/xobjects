@@ -39,6 +39,7 @@ def test_string_init3(test_context):
 @for_all_test_contexts
 def test_string_array(test_context):
     import numpy as np
+
     StringArray = xo.String[:]
     pdata = ["asd", "as"]
     npdata = np.array(pdata)

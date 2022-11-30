@@ -45,12 +45,12 @@ class Check:
             assert self.buffer.to_bytearray(offset, len(value)) == value
 
 
-@requires_context('ContextPyopencl')
+@requires_context("ContextPyopencl")
 def test_cl_print_devices():
     xo.ContextPyopencl.print_devices()
 
 
-@requires_context('ContextPyopencl')
+@requires_context("ContextPyopencl")
 def test_cl_init():
     _ = xo.ContextPyopencl(device="0.0")
 

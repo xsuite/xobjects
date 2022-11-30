@@ -69,7 +69,7 @@ class URef(xo.UnionRef):
 
 
 @pytest.mark.parametrize(
-    'array_cls, example_shape',
+    "array_cls, example_shape",
     [
         (xo.Int64[2], (2,)),
         (xo.Int64[:], (2,)),
@@ -81,7 +81,7 @@ class URef(xo.UnionRef):
         (xo.Int64[2, 3, 5], (2, 3, 5)),
         (xo.Int64[:, 3, :], (2, 3, 5)),
         (xo.Int64[5, :, 2], (5, 13, 2)),
-    ]
+    ],
 )
 def test_array_static_type_init_get_set(array_cls, example_shape):
     c_name = array_cls.__name__
@@ -95,13 +95,13 @@ def test_array_static_type_init_get_set(array_cls, example_shape):
 
     a2 = array_cls(ini)
 
-    len_fun = getattr(ctx.kernels, f'{c_name}_len')
-    get_fun = getattr(ctx.kernels, f'{c_name}_get')
-    set_fun = getattr(ctx.kernels, f'{c_name}_set')
+    len_fun = getattr(ctx.kernels, f"{c_name}_len")
+    get_fun = getattr(ctx.kernels, f"{c_name}_get")
+    set_fun = getattr(ctx.kernels, f"{c_name}_set")
 
     assert len_fun(obj=a2) == length
     for ii, vv in np.ndenumerate(ini):
-        idx_kwargs = {f'i{dim}': jj for dim, jj in enumerate(ii)}
+        idx_kwargs = {f"i{dim}": jj for dim, jj in enumerate(ii)}
 
         a2[ii] = vv * 3
         assert get_fun(obj=a2, **idx_kwargs) == vv * 3
@@ -111,7 +111,7 @@ def test_array_static_type_init_get_set(array_cls, example_shape):
 
 
 @pytest.mark.parametrize(
-    'array_cls, example_shape',
+    "array_cls, example_shape",
     [
         (DynLenType[3], (3,)),
         (DynLenType[:], (3,)),
@@ -121,7 +121,7 @@ def test_array_static_type_init_get_set(array_cls, example_shape):
         (DynLenType[2, 3, 4], (2, 3, 4)),
         (DynLenType[2, :, 4], (2, 3, 4)),
         (DynLenType[:, 3, :], (2, 3, 4)),
-    ]
+    ],
 )
 def test_array_dynamic_type_init_get_set(array_cls, example_shape):
     c_name = array_cls.__name__
@@ -129,7 +129,7 @@ def test_array_dynamic_type_init_get_set(array_cls, example_shape):
 
     kernels = array_cls._gen_kernels()
     ctx = xo.ContextCpu()
-    ctx.add_kernels(kernels=kernels, save_source_as=f'{c_name}.c')
+    ctx.add_kernels(kernels=kernels, save_source_as=f"{c_name}.c")
 
     numbers = [np.arange(ii) + ii + 3 for ii in range(length)]
     dt_fields = [DynLenType(field1=nums) for nums in numbers]
@@ -139,20 +139,22 @@ def test_array_dynamic_type_init_get_set(array_cls, example_shape):
 
     arr = array_cls(dt_fields)
 
-    len_fun = getattr(ctx.kernels, f'{c_name}_len')
-    len_fun_f = getattr(ctx.kernels, f'{c_name}_len{len(example_shape)}_field1')
-    get_fun_f = getattr(ctx.kernels, f'{c_name}_get_field1')
-    set_fun_f = getattr(ctx.kernels, f'{c_name}_set_field1')
+    len_fun = getattr(ctx.kernels, f"{c_name}_len")
+    len_fun_f = getattr(
+        ctx.kernels, f"{c_name}_len{len(example_shape)}_field1"
+    )
+    get_fun_f = getattr(ctx.kernels, f"{c_name}_get_field1")
+    set_fun_f = getattr(ctx.kernels, f"{c_name}_set_field1")
 
     assert len_fun(obj=arr) == len(arr)
 
     for ii, field in np.ndenumerate(numbers):
-        idx_kwargs = {f'i{dim}': jj for dim, jj in enumerate(ii)}
+        idx_kwargs = {f"i{dim}": jj for dim, jj in enumerate(ii)}
         assert len_fun_f(obj=arr, **idx_kwargs) == len(field)
         for idx_in_field, vv in enumerate(field):
-            idx_kwargs[f'i{len(ii)}'] = idx_in_field
+            idx_kwargs[f"i{len(ii)}"] = idx_in_field
             assert get_fun_f(obj=arr, **idx_kwargs) == vv
-            set_fun_f(obj=arr, value=13*vv, **idx_kwargs)
+            set_fun_f(obj=arr, value=13 * vv, **idx_kwargs)
             assert arr[ii].field1[idx_in_field] == 13 * vv
 
 
@@ -215,7 +217,7 @@ def test_struct3():
         field1=3,
         field2=[1, 2, 3, 4],
         field3=[11, 12, 13, 14, 15, 16, 17],
-        field4='hello',
+        field4="hello",
     )
 
     kernels = Struct3._gen_kernels()
@@ -267,7 +269,7 @@ def test_struct4():
     ai8 = [-9, -3, 11, 18]
 
     s4 = Struct4(
-        field1=1.,
+        field1=1.0,
         field2=af32,
         field3=af64,
         field4=ai8,
@@ -287,7 +289,7 @@ def test_struct4():
             expected,
             rel_tol=1e-7,  # single precision floats
         )
-        ctx.kernels.Struct4_set_field2(obj=s4, i0=ii, value=7*expected)
+        ctx.kernels.Struct4_set_field2(obj=s4, i0=ii, value=7 * expected)
         assert math.isclose(
             ctx.kernels.Struct4_get_field2(obj=s4, i0=ii),
             7 * expected,
@@ -296,18 +298,16 @@ def test_struct4():
 
     for ii, expected in enumerate(af64):
         assert math.isclose(
-            ctx.kernels.Struct4_get_field3(obj=s4, i0=ii),
-            expected
+            ctx.kernels.Struct4_get_field3(obj=s4, i0=ii), expected
         )
-        ctx.kernels.Struct4_set_field3(obj=s4, i0=ii, value=7*expected)
+        ctx.kernels.Struct4_set_field3(obj=s4, i0=ii, value=7 * expected)
         assert math.isclose(
-            ctx.kernels.Struct4_get_field3(obj=s4, i0=ii),
-            7 * expected
+            ctx.kernels.Struct4_get_field3(obj=s4, i0=ii), 7 * expected
         )
 
     for ii, expected in enumerate(ai8):
         assert ctx.kernels.Struct4_get_field4(obj=s4, i0=ii) == expected
-        ctx.kernels.Struct4_set_field4(obj=s4, i0=ii, value=7*expected)
+        ctx.kernels.Struct4_set_field4(obj=s4, i0=ii, value=7 * expected)
         assert ctx.kernels.Struct4_get_field4(obj=s4, i0=ii) == 7 * expected
 
 
@@ -316,13 +316,13 @@ def test_struct5():
     buff = ctx.new_buffer(0)
 
     s1 = Struct1(field1=2, field2=3.0, _buffer=buff)
-    s2 = Struct2(field1=2, field2=[2., 2.], _buffer=buff)
+    s2 = Struct2(field1=2, field2=[2.0, 2.0], _buffer=buff)
     s2r = Struct2r(field1=2, field2=s2.field2, _buffer=buff)
     s3 = Struct3(
         field1=3,
         field2=[1, 2, 3, 4],
         field3=[11, 12, 13, 14, 15, 16, 17],
-        field4='hello',
+        field4="hello",
         _buffer=buff,
     )
     s3r = Struct3r(
@@ -332,7 +332,7 @@ def test_struct5():
         _buffer=buff,
     )
     s4 = Struct4(
-        field1=1.,
+        field1=1.0,
         field2=[2.1, 2.2],
         field3=[3.1, 3.2, 3.3],
         field4=[-9, -3, 11, 18],
@@ -357,16 +357,24 @@ def test_struct5():
     ks = ctx.kernels
 
     # verify rebound references
-    assert ks.Struct5_getp_field2r(obj=s5) != ks.Struct5_getp_field2(obj=s5)  # copy
-    assert ks.Struct5_getp_field3r(obj=s5) != ks.Struct5_getp_field3(obj=s5)  # copy
-    assert ks.Struct5_getp_field2r_field2(obj=s5) == \
-           ks.Struct2_getp_field2(obj=s5.field2)
-    assert ks.Struct5_getp_field3r_field2(obj=s5) == \
-           ks.Struct3_getp_field2(obj=s5.field3)
-    assert ks.Struct5_getp1_field2r_field2(obj=s5, i0=2) == \
-           ks.Struct2_getp1_field2(obj=s5.field2, i0=2)
-    assert ks.Struct5_getp1_field3r_field2(obj=s5, i0=2) == \
-           ks.Struct3_getp1_field2(obj=s5.field3, i0=2)
+    assert ks.Struct5_getp_field2r(obj=s5) != ks.Struct5_getp_field2(
+        obj=s5
+    )  # copy
+    assert ks.Struct5_getp_field3r(obj=s5) != ks.Struct5_getp_field3(
+        obj=s5
+    )  # copy
+    assert ks.Struct5_getp_field2r_field2(obj=s5) == ks.Struct2_getp_field2(
+        obj=s5.field2
+    )
+    assert ks.Struct5_getp_field3r_field2(obj=s5) == ks.Struct3_getp_field2(
+        obj=s5.field3
+    )
+    assert ks.Struct5_getp1_field2r_field2(
+        obj=s5, i0=2
+    ) == ks.Struct2_getp1_field2(obj=s5.field2, i0=2)
+    assert ks.Struct5_getp1_field3r_field2(
+        obj=s5, i0=2
+    ) == ks.Struct3_getp1_field2(obj=s5.field3, i0=2)
 
     # set some nested values
     assert ks.Struct5_get_field1_field1(obj=s5) == s5.field1.field1
@@ -381,8 +389,9 @@ def test_struct5():
     assert math.isclose(ks.Struct5_get_field2r_field2(obj=s5, i0=0), 4)
 
     assert ks.Struct5_len_field3r_field3(obj=s5) == 7
-    assert ks.Struct5_len_field3r_field3(obj=s5) == \
-           ks.Struct5_len_field3_field3(obj=s5)
+    assert ks.Struct5_len_field3r_field3(
+        obj=s5
+    ) == ks.Struct5_len_field3_field3(obj=s5)
 
 
 def test_unionref():
@@ -412,12 +421,12 @@ def test_unionref():
     ctx = xo.ContextCpu()
     ctx.add_kernels(kernels=kernels)
 
-    assert ctx.kernels.ArrNURef_typeid(obj=arr, i0=0) == URef._typeid_from_type(
-        type(arr[0])
-    )
-    assert ctx.kernels.ArrNURef_typeid(obj=arr, i0=1) == URef._typeid_from_type(
-        type(arr[1])
-    )
+    assert ctx.kernels.ArrNURef_typeid(
+        obj=arr, i0=0
+    ) == URef._typeid_from_type(type(arr[0]))
+    assert ctx.kernels.ArrNURef_typeid(
+        obj=arr, i0=1
+    ) == URef._typeid_from_type(type(arr[1]))
     assert ctx.kernels.ArrNURef_typeid(obj=arr, i0=2) == -1
 
     for ii in range(2):
@@ -449,18 +458,18 @@ def test_dependencies():
     import xobjects as xo
 
     class A(xo.Struct):
-        a=xo.Float64[:]
-        _extra_c_sources=["//blah blah A"]
+        a = xo.Float64[:]
+        _extra_c_sources = ["//blah blah A"]
 
     class C(xo.Struct):
-        c=xo.Float64[:]
-        _extra_c_sources=[" //blah blah C"]
+        c = xo.Float64[:]
+        _extra_c_sources = [" //blah blah C"]
 
     class B(xo.Struct):
-        b=A
-        c=xo.Float64[:]
-        _extra_c_sources=[" //blah blah B"]
-        _depends_on=[C]
+        b = A
+        c = xo.Float64[:]
+        _extra_c_sources = [" //blah blah B"]
+        _depends_on = [C]
 
     assert xo.context.sort_classes([B])[1:] == [A, C, B]
 
@@ -492,7 +501,7 @@ def test_getp1_dyn_length_dyn_type_array():
     kernels = ArrNArr._gen_kernels()
     kernels.update(ArrNUint8._gen_kernels())
     ctx = xo.ContextCpu()
-    ctx.add_kernels(kernels=kernels, save_source_as='test-int.c')
+    ctx.add_kernels(kernels=kernels, save_source_as="test-int.c")
 
     assert ctx.kernels.ArrNArrNUint8_len(obj=ary) == 2
 
@@ -504,11 +513,11 @@ def test_getp1_dyn_length_dyn_type_array():
 
 def test_getp1_dyn_length_dyn_type_string_array():
     ArrNString = xo.String[:]
-    string_array = ArrNString(['a', 'bcdefghi', 'jkl'])
+    string_array = ArrNString(["a", "bcdefghi", "jkl"])
 
     kernels = ArrNString._gen_kernels()
     ctx = xo.ContextCpu()
-    ctx.add_kernels(kernels=kernels, save_source_as='test.c')
+    ctx.add_kernels(kernels=kernels, save_source_as="test.c")
 
     assert ctx.kernels.ArrNString_len(obj=string_array) == 3
 
@@ -520,11 +529,56 @@ def test_getp1_dyn_length_dyn_type_string_array():
     # is preceded with its length (u64). Strings are also null
     # terminated.
 
-    for ii, ch in enumerate(b'a\x00'):
+    for ii, ch in enumerate(b"a\x00"):
         assert ord(ffi.cast("char *", s0)[8 + ii]) == ch
 
-    for ii, ch in enumerate(b'bcdefghi\x00'):
+    for ii, ch in enumerate(b"bcdefghi\x00"):
         assert ord(ffi.cast("char *", s1)[8 + ii]) == ch
 
-    for ii, ch in enumerate(b'jkl\x00'):
+    for ii, ch in enumerate(b"jkl\x00"):
         assert ord(ffi.cast("char *", s2)[8 + ii]) == ch
+
+
+def test_gpu_api():
+    for ctx in xo.context.get_test_contexts():
+
+        src_code = """
+        /*gpufun*/
+        void myfun(double x, double y,
+            double* z){
+            z[0] = x * y;
+            }
+
+        /*gpukern*/
+        void my_mul(const int n,
+            /*gpuglmem*/ const double* x1,
+            /*gpuglmem*/ const double* x2,
+            /*gpuglmem*/       double* y) {
+            int tid = 0 //vectorize_over tid n
+            double z;
+            myfun(x1[tid], x2[tid], &z);
+            y[tid] = z;
+            //end_vectorize
+            }
+        """
+
+        kernel_descriptions = {
+            "my_mul": xo.Kernel(
+                args=[
+                    xo.Arg(xo.Int32, name="n"),
+                    xo.Arg(xo.Float64, pointer=True, const=True, name="x1"),
+                    xo.Arg(xo.Float64, pointer=True, const=True, name="x2"),
+                    xo.Arg(xo.Float64, pointer=True, const=False, name="y"),
+                ],
+                n_threads="n",
+            ),
+        }
+
+        ctx.add_kernels(
+            sources=[src_code],
+            kernels=kernel_descriptions,
+            # save_src_as=f'_test_{name}.c')
+            save_source_as=None,
+            compile=True,
+            extra_classes=[xo.String[:]],
+        )

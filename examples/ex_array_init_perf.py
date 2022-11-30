@@ -12,7 +12,7 @@ def timeit(code, nn=200):
         exec(cc)
     t2 = time.time()
     dt = (t2 - t1) / nn
-    oo = int(math.log10(dt) / 3)-1
+    oo = int(math.log10(dt) / 3) - 1
     unit = "num kM"[oo + 3]
     scale = 1000**oo
     print(f"{nn:4} times {dt/scale:8.3f} {unit}sec  {code}")

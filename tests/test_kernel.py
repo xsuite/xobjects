@@ -81,7 +81,7 @@ def test_kernels(test_context):
         kernels=kernel_descriptions,
         # save_src_as=f'_test_{name}.c')
         save_source_as=None,
-        compile=True
+        compile=True,
     )
 
     x1_host = np.array([1.0, 2.0, 3.0], dtype=np.float64)

@@ -27,16 +27,12 @@ def test_ref_to_static_type(test_context):
     mystructref = MyStructRef(a=arr2, _buffer=buff)
 
     assert mystructref._size == 8
-    assert (
-        mystructref.a._offset == arr2._offset
-    )  # Points to the same object
+    assert mystructref.a._offset == arr2._offset  # Points to the same object
     for ii in range(3):
         assert mystructref.a[ii] == arr2[ii]
 
     mystructref.a = arr1
-    assert (
-        mystructref.a._offset == arr1._offset
-    )  # Points to the same object
+    assert mystructref.a._offset == arr1._offset  # Points to the same object
     for ii in range(3):
         assert mystructref.a[ii] == arr1[ii]
 
@@ -58,17 +54,13 @@ def test_ref_to_dynamic_type(test_context):
     assert MyStructRef._size == 8
 
     mystructref = MyStructRef(a=arr2, _buffer=buff)
-    assert (
-        mystructref.a._offset == arr2._offset
-    )  # Points to the same object
+    assert mystructref.a._offset == arr2._offset  # Points to the same object
     assert mystructref._size == 8
     for ii in range(4):
         assert mystructref.a[ii] == arr2[ii]
 
     mystructref.a = arr1
-    assert (
-        mystructref.a._offset == arr1._offset
-    )  # Points to the same object
+    assert mystructref.a._offset == arr1._offset  # Points to the same object
     for ii in range(3):
         assert mystructref.a[ii] == arr1[ii]
 
@@ -173,25 +165,23 @@ def test_ref_c_api(test_context):
 
 @for_all_test_contexts
 def no_test_unionref(test_context):
-        arr = xo.Float64[:]([1, 2, 3], _context=test_context)
-        buf = arr._buffer
-        string = xo.String("Test", _buffer=buf)
+    arr = xo.Float64[:]([1, 2, 3], _context=test_context)
+    buf = arr._buffer
+    string = xo.String("Test", _buffer=buf)
 
-        class MyStructRef(xo.Struct):
-            a = xo.Ref(xo.Float64[:], xo.String)
+    class MyStructRef(xo.Struct):
+        a = xo.Ref(xo.Float64[:], xo.String)
 
-        assert MyStructRef._size == 16
+    assert MyStructRef._size == 16
 
-        mystructref = MyStructRef(_buffer=buf)
+    mystructref = MyStructRef(_buffer=buf)
 
-        mystructref.a = arr
-        assert (
-            mystructref.a._offset == arr._offset
-        )  # Points to the same object
-        assert mystructref.a[1] == 2
+    mystructref.a = arr
+    assert mystructref.a._offset == arr._offset  # Points to the same object
+    assert mystructref.a[1] == 2
 
-        mystructref.a = string
-        assert mystructref.a == "Test"
+    mystructref.a = string
+    assert mystructref.a == "Test"
 
 
 @for_all_test_contexts
@@ -302,7 +292,6 @@ def test_unionref(test_context):
     assert prism_square.volume == 120
 
     assert prism_triangle._has_refs
-
 
 
 def test_has_refs():

@@ -72,7 +72,6 @@ def test_explicit_buffer(test_context):
     assert ele1._offset != ele2._offset
 
 
-
 @pytest.fixture
 def classes_for_test_hybrid_class_no_ref():
     class InnerClass(xo.HybridClass):

@@ -120,7 +120,8 @@ def test_nplike_from_xoarray(test_context):
     result = a_xo.to_nplike()
     expected = np.arange(2 * 3 * 4, dtype='int8').reshape((2, 3, 4))
 
-    assert np.all(result == expected)
+    for i0, i1, i2 in np.ndindex(2, 3, 4):
+        assert result[i0, i1, i2] == expected[i0, i1, i2]
     assert result.strides == (4, 8, 1)
 
 

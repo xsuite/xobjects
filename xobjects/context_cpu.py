@@ -9,12 +9,22 @@ import os
 import sysconfig
 import uuid
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Sequence, Tuple
 
 import numpy as np
 
-from .context import (Kernel, ModuleNotAvailable, XBuffer, XContext, _concatenate_sources, available,
-                      classes_from_kernels, sort_classes, sources_from_classes)
+from .context import (
+    Kernel,
+    ModuleNotAvailable,
+    SourceType,
+    XBuffer,
+    XContext,
+    _concatenate_sources,
+    available,
+    classes_from_kernels,
+    sort_classes,
+    sources_from_classes,
+)
 from .linkedarray import BaseLinkedArray
 from .specialize_source import specialize_source
 
@@ -88,7 +98,7 @@ class LinkedArrayCpu(BaseLinkedArray, np.ndarray):
         )
 
 
-def _so_for_module_name(name, containing_dir='.') -> Path:
+def _so_for_module_name(name, containing_dir=".") -> Path:
     # The so file name is something like:
     # 0e14651ea79740119c6e6c24754f935e.cpython-38-x86_64-linux-gnu.so
     suffix = sysconfig.get_config_var("EXT_SUFFIX")
@@ -127,20 +137,19 @@ class ContextCpu(XContext):
         return BufferNumpy(capacity=capacity, context=self)
 
     def add_kernels(
-            self,
-            sources=None,
-            kernels=None,
-            specialize=True,
-            apply_to_source=(),
-            save_source_as=None,
-            extra_compile_args=("-O3", "-Wno-unused-function"),
-            extra_link_args=("-O3",),
-            extra_cdef='',
-            extra_classes=(),
-            extra_headers=(),
-            compile=True,
+        self,
+        sources=None,
+        kernels=None,
+        specialize=True,
+        apply_to_source=(),
+        save_source_as=None,
+        extra_compile_args: Sequence[str] = ("-O3", "-Wno-unused-function"),
+        extra_link_args: Sequence[str] = ("-O3",),
+        extra_cdef="",
+        extra_classes=(),
+        extra_headers=(),
+        compile=True,  # noqa
     ):
-
         """
         Adds user-defined kernels to the context. The kernel source
         code is provided as a string and/or in source files and must contain
@@ -159,6 +168,15 @@ class ContextCpu(XContext):
             apply_to_source (List[Callable]): functions to be applied to source
             save_source_as (str): Filename for saving the specialized source
                 code. Default is ```None```.
+            extra_compile_args: Extra arguments to be passed to the compiler.
+            extra_link_args: Extra arguments to be passed to the linker.
+            extra_cdef: Extra C definitions to be passed to cffi.
+            extra_classes: Extra xobjects classes whose API is needed.
+            extra_headers: Extra headers to be added to the source code.
+            compile: If True, the source code is compiled. Default is ``True``.
+                Otherwise, a dummy kernel is returned, with the source code
+                attached.
+
         Example:
 
         .. code-block:: python
@@ -200,6 +218,9 @@ class ContextCpu(XContext):
             # can be called as follows:
             ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
         """
+        kernels = kernels or {}
+        sources = sources or []
+
         generated_kernels = self.build_kernels(
             kernel_descriptions=kernels,
             sources=sources,
@@ -215,23 +236,21 @@ class ContextCpu(XContext):
         self.kernels.update(generated_kernels)
 
     def build_kernels(
-            self,
-            kernel_descriptions: Dict[str, Kernel],
-            module_name: str = None,
-            containing_dir='.',
-            sources=None,
-            specialize=True,
-            apply_to_source=(),
-            save_source_as=None,
-            extra_compile_args=("-O3", "-Wno-unused-function"),
-            extra_link_args=("-O3",),
-            extra_cdef='',
-            extra_classes=(),
-            extra_headers=(),
-            compile=True,
-    ):
-        kernel_descriptions = kernel_descriptions or {}
-
+        self,
+        kernel_descriptions: Dict[str, Kernel],
+        module_name: str = None,
+        containing_dir=".",
+        sources=None,
+        specialize=True,
+        apply_to_source=(),
+        save_source_as=None,
+        extra_compile_args=("-O3", "-Wno-unused-function"),
+        extra_link_args=("-O3",),
+        extra_cdef="",
+        extra_classes=(),
+        extra_headers=(),
+        compile=True,  # noqa
+    ) -> Dict[str, "KernelCpu"]:
         # Determine names and paths
         clean_up_so = not module_name
         module_name = module_name or str(uuid.uuid4().hex)
@@ -251,7 +270,7 @@ class ContextCpu(XContext):
 
         if save_source_as is not None:
             Path(containing_dir).mkdir(parents=True, exist_ok=True)
-            with (Path(containing_dir) / save_source_as).open('w+') as fid:
+            with (Path(containing_dir) / save_source_as).open("w+") as fid:
                 fid.write(specialized_source)
 
         if compile:
@@ -277,7 +296,9 @@ class ContextCpu(XContext):
                 )
             finally:
                 # Whether loaded successfully or not, delete the so
-                if (os.name != 'nt' or so_file.suffix != '.pyd') and clean_up_so:
+                if (
+                    os.name != "nt" or so_file.suffix != ".pyd"
+                ) and clean_up_so:
                     so_file.unlink()
         else:
             # Only kernel information, but no possibility to call the kernel
@@ -299,11 +320,11 @@ class ContextCpu(XContext):
         return out_kernels
 
     def kernels_from_file(
-            self,
-            module_name: str,
-            kernel_descriptions: Dict[str, Kernel],
-            containing_dir='.',
-    ) -> Dict[str, 'KernelCpu']:
+        self,
+        module_name: str,
+        kernel_descriptions: Dict[str, Kernel],
+        containing_dir=".",
+    ) -> Dict[str, "KernelCpu"]:
         """
         Import a compiled module `module_name` located in `containing_dir`
         (by default it is the current working directory), and add the kernels
@@ -325,14 +346,14 @@ class ContextCpu(XContext):
         return out_kernels
 
     def compile_kernel(
-            self,
-            module_name,
-            kernel_descriptions,
-            cdefs,
-            specialized_source,
-            extra_compile_args,
-            extra_link_args,
-            containing_dir='.',
+        self,
+        module_name,
+        kernel_descriptions,
+        cdefs,
+        specialized_source,
+        extra_compile_args,
+        extra_link_args,
+        containing_dir=".",
     ) -> Path:
         ffi_interface = cffi.FFI()
         ffi_interface.cdef(cdefs)
@@ -369,8 +390,9 @@ class ContextCpu(XContext):
         )
 
         try:
-            so_file = str(_so_for_module_name(module_name, containing_dir)
-                          .absolute())
+            so_file = str(
+                _so_for_module_name(module_name, containing_dir).absolute()
+            )
             output_file = ffi_interface.compile(target=so_file, verbose=True)
             return Path(output_file)
         finally:
@@ -385,12 +407,12 @@ class ContextCpu(XContext):
                     os.remove(ff)
 
     def _build_sources(
-            self,
-            classes: List[type] = None,
-            extra_headers: List[str] = None,
-            specialize: bool = True,
-            sources: List[str | Path] = None,
-            apply_to_source: List[Callable] = (),
+        self,
+        classes: List[type] = None,
+        extra_headers: Sequence[SourceType] = None,
+        specialize: bool = True,
+        sources: Sequence[SourceType] = None,
+        apply_to_source: Sequence[Callable] = (),
     ) -> Tuple[str, str]:
         sources = sources or []
         classes = classes or []
@@ -422,9 +444,9 @@ class ContextCpu(XContext):
         return source, specialized_source
 
     def _load_kernel_module(
-            self,
-            name: str,
-            containing_dir='.',
+        self,
+        name: str,
+        containing_dir=".",
     ):
         """
         Load a kernel from a stored shared object file.
@@ -542,24 +564,24 @@ class BufferByteArray(XBuffer):
 
     def update_from_native(self, offset, source, source_offset, nbytes):
         """Copy data from native buffer into self.buffer starting from offset"""
-        self.buffer[offset: offset + nbytes] = source[
-                                               source_offset: source_offset + nbytes
-                                               ]
+        self.buffer[offset : offset + nbytes] = source[
+            source_offset : source_offset + nbytes
+        ]
 
     def to_native(self, offset, nbytes):
         """return native data with content at from offset and nbytes"""
-        return self.buffer[offset: offset + nbytes].copy()
+        return self.buffer[offset : offset + nbytes].copy()
 
     def copy_to_native(self, dest, dest_offset, source_offset, nbytes):
         """copy data from self.buffer into dest"""
-        dest[dest_offset: dest_offset + nbytes] = self.buffer[
-                                                  source_offset: source_offset + nbytes
-                                                  ]
+        dest[dest_offset : dest_offset + nbytes] = self.buffer[
+            source_offset : source_offset + nbytes
+        ]
 
     def update_from_buffer(self, offset, source):
         """Copy data from python buffer such as bytearray, bytes, memoryview, numpy array.data"""
         nbytes = len(source)
-        self.buffer[offset: offset + nbytes] = source
+        self.buffer[offset : offset + nbytes] = source
 
     def to_nplike(self, offset, dtype, shape):
         """view in nplike"""
@@ -578,11 +600,11 @@ class BufferByteArray(XBuffer):
 
     def to_bytearray(self, offset, nbytes):
         """copy in byte array: used in update_from_xbuffer"""
-        return self.buffer[offset: offset + nbytes]
+        return self.buffer[offset : offset + nbytes]
 
     def to_pointer_arg(self, offset, nbytes):
         """return data that can be used as argument in kernel"""
-        return self.buffer[offset: offset + nbytes]
+        return self.buffer[offset : offset + nbytes]
 
 
 class BufferNumpy(XBuffer):
@@ -594,24 +616,24 @@ class BufferNumpy(XBuffer):
 
     def update_from_native(self, offset, source, source_offset, nbytes):
         """Copy data from native buffer into self.buffer starting from offset"""
-        self.buffer[offset: offset + nbytes] = source[
-                                               source_offset: source_offset + nbytes
-                                               ]
+        self.buffer[offset : offset + nbytes] = source[
+            source_offset : source_offset + nbytes
+        ]
 
     def to_native(self, offset, nbytes):
         """return native data with content at from offset and nbytes"""
-        return self.buffer[offset: offset + nbytes].copy()
+        return self.buffer[offset : offset + nbytes].copy()
 
     def copy_to_native(self, dest, dest_offset, source_offset, nbytes):
         """copy data from self.buffer into dest"""
-        dest[dest_offset: dest_offset + nbytes] = self.buffer[
-                                                  source_offset: source_offset + nbytes
-                                                  ]
+        dest[dest_offset : dest_offset + nbytes] = self.buffer[
+            source_offset : source_offset + nbytes
+        ]
 
     def update_from_buffer(self, offset, source):
         """Copy data from python buffer such as bytearray, bytes, memoryview, numpy array.data"""
         nbytes = len(source)
-        self.buffer[offset: offset + nbytes] = bytearray(source)
+        self.buffer[offset : offset + nbytes] = bytearray(source)
 
     def to_nplike(self, offset, dtype, shape):
         """view in nplike"""
@@ -629,24 +651,26 @@ class BufferNumpy(XBuffer):
         if dest_dtype != value.dtype:
             value = value.astype(dtype=dest_dtype)  # make a copy
         src = value.view("int8")
-        self.buffer[offset: offset + src.nbytes] = value.flatten().view("int8")
+        self.buffer[offset : offset + src.nbytes] = value.flatten().view(
+            "int8"
+        )
 
     def to_bytearray(self, offset, nbytes):
         """copy in byte array: used in update_from_xbuffer"""
-        return bytearray(self.buffer[offset: offset + nbytes])
+        return bytearray(self.buffer[offset : offset + nbytes])
 
     def to_pointer_arg(self, offset, nbytes):
         """return data that can be used as argument in kernel"""
-        return self.buffer[offset: offset + nbytes]
+        return self.buffer[offset : offset + nbytes]
 
 
 class KernelCpu:
     def __init__(
-            self,
-            function,
-            description,
-            ffi_interface,
-            context,
+        self,
+        function,
+        description,
+        ffi_interface,
+        context,
     ):
         self.function = function
         self.description = description
@@ -672,7 +696,7 @@ class KernelCpu:
                         value._c_type + "*",
                         self.ffi_interface.from_buffer(
                             value._buffer.buffer[
-                            value._offset + value._data_offset:
+                                value._offset + value._data_offset :
                             ]  # fails for pyopencl, cuda
                         ),
                     )

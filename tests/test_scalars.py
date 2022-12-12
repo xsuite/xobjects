@@ -4,6 +4,7 @@
 # ########################################### #
 
 import xobjects as xo
+from xobjects.test_helpers import for_all_test_contexts
 
 scalars = (
     xo.Float64,
@@ -27,14 +28,13 @@ def test_scalar_class():
         assert info2.size == sc._size
 
 
-def test_scalar_buffer():
+@for_all_test_contexts
+def test_scalar_buffer(test_context):
     nn = 123
-    for ctx in xo.context.get_test_contexts():
-        print(f"Test {ctx}")
-        buff = ctx.new_buffer()
-        for sc in scalars:
-            offset = buff.allocate(sc._size)
-            sc._to_buffer(buff, offset, nn)
-            vv = sc._from_buffer(buff, offset)
-            assert nn == vv
-            assert nn == sc(nn)
+    buff = test_context.new_buffer()
+    for sc in scalars:
+        offset = buff.allocate(sc._size)
+        sc._to_buffer(buff, offset, nn)
+        vv = sc._from_buffer(buff, offset)
+        assert nn == vv
+        assert nn == sc(nn)

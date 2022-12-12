@@ -9,8 +9,7 @@ import numpy as np
 import pytest
 
 import xobjects as xo
-
-from xobjects.typeutils import Info
+from xobjects.test_helpers import for_all_test_contexts
 
 
 def test_get_shape():
@@ -60,7 +59,6 @@ def mk_classes() -> xo.Array:
 
 
 def test_class_creation():
-
     ArrayA, ArrayB, ArrayC, ArrayD, ArrayE = mk_classes()
 
     assert ArrayA._is_static_shape == True
@@ -250,3 +248,56 @@ def test_update():
         assert e.type == ValueError
 
     a.a = [1, 2, 3]
+
+
+@for_all_test_contexts
+def test_array_custom_strides(test_context):
+    Array = xo.Int8[2:1, 3:0, 4:2]
+    a_xo = Array(_context=test_context)
+
+    assert a_xo._strides == (4, 8, 1)
+
+    j = 0
+    for i0, i1, i2 in np.ndindex(2, 3, 4):
+        a_xo[i0, i1, i2] = j
+        j += 1
+
+    buffer_contents = a_xo._buffer.to_bytearray(
+        offset=0, nbytes=a_xo._buffer.capacity
+    )
+    assert np.all(
+        buffer_contents
+        == bytearray(
+            [
+                0,
+                1,
+                2,
+                3,
+                12,
+                13,
+                14,
+                15,
+                4,
+                5,
+                6,
+                7,
+                16,
+                17,
+                18,
+                19,
+                8,
+                9,
+                10,
+                11,
+                20,
+                21,
+                22,
+                23,
+            ]
+        )
+    )
+
+    j = 0
+    for i0, i1, i2 in np.ndindex(2, 3, 4):
+        assert a_xo[i0, i1, i2] == j
+        j += 1

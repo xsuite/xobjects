@@ -685,7 +685,7 @@ class Array(metaclass=MetaArray):
 
     def _to_json(self):
         out = []
-        for v in self:
+        for v in self:  # TODO does not support multidimensional arrays
             if hasattr(v, "_to_json"):
                 vdata = v._to_json()
             else:

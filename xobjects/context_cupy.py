@@ -3,24 +3,25 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 
-import os
 import logging
+from typing import Dict, List
 
 import numpy as np
 
 from .context import (
+    KernelType,
+    ModuleNotAvailable,
+    SourceType,
     XBuffer,
     XContext,
-    ModuleNotAvailable,
+    _concatenate_sources,
     available,
     classes_from_kernels,
     sort_classes,
     sources_from_classes,
-    _concatenate_sources,
 )
-
-from .specialize_source import specialize_source
 from .linkedarray import BaseLinkedArray
+from .specialize_source import specialize_source
 
 log = logging.getLogger(__name__)
 
@@ -345,7 +346,7 @@ if _enabled:
             return cupy.ndarray.__invert__(self._as_cupy())
 
 
-cudaheader = [
+cudaheader: List[SourceType] = [
     """\
 typedef signed long long int64_t;  //only_for_context cuda
 typedef signed char      int8_t;   //only_for_context cuda
@@ -361,7 +362,6 @@ def nplike_to_cupy(arr):
 
 
 class ContextCupy(XContext):
-
     """
     Creates a Cupy Context object, that allows performing the computations
     on nVidia GPUs.
@@ -396,87 +396,27 @@ class ContextCupy(XContext):
     def _make_buffer(self, capacity):
         return BufferCupy(capacity=capacity, context=self)
 
-    def add_kernels(
+    def build_kernels(
         self,
-        sources=[],
-        kernels=[],
+        sources,
+        kernel_descriptions,
         specialize=True,
         apply_to_source=(),
         save_source_as=None,
         extra_cdef=None,
-        extra_classes=[],
-        extra_headers=[],
-        compile=True,
-    ):
-
-        """
-        Adds user-defined kernels to to the context. The kernel source
-        code is provided as a string and/or in source files and must contain
-        the kernel names defined in the kernel descriptions.
-        Args:
-            sources (list): List of source codes that are concatenated before
-                compilation. The list can contain strings (raw source code),
-                File objects and Path objects.
-            kernels (dict): Dictionary with the kernel descriptions
-                in the form given by the following examples. The descriptions
-                define the kernel names, the type and name of the arguments
-                and identify one input argument that defines the number of
-                threads to be launched (only on cuda/opencl).
-            specialize_code (bool): If True, the code is specialized using
-                annotations in the source code. Default is ``True``
-            save_source_as (str): Filename for saving the specialized source
-                code. Default is ```None```.
-        Example:
-
-        .. code-block:: python
-
-            # A simple kernel
-            src_code = '''
-            /*gpukern*/
-            void my_mul(const int n,
-                /*gpuglmem*/ const double* x1,
-                /*gpuglmem*/ const double* x2,
-                /*gpuglmem*/       double* y) {
-                int tid = 0 //vectorize_over tid
-                y[tid] = x1[tid] * x2[tid];
-                //end_vectorize
-                }
-            '''
-
-            # Prepare description
-            kernel_descriptions = {
-                "my_mul": xo.Kernel(
-                    args=[
-                        xo.Arg(xo.Int32, name="n"),
-                        xo.Arg(xo.Float64, pointer=True, const=True, name="x1"),
-                        xo.Arg(xo.Float64, pointer=True, const=True, name="x2"),
-                        xo.Arg(xo.Float64, pointer=True, const=False, name="y"),
-                    ],
-                    n_threads="n",
-                    ),
-            }
-
-            # Import kernel in context
-            ctx.add_kernels(
-                sources=[src_code],
-                kernels=kernel_descriptions,
-                save_source_as=None,
-            )
-
-            # With a1, a2, b being arrays on the context, the kernel
-            # can be called as follows:
-            ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
-        """
-
+        extra_classes=(),
+        extra_headers=(),
+        compile=True,  # noqa
+    ) -> Dict[str, KernelType]:
         if not compile:
             raise NotImplementedError("compile=False available only on CPU.")
 
-        classes = classes_from_kernels(kernels)
+        classes = classes_from_kernels(kernel_descriptions)
         classes.update(extra_classes)
         classes = sort_classes(classes)
         cls_sources = sources_from_classes(classes)
 
-        headers = cudaheader + extra_headers
+        headers = cudaheader + list(extra_headers)
 
         sources = headers + cls_sources + sources
 
@@ -497,19 +437,22 @@ class ContextCupy(XContext):
 
         module = cupy.RawModule(code=specialized_source)
 
-        for pyname, kernel in kernels.items():
+        out_kernels = {}
+        for pyname, kernel in kernel_descriptions.items():
             if kernel.c_name is None:
                 kernel.c_name = pyname
 
-            self.kernels[pyname] = KernelCupy(
+            out_kernels[pyname] = KernelCupy(
                 function=module.get_function(kernel.c_name),
                 description=kernel,
                 block_size=self.default_block_size,
                 context=self,
             )
 
-            self.kernels[pyname].source = source
-            self.kernels[pyname].specialized_source = specialized_source
+            out_kernels[pyname].source = source
+            out_kernels[pyname].specialized_source = specialized_source
+
+        return out_kernels
 
     def nparray_to_context_array(self, arr):
         """

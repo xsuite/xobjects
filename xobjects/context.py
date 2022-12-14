@@ -3,13 +3,13 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 
-from collections import defaultdict
-from typing import NamedTuple, List, Type
-from abc import ABC, abstractmethod
-from pathlib import Path
 import logging
-import weakref
 import os
+import weakref
+from abc import ABC, abstractmethod
+from collections import defaultdict
+from pathlib import Path
+from typing import Dict, List, NamedTuple, Optional, Sequence, Type, Union
 
 """
 
@@ -19,8 +19,10 @@ TODO:
     - Consider Buffer[offset] to create View and avoid _offset in type API
 """
 
-
 log = logging.getLogger(__name__)
+
+SourceType = Union[str, Path, "io.TextIOBase", "Source"]
+KernelType = Union["KernelCpu", "KernelCupy", "KernelPyopencl"]
 
 
 def topological_sort(source):
@@ -166,15 +168,113 @@ class XContext(ABC):
     def _make_buffer(self, capacity):
         "return buffer"
 
-    @abstractmethod
     def add_kernels(
         self,
-        sources: list,
         kernels: dict,
-        specialize: bool,
-        apply_to_source: list,
-        save_source_as: str,
+        sources: list = None,
+        specialize: bool = True,
+        apply_to_source: Sequence[callable] = (),
+        save_source_as: str = None,
+        extra_cdef: Optional[str] = "",
+        extra_classes: Sequence[Type] = (),
+        extra_headers: Sequence[SourceType] = (),
+        compile: bool = True,  # noqa
     ):
+
+        """
+        Adds user-defined kernels to the context. The kernel source
+        code is provided as a string and/or in source files and must contain
+        the kernel names defined in the kernel descriptions.
+        Args:
+            sources (list): List of source codes that are concatenated before
+                compilation. The list can contain strings (raw source code),
+                File objects and Path objects.
+            kernels (dict): Dictionary with the kernel descriptions
+                in the form given by the following examples. The descriptions
+                define the kernel names, the type and name of the arguments
+                and identify one input argument that defines the number of
+                threads to be launched (only on cuda/opencl).
+            specialize (bool): If True, the code is specialized using
+                annotations in the source code. Default is ``True``
+            apply_to_source (List[Callable]): functions to be applied to source
+            save_source_as (str): Filename for saving the specialized source
+                code. Default is ```None```.
+            extra_cdef: Extra C definitions to be passed to cffi.
+            extra_classes: Extra xobjects classes whose API is needed.
+            extra_headers: Extra headers to be added to the source code.
+            compile: If True, the source code is compiled. Default is ``True``.
+                Otherwise, a dummy kernel is returned, with the source code
+                attached.
+
+        Example:
+
+        .. code-block:: python
+
+            # A simple kernel
+            src_code = '''
+            /*gpukern*/
+            void my_mul(const int n,
+                /*gpuglmem*/ const double* x1,
+                /*gpuglmem*/ const double* x2,
+                /*gpuglmem*/       double* y) {
+                int tid = 0 //vectorize_over tid
+                y[tid] = x1[tid] * x2[tid];
+                //end_vectorize
+                }
+            '''
+
+            # Prepare description
+            kernel_descriptions = {
+                "my_mul": xo.Kernel(
+                    args=[
+                        xo.Arg(xo.Int32, name="n"),
+                        xo.Arg(xo.Float64, pointer=True, const=True, name="x1"),
+                        xo.Arg(xo.Float64, pointer=True, const=True, name="x2"),
+                        xo.Arg(xo.Float64, pointer=True, const=False, name="y"),
+                    ],
+                    n_threads="n",
+                    ),
+            }
+
+            # Import kernel in context
+            ctx.add_kernels(
+                sources=[src_code],
+                kernels=kernel_descriptions,
+                save_source_as=None,
+            )
+
+            # With a1, a2, b being arrays on the context, the kernel
+            # can be called as follows:
+            ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
+        """
+        kernels = kernels or {}
+        sources = sources or []
+        generated_kernels = self.build_kernels(
+            kernel_descriptions=kernels,
+            sources=sources,
+            specialize=specialize,
+            apply_to_source=apply_to_source,
+            save_source_as=save_source_as,
+            extra_cdef=extra_cdef,
+            extra_classes=extra_classes,
+            extra_headers=extra_headers,
+            compile=compile,
+        )
+        self.kernels.update(generated_kernels)
+
+    @abstractmethod
+    def build_kernels(
+        self,
+        kernel_descriptions: Dict[str, "Kernel"],
+        sources: list,
+        specialize: bool,
+        apply_to_source: Sequence[callable],
+        save_source_as: Optional[str],
+        extra_cdef: Optional[str],
+        extra_classes: Sequence[Type],
+        extra_headers: Sequence[SourceType],
+        compile: bool,
+    ) -> Dict[str, KernelType]:
         pass
 
     @abstractmethod

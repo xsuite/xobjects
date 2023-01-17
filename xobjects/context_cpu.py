@@ -3,26 +3,30 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 
-import os
-import uuid
-import importlib
-import sysconfig
+import importlib.util
 import logging
+import os
+import sysconfig
+import uuid
+from pathlib import Path
+from typing import Callable, Dict, List, Sequence, Tuple
 
 import numpy as np
 
 from .context import (
+    Kernel,
+    ModuleNotAvailable,
+    SourceType,
     XBuffer,
     XContext,
-    ModuleNotAvailable,
+    _concatenate_sources,
     available,
     classes_from_kernels,
     sort_classes,
     sources_from_classes,
-    _concatenate_sources,
 )
-from .specialize_source import specialize_source
 from .linkedarray import BaseLinkedArray
+from .specialize_source import specialize_source
 
 log = logging.getLogger(__name__)
 
@@ -94,6 +98,13 @@ class LinkedArrayCpu(BaseLinkedArray, np.ndarray):
         )
 
 
+def _so_for_module_name(name, containing_dir=".") -> Path:
+    # The so file name is something like:
+    # 0e14651ea79740119c6e6c24754f935e.cpython-38-x86_64-linux-gnu.so
+    suffix = sysconfig.get_config_var("EXT_SUFFIX")
+    return Path(containing_dir) / (name + suffix)
+
+
 class ContextCpu(XContext):
     """
 
@@ -127,21 +138,20 @@ class ContextCpu(XContext):
 
     def add_kernels(
         self,
-        sources=[],
-        kernels=[],
+        sources=None,
+        kernels=None,
         specialize=True,
         apply_to_source=(),
         save_source_as=None,
-        extra_compile_args=["-O3", "-Wno-unused-function"],
-        extra_link_args=["-O3"],
-        extra_cdef=None,
-        extra_classes=[],
-        extra_headers=[],
-        compile=True,
+        extra_compile_args: Sequence[str] = ("-O3", "-Wno-unused-function"),
+        extra_link_args: Sequence[str] = ("-O3",),
+        extra_cdef="",
+        extra_classes=(),
+        extra_headers=(),
+        compile=True,  # noqa
     ):
-
         """
-        Adds user-defined kernels to to the context. The kernel source
+        Adds user-defined kernels to the context. The kernel source
         code is provided as a string and/or in source files and must contain
         the kernel names defined in the kernel descriptions.
         Args:
@@ -153,10 +163,20 @@ class ContextCpu(XContext):
                 define the kernel names, the type and name of the arguments
                 and identify one input argument that defines the number of
                 threads to be launched (only on cuda/opencl).
-            specialize_code (bool): If True, the code is specialized using
+            specialize (bool): If True, the code is specialized using
                 annotations in the source code. Default is ``True``
+            apply_to_source (List[Callable]): functions to be applied to source
             save_source_as (str): Filename for saving the specialized source
                 code. Default is ```None```.
+            extra_compile_args: Extra arguments to be passed to the compiler.
+            extra_link_args: Extra arguments to be passed to the linker.
+            extra_cdef: Extra C definitions to be passed to cffi.
+            extra_classes: Extra xobjects classes whose API is needed.
+            extra_headers: Extra headers to be added to the source code.
+            compile: If True, the source code is compiled. Default is ``True``.
+                Otherwise, a dummy kernel is returned, with the source code
+                attached.
+
         Example:
 
         .. code-block:: python
@@ -198,10 +218,204 @@ class ContextCpu(XContext):
             # can be called as follows:
             ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2, y=b)
         """
+        kernels = kernels or {}
+        sources = sources or []
 
-        classes = classes_from_kernels(kernels)
+        generated_kernels = self.build_kernels(
+            kernel_descriptions=kernels,
+            sources=sources,
+            specialize=specialize,
+            apply_to_source=apply_to_source,
+            extra_compile_args=extra_compile_args,
+            extra_link_args=extra_link_args,
+            extra_cdef=extra_cdef,
+            extra_classes=extra_classes,
+            extra_headers=extra_headers,
+            compile=compile,
+        )
+        self.kernels.update(generated_kernels)
+
+    def build_kernels(
+        self,
+        kernel_descriptions: Dict[str, Kernel],
+        module_name: str = None,
+        containing_dir=".",
+        sources=None,
+        specialize=True,
+        apply_to_source=(),
+        save_source_as=None,
+        extra_compile_args=("-O3", "-Wno-unused-function"),
+        extra_link_args=("-O3",),
+        extra_cdef="",
+        extra_classes=(),
+        extra_headers=(),
+        compile=True,  # noqa
+    ) -> Dict[str, "KernelCpu"]:
+        # Determine names and paths
+        clean_up_so = not module_name
+        module_name = module_name or str(uuid.uuid4().hex)
+        containing_dir = containing_dir
+
+        classes = classes_from_kernels(kernel_descriptions)
         classes.update(extra_classes)
         classes = sort_classes(classes)
+
+        source, specialized_source = self._build_sources(
+            sources=sources,
+            classes=classes,
+            extra_headers=extra_headers,
+            apply_to_source=apply_to_source,
+            specialize=specialize,
+        )
+
+        if save_source_as is not None:
+            Path(containing_dir).mkdir(parents=True, exist_ok=True)
+            with (Path(containing_dir) / save_source_as).open("w+") as fid:
+                fid.write(specialized_source)
+
+        if compile:
+            cdefs = "\n".join(cls._gen_c_decl({}) for cls in classes)
+            cdefs += "\n" + extra_cdef
+
+            so_file = self.compile_kernel(
+                module_name,
+                kernel_descriptions,
+                cdefs,
+                specialized_source,
+                extra_compile_args,
+                extra_link_args,
+                containing_dir=containing_dir,
+            )
+
+            try:
+                # Import the compiled module
+                out_kernels = self.kernels_from_file(
+                    module_name,
+                    kernel_descriptions,
+                    containing_dir=containing_dir,
+                )
+            finally:
+                # Whether loaded successfully or not, delete the so
+                if (
+                    os.name != "nt" or so_file.suffix != ".pyd"
+                ) and clean_up_so:
+                    so_file.unlink()
+        else:
+            # Only kernel information, but no possibility to call the kernel
+            out_kernels = {}
+            for pyname, kernel in kernel_descriptions.items():
+                out_kernels[pyname] = KernelCpu(
+                    function=None,
+                    description=kernel,
+                    ffi_interface=None,
+                    context=self,
+                )
+
+        for pyname in kernel_descriptions.keys():
+            out_kernels[pyname].source = source
+            out_kernels[pyname].specialized_source = specialized_source
+            # TODO: find better implementation?
+            out_kernels[pyname].description.pyname = pyname
+
+        return out_kernels
+
+    def kernels_from_file(
+        self,
+        module_name: str,
+        kernel_descriptions: Dict[str, Kernel],
+        containing_dir=".",
+    ) -> Dict[str, "KernelCpu"]:
+        """
+        Import a compiled module `module_name` located in `containing_dir`
+        (by default it is the current working directory), and add the kernels
+        from the module, as defined in `kernel_descriptions`, to the context.
+        Returns the path to the loaded so file.
+        """
+        module = self._load_kernel_module(
+            name=module_name,
+            containing_dir=containing_dir,
+        )
+        out_kernels = {}
+        for pyname, kernel_desc in kernel_descriptions.items():
+            out_kernels[pyname] = KernelCpu(
+                function=getattr(module.lib, kernel_desc.c_name),
+                description=kernel_desc,
+                ffi_interface=module.ffi,
+                context=self,
+            )
+        return out_kernels
+
+    def compile_kernel(
+        self,
+        module_name,
+        kernel_descriptions,
+        cdefs,
+        specialized_source,
+        extra_compile_args,
+        extra_link_args,
+        containing_dir=".",
+    ) -> Path:
+        ffi_interface = cffi.FFI()
+        ffi_interface.cdef(cdefs)
+
+        for pyname, kernel in kernel_descriptions.items():
+            if pyname not in cdefs:  # check if kernel not already declared
+                signature = cdef_from_kernel(kernel, pyname)
+                ffi_interface.cdef(signature)
+                log.debug(f"cffi def {pyname} {signature}")
+
+        if self.omp_num_threads > 0:
+            ffi_interface.cdef("void omp_set_num_threads(int);")
+
+        # Compile
+        xtr_compile_args = ["-std=c99"]
+        xtr_link_args = ["-std=c99"]
+        xtr_compile_args += extra_compile_args
+        xtr_link_args += extra_link_args
+
+        if self.omp_num_threads > 0:
+            xtr_compile_args.append("-fopenmp")
+            xtr_link_args.append("-fopenmp")
+
+        if os.name == "nt":  # windows
+            # TODO: to be handled properly
+            xtr_compile_args = []
+            xtr_link_args = []
+
+        ffi_interface.set_source(
+            module_name,
+            specialized_source,
+            extra_compile_args=xtr_compile_args,
+            extra_link_args=xtr_link_args,
+        )
+
+        try:
+            so_file = str(
+                _so_for_module_name(module_name, containing_dir).absolute()
+            )
+            output_file = ffi_interface.compile(target=so_file, verbose=True)
+            return Path(output_file)
+        finally:
+            # Clean temp files
+            files_to_remove = [
+                module_name + ".c",
+                module_name + ".o",
+            ]
+
+            for ff in files_to_remove:
+                if os.path.exists(ff):
+                    os.remove(ff)
+
+    def _build_sources(
+        self,
+        classes: List[type] = None,
+        extra_headers: Sequence[SourceType] = None,
+        specialize: bool = True,
+        sources: Sequence[SourceType] = None,
+        apply_to_source: Sequence[Callable] = (),
+    ) -> Tuple[str, str]:
+        sources = sources or []
+        classes = classes or []
         cls_sources = sources_from_classes(classes)
 
         headers = ["#include <stdint.h>"]
@@ -210,9 +424,7 @@ class ContextCpu(XContext):
             headers = ["#include <omp.h>"] + headers
 
         headers += extra_headers
-
         sources = headers + cls_sources + sources
-
         source, folders = _concatenate_sources(sources, apply_to_source)
 
         if specialize:
@@ -220,6 +432,7 @@ class ContextCpu(XContext):
                 specialize_for = "cpu_openmp"
             else:
                 specialize_for = "cpu_serial"
+
             # included files are searched in the same folders od the src_filed
             specialized_source = specialize_source(
                 source,
@@ -228,112 +441,27 @@ class ContextCpu(XContext):
             )
         else:
             specialized_source = source
+        return source, specialized_source
 
-        if save_source_as is not None:
-            with open(save_source_as, "w") as fid:
-                fid.write(specialized_source)
+    def _load_kernel_module(
+        self,
+        name: str,
+        containing_dir=".",
+    ):
+        """
+        Load a kernel from a stored shared object file.
+        """
+        so_path = _so_for_module_name(name, containing_dir)
+        # Import the compiled module
+        spec = importlib.util.spec_from_file_location(name, so_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
-        if compile:
-            ffi_interface = cffi.FFI()
+        if self.omp_num_threads > 0:
+            raise NotImplementedError("OpenMP not supported for now!")
+            self.omp_set_num_threads = module.lib.omp_set_num_threads
 
-            cdefs = "\n".join(cls._gen_c_decl({}) for cls in classes)
-
-            ffi_interface.cdef(cdefs)
-
-            if extra_cdef is not None:
-                ffi_interface.cdef(extra_cdef)
-
-            for pyname, kernel in kernels.items():
-                if pyname not in cdefs:  # check if kernel not already declared
-                    signature = cdef_from_kernel(kernel, pyname)
-                    ffi_interface.cdef(signature)
-                    log.debug(f"cffi def {pyname} {signature}")
-
-            if self.omp_num_threads > 0:
-                ffi_interface.cdef("void omp_set_num_threads(int);")
-
-            # Generate temp fname
-            tempfname = str(uuid.uuid4().hex)
-
-            # Compile
-            xtr_compile_args = ["-std=c99"]
-            xtr_link_args = ["-std=c99"]
-            xtr_compile_args += extra_compile_args
-            xtr_link_args += extra_link_args
-            if self.omp_num_threads > 0:
-                xtr_compile_args.append("-fopenmp")
-                xtr_link_args.append("-fopenmp")
-
-            if os.name == "nt":  # windows
-                # TODO: to be handled properly
-                xtr_compile_args = []
-                xtr_link_args = []
-
-            ffi_interface.set_source(
-                tempfname,
-                specialized_source,
-                extra_compile_args=xtr_compile_args,
-                extra_link_args=xtr_link_args,
-            )
-
-            ffi_interface.compile(verbose=True)
-
-            # build full so filename, something like:
-            # 0e14651ea79740119c6e6c24754f935e.cpython-38-x86_64-linux-gnu.so
-            suffix = sysconfig.get_config_var("EXT_SUFFIX")
-            so_fname = tempfname + suffix
-
-            try:
-                # Import the compiled module
-                spec = importlib.util.spec_from_file_location(
-                    tempfname, os.path.abspath("./" + tempfname + suffix)
-                )
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-
-                if self.omp_num_threads > 0:
-                    raise NotImplementedError("OpenMP not supported for now!")
-                    self.omp_set_num_threads = module.lib.omp_set_num_threads
-
-                # Get the methods
-                for pyname, kernel in kernels.items():
-                    self.kernels[pyname] = KernelCpu(
-                        function=getattr(module.lib, kernel.c_name),
-                        description=kernel,
-                        ffi_interface=module.ffi,
-                        context=self,
-                    )
-
-            finally:
-                # Clean temp files
-                files_to_remove = [
-                    so_fname,
-                    tempfname + ".c",
-                    tempfname + ".o",
-                ]
-
-                for ff in files_to_remove:
-                    if os.path.exists(ff):
-                        if os.name == "nt" and ff.endswith(".pyd"):
-                            # pyd files are protected on windows
-                            continue
-                        os.remove(ff)
-        else:
-            # Only kernel information, but no possibility to call the kernel
-            for pyname, kernel in kernels.items():
-                self.kernels[pyname] = KernelCpu(
-                    function=None,
-                    description=kernel,
-                    ffi_interface=None,
-                    context=self,
-                )
-
-        for pyname, kernel in kernels.items():
-            self.kernels[pyname].source = source
-            self.kernels[pyname].specialized_source = specialized_source
-            self.kernels[
-                pyname
-            ].description.pyname = pyname  # TODO: find better implementation?
+        return module
 
     def nparray_to_context_array(self, arr):
         """
@@ -544,11 +672,12 @@ class KernelCpu:
         ffi_interface,
         context,
     ):
-
         self.function = function
         self.description = description
         self.ffi_interface = ffi_interface
         self.context = context
+        self.source = None
+        self.specialized_source = None
 
     def to_function_arg(self, arg, value):
         if arg.pointer:

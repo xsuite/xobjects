@@ -180,7 +180,6 @@ class XContext(ABC):
         extra_headers: Sequence[SourceType] = (),
         compile: bool = True,  # noqa
     ):
-
         """
         Adds user-defined kernels to the context. The kernel source
         code is provided as a string and/or in source files and must contain
@@ -311,7 +310,6 @@ class XBuffer(ABC):
         default_alignment=None,
         grow_step=None,
     ):
-
         if context is None:
             self.context = self._make_context()
         else:

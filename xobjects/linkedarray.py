@@ -5,7 +5,6 @@
 
 
 class BaseLinkedArray:
-
     container = None
     container_setitem_name = None
     mode = None

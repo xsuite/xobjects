@@ -546,7 +546,6 @@ class ContextCpu(XContext):
 
     @property
     def kernels(self):
-
         """
         Dictionary containing all the kernels that have been imported to the context.
         The syntax ``context.kernels.mykernel`` can also be used.
@@ -748,7 +747,6 @@ class KernelCpu:
 
 class FFTCpu(object):
     def __init__(self, data, axes, threads=0):
-
         self.axes = axes
         self.threads = threads
 

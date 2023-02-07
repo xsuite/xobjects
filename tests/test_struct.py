@@ -145,7 +145,6 @@ def test_assign_full_struct(test_context):
 
 
 def test_preinit():
-
     import numpy as np
 
     class Rotation(xo.Struct):

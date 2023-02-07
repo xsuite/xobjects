@@ -541,7 +541,6 @@ def test_getp1_dyn_length_dyn_type_string_array():
 
 def test_gpu_api():
     for ctx in xo.context.get_test_contexts():
-
         src_code = """
         /*gpufun*/
         void myfun(double x, double y,

@@ -70,7 +70,6 @@ def _patch_pyopencl_array(cl, cla, ctx):
             return "C"
 
     def copy_non_cont(src, dest, custom_itemsize=None, skip_typecheck=False):
-
         assert src.shape == dest.shape
 
         # The case float -> complex just works (by using the src itemsize)

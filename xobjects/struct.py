@@ -466,7 +466,6 @@ class Struct(metaclass=MetaStruct):
         apply_to_source=(),
         save_source_as=None,
     ):
-
         if only_if_needed:
             all_found = True
             for kk in cls._kernels.keys():

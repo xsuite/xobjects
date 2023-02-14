@@ -56,11 +56,13 @@ def topological_sort(source):
     return result, has_cycle
 
 
-def sort_classes(classes):
+def sort_classes(classes: list):
+    """Sort classes in order of dependencies. The input is a list: in case of
+    multiple classes with the same name, the last one is used.
+    """
     cdict = {cls.__name__: cls for cls in classes}
     deps = {}
-    lst = list(classes)
-    for cls in lst:
+    for cls in classes:
         cldeps = []
         cllist = []
         if hasattr(cls, "_get_inner_types"):
@@ -70,13 +72,13 @@ def sort_classes(classes):
         for cl in cllist:
             if not cl.__name__ in cdict:
                 cdict[cl.__name__] = cl
-                lst.append(cl)
+                classes.append(cl)
             cldeps.append(cl.__name__)
         deps[cls.__name__] = cldeps
-    lst, has_cycle = topological_sort(deps)
+    classes, has_cycle = topological_sort(deps)
     if has_cycle:
         raise ValueError("Class dependencies have cycles")
-    return [cdict[cn] for cn in lst if hasattr(cdict[cn], "_gen_c_api")]
+    return [cdict[cn] for cn in classes if hasattr(cdict[cn], "_gen_c_api")]
 
 
 def sources_from_classes(classes):

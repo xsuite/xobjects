@@ -260,8 +260,8 @@ class ContextCpu(XContext):
         module_name = module_name or str(uuid.uuid4().hex)
         containing_dir = containing_dir
 
-        classes = classes_from_kernels(kernel_descriptions)
-        classes.update(extra_classes)
+        classes = list(classes_from_kernels(kernel_descriptions))
+        classes += list(extra_classes)
         classes = sort_classes(classes)
 
         source, specialized_source = self._build_sources(

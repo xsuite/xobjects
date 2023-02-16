@@ -173,6 +173,10 @@ def _patch_pyopencl_array(cl, cla, ctx):
 
         return res
 
+    # mean not implemented by pyopencl, I add it
+    def mymean(self):
+        return self.sum() / len(self)
+
     cla.Array._cont_zeros_like_me = _cont_zeros_like_me
 
     if not hasattr(cla.Array, "_old_copy"):
@@ -189,6 +193,7 @@ def _patch_pyopencl_array(cl, cla, ctx):
 
     cla.Array.real = property(myreal)
     cla.Array.sum = mysum
+    cla.Array.mean = mymean
 
     # sqrt available in clmath, add it to cla, so we can use it in nplike_lib
     from pyopencl.clmath import sqrt as clm_sqrt

@@ -229,6 +229,7 @@ class ContextCpu(XContext):
             sources=sources,
             specialize=specialize,
             apply_to_source=apply_to_source,
+            save_source_as=save_source_as,
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
             extra_cdef=extra_cdef,

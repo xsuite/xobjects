@@ -348,10 +348,14 @@ if _enabled:
 
 cudaheader: List[SourceType] = [
     """\
-typedef signed long long int64_t;  //only_for_context cuda
-typedef signed char      int8_t;   //only_for_context cuda
-typedef unsigned int     uint32_t; //only_for_context cuda
-typedef int              int32_t; //only_for_context cuda
+typedef signed long long   int64_t;  //only_for_context cuda
+typedef signed int         int32_t;  //only_for_context cuda
+typedef signed short       int16_t;  //only_for_context cuda
+typedef signed char        int8_t;   //only_for_context cuda
+typedef unsigned long long uint64_t; //only_for_context cuda
+typedef unsigned int       uint32_t; //only_for_context cuda
+typedef unsigned short     uint16_t; //only_for_context cuda
+typedef unsigned char      uint8_t;  //only_for_context cuda
 
 """
 ]

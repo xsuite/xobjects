@@ -27,7 +27,6 @@ def gen_classes():
 
 
 def test_gen_data_paths():
-
     Field, Multipole = gen_classes()
     Field_N = Multipole.field.ftype
 

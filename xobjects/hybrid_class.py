@@ -40,7 +40,6 @@ class _FieldOfDressed:
         if self.isnplikearray:
             self.__get__(container=container)[:] = value
         elif hasattr(value, "_xobject"):  # value is a dressed xobject
-
             # Copy xobject data from value inside self._xobject
             # (unless same memory area or Ref and same buffer,
             #  in the latter case reference mechanism is used)
@@ -113,7 +112,6 @@ def _build_xofields_dict(bases, data):
 
 class MetaHybridClass(type):
     def __new__(cls, name, bases, data):
-
         if "_xofields" not in data.keys() and any(
             map(lambda b: hasattr(b, "_XoStruct"), bases)
         ):
@@ -198,7 +196,6 @@ class MetaHybridClass(type):
 
 
 class HybridClass(metaclass=MetaHybridClass):
-
     _movable = True
 
     def move(self, _context=None, _buffer=None, _offset=None):
@@ -246,7 +243,6 @@ class HybridClass(metaclass=MetaHybridClass):
                 setattr(self, pyname, vv)
 
     def xoinitialize(self, _xobject=None, _kwargs_name_check=True, **kwargs):
-
         if _kwargs_name_check:
             for kk in kwargs.keys():
                 if kk.startswith("_"):

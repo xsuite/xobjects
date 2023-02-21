@@ -348,10 +348,14 @@ if _enabled:
 
 cudaheader: List[SourceType] = [
     """\
-typedef signed long long int64_t;  //only_for_context cuda
-typedef signed char      int8_t;   //only_for_context cuda
-typedef unsigned int     uint32_t; //only_for_context cuda
-typedef int              int32_t; //only_for_context cuda
+typedef signed long long   int64_t;  //only_for_context cuda
+typedef signed int         int32_t;  //only_for_context cuda
+typedef signed short       int16_t;  //only_for_context cuda
+typedef signed char        int8_t;   //only_for_context cuda
+typedef unsigned long long uint64_t; //only_for_context cuda
+typedef unsigned int       uint32_t; //only_for_context cuda
+typedef unsigned short     uint16_t; //only_for_context cuda
+typedef unsigned char      uint8_t;  //only_for_context cuda
 
 """
 ]
@@ -385,7 +389,6 @@ class ContextCupy(XContext):
         return LinkedArrayCupy
 
     def __init__(self, default_block_size=256, device=None):
-
         if device is not None:
             cupy.cuda.Device(device).use()
 
@@ -534,7 +537,6 @@ class ContextCupy(XContext):
 
     @property
     def kernels(self):
-
         """
         Dictionary containing all the kernels that have been imported to the context.
         The syntax ``context.kernels.mykernel`` can also be used.
@@ -610,7 +612,6 @@ class KernelCupy(object):
         block_size,
         context,
     ):
-
         self.function = function
         self.description = description
         self.block_size = block_size
@@ -664,7 +665,6 @@ class KernelCupy(object):
 
 class FFTCupy(object):
     def __init__(self, context, data, axes):
-
         self.context = context
         self.axes = axes
 

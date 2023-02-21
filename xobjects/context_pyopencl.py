@@ -47,9 +47,14 @@ from ._patch_pyopencl_array import _patch_pyopencl_array
 openclheader: List[SourceType] = [
     """\
 #ifndef XOBJ_STDINT
-typedef long int64_t;
-typedef char int8_t;
-typedef unsigned int uint32_t;
+typedef long           int64_t;
+typedef int            int32_t;
+typedef short          int16_t;
+typedef char           int8_t;
+typedef unsigned long  uint64_t;
+typedef unsigned int   uint32_t;
+typedef unsigned short uint16_t;
+typedef unsigned char  uint8_t;
 #endif
 #ifndef NULL
 #define NULL 0L
@@ -102,7 +107,6 @@ class ContextPyopencl(XContext):
     def __init__(
         self, device=None, patch_pyopencl_array=True, minimum_alignment=None
     ):
-
         """
         Creates a Pyopencl Context object, that allows performing the computations
         on GPUs and CPUs through PyOpenCL.
@@ -226,7 +230,6 @@ class ContextPyopencl(XContext):
         return out_kernels
 
     def nparray_to_context_array(self, arr):
-
         """
         Copies a numpy array to the device memory.
         Args:
@@ -240,7 +243,6 @@ class ContextPyopencl(XContext):
         return dev_arr
 
     def nparray_from_context_array(self, dev_arr):
-
         """
         Copies an array to the device to a numpy array.
 
@@ -304,7 +306,6 @@ class ContextPyopencl(XContext):
 
     @property
     def kernels(self):
-
         """
         Dictionary containing all the kernels that have been imported to the context.
         The syntax ``context.kernels.mykernel`` can also be used.
@@ -441,7 +442,6 @@ class KernelPyopencl(object):
         context,
         wait_on_call=True,
     ):
-
         self.function = function
         self.description = description
         self.context = context
@@ -505,7 +505,6 @@ class KernelPyopencl(object):
 
 class FFTPyopencl(object):
     def __init__(self, context, data, axes, wait_on_call=True):
-
         self.context = context
         self.axes = axes
         self.wait_on_call = wait_on_call

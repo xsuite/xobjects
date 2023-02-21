@@ -70,7 +70,6 @@ def _patch_pyopencl_array(cl, cla, ctx):
             return "C"
 
     def copy_non_cont(src, dest, custom_itemsize=None, skip_typecheck=False):
-
         assert src.shape == dest.shape
 
         # The case float -> complex just works (by using the src itemsize)
@@ -174,6 +173,10 @@ def _patch_pyopencl_array(cl, cla, ctx):
 
         return res
 
+    # mean not implemented by pyopencl, I add it
+    def mymean(self):
+        return self.sum() / len(self)
+
     cla.Array._cont_zeros_like_me = _cont_zeros_like_me
 
     if not hasattr(cla.Array, "_old_copy"):
@@ -190,3 +193,12 @@ def _patch_pyopencl_array(cl, cla, ctx):
 
     cla.Array.real = property(myreal)
     cla.Array.sum = mysum
+    cla.Array.mean = mymean
+
+    # sqrt available in clmath, add it to cla, so we can use it in nplike_lib
+    from pyopencl.clmath import sqrt as clm_sqrt
+
+    cla.sqrt = clm_sqrt
+
+    # isnan is not available, but can be simulated easily
+    cla.isnan = lambda ary: (ary != ary)

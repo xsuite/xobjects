@@ -17,6 +17,7 @@ NULLVALUE = -(2**63)
 NULLTYPE = -1
 NULLREF = np.array([NULLVALUE, NULLTYPE], dtype="int64")
 
+
 # Ref is a like a scalar
 class MetaRef(type):
     def __getitem__(cls, reftype):
@@ -24,11 +25,9 @@ class MetaRef(type):
 
 
 class Ref(metaclass=MetaRef):
-
     _has_refs = True
 
     def __init__(self, reftype):
-
         if hasattr(reftype, "_XoStruct"):
             self._reftype = reftype._XoStruct
         else:
@@ -48,7 +47,6 @@ class Ref(metaclass=MetaRef):
             return self._reftype._from_buffer(buffer, refoffset)
 
     def _to_buffer(self, buffer, offset, value, info=None):
-
         # Get/set content
         if value is None:
             refoffset = NULLVALUE  # NULL value

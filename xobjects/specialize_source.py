@@ -7,7 +7,6 @@ import os
 
 
 def specialize_source(source, specialize_for, search_in_folders=[]):
-
     assert specialize_for in ["cpu_serial", "cpu_openmp", "opencl", "cuda"]
 
     source_lines = source.splitlines()

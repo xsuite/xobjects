@@ -414,8 +414,8 @@ class ContextCupy(XContext):
         if not compile:
             raise NotImplementedError("compile=False available only on CPU.")
 
-        classes = classes_from_kernels(kernel_descriptions)
-        classes.update(extra_classes)
+        classes = list(classes_from_kernels(kernel_descriptions))
+        classes += list(extra_classes)
         classes = sort_classes(classes)
         cls_sources = sources_from_classes(classes)
 

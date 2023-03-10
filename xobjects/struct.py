@@ -485,8 +485,11 @@ class Struct(metaclass=MetaStruct):
         )
 
     def compile_kernels(
-        self, only_if_needed=False, apply_to_source=(), save_source_as=None,
-            extra_classes=(),
+        self,
+        only_if_needed=False,
+        apply_to_source=(),
+        save_source_as=None,
+        extra_classes=(),
     ):
         self.compile_class_kernels(
             context=self._context,

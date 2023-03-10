@@ -118,7 +118,7 @@ class MetaHybridClass(type):
             # No action, use _XoStruct from base class (used to build PyHEADTAIL interface)
             return type.__new__(cls, name, bases, data)
 
-        _XoStruct_name = data.get('_cname', name + "Data")
+        _XoStruct_name = data.get("_cname", name + "Data")
 
         # Take xofields from data['_xofields'] or from bases
         xofields = _build_xofields_dict(bases, data)

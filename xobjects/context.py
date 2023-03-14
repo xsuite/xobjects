@@ -60,25 +60,34 @@ def sort_classes(classes: list):
     """Sort classes in order of dependencies. The input is a list: in case of
     multiple classes with the same name, the last one is used.
     """
-    cdict = {cls.__name__: cls for cls in classes}
+    class_by_name = {
+        cls.__name__: cls for cls in classes
+    }  # cls.__name__ may repeat
     deps = {}
     for cls in classes:
-        cldeps = []
-        cllist = []
+        cls_deps = []
+        cls_dep_names = []
         if hasattr(cls, "_get_inner_types"):
-            cllist.extend(cls._get_inner_types())
+            cls_deps.extend(cls._get_inner_types())
         if hasattr(cls, "_depends_on"):
-            cllist.extend(cls._depends_on)
-        for cl in cllist:
-            if not cl.__name__ in cdict:
-                cdict[cl.__name__] = cl
-                classes.append(cl)
-            cldeps.append(cl.__name__)
-        deps[cls.__name__] = cldeps
+            cls_deps.extend(cls._depends_on)
+        for local_dep in cls_deps:
+            if local_dep.__name__ not in class_by_name:
+                # Since we keep `classes` and `class_by_name` synchronised, even
+                # if there is a dependency loop, the below on-line modification
+                # of `classes` will not lead to an infinite loop.
+                class_by_name[local_dep.__name__] = local_dep
+                classes.append(local_dep)
+            cls_dep_names.append(local_dep.__name__)
+        deps[cls.__name__] = cls_dep_names
     classes, has_cycle = topological_sort(deps)
     if has_cycle:
         raise ValueError("Class dependencies have cycles")
-    return [cdict[cn] for cn in classes if hasattr(cdict[cn], "_gen_c_api")]
+    return [
+        class_by_name[cn]
+        for cn in classes
+        if hasattr(class_by_name[cn], "_gen_c_api")
+    ]
 
 
 def sources_from_classes(classes):

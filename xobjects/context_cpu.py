@@ -264,6 +264,12 @@ class ContextCpu(XContext):
         classes += list(extra_classes)
         classes = sort_classes(classes)
 
+        # Update the kernel descriptions with the overriden classes
+        cls_for_name = {cls.__name__: cls for cls in classes}
+        for kernel_name, kernel in kernel_descriptions.items():
+            for arg in kernel.args:
+                arg.atype = cls_for_name.get(arg.atype.__name__, arg.atype)
+
         source, specialized_source = self._build_sources(
             sources=sources,
             classes=classes,

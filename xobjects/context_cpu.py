@@ -402,7 +402,9 @@ class ContextCpu(XContext):
             so_file = str(
                 _so_for_module_name(module_name, containing_dir).absolute()
             )
-            output_file = ffi_interface.compile(target=so_file, verbose=verbose)
+            output_file = ffi_interface.compile(
+                target=so_file, verbose=verbose
+            )
             return Path(output_file)
         finally:
             # Clean temp files

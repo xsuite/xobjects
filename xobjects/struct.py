@@ -465,6 +465,7 @@ class Struct(metaclass=MetaStruct):
         only_if_needed=False,
         apply_to_source=(),
         save_source_as=None,
+        verbose=False
     ):
         if only_if_needed:
             all_found = True
@@ -481,16 +482,18 @@ class Struct(metaclass=MetaStruct):
             extra_classes=[cls],
             apply_to_source=apply_to_source,
             save_source_as=save_source_as,
+            verbose=verbose
         )
 
     def compile_kernels(
-        self, only_if_needed=False, apply_to_source=(), save_source_as=None
+        self, only_if_needed=False, apply_to_source=(), save_source_as=None, verbose=False
     ):
         self.compile_class_kernels(
             context=self._context,
             only_if_needed=only_if_needed,
             apply_to_source=apply_to_source,
             save_source_as=save_source_as,
+            verbose=verbose
         )
 
 

@@ -152,6 +152,7 @@ class ContextCpu(XContext):
         extra_classes=(),
         extra_headers=(),
         compile=True,  # noqa
+        verbose=False
     ):
         """
         Adds user-defined kernels to the context. The kernel source
@@ -236,6 +237,7 @@ class ContextCpu(XContext):
             extra_classes=extra_classes,
             extra_headers=extra_headers,
             compile=compile,
+            verbose=verbose
         )
         self.kernels.update(generated_kernels)
 
@@ -254,6 +256,7 @@ class ContextCpu(XContext):
         extra_classes=(),
         extra_headers=(),
         compile=True,  # noqa
+        verbose=False
     ) -> Dict[str, "KernelCpu"]:
         # Determine names and paths
         clean_up_so = not module_name
@@ -289,6 +292,7 @@ class ContextCpu(XContext):
                 extra_compile_args,
                 extra_link_args,
                 containing_dir=containing_dir,
+                verbose=verbose
             )
 
             try:
@@ -358,6 +362,7 @@ class ContextCpu(XContext):
         extra_compile_args,
         extra_link_args,
         containing_dir=".",
+        verbose=False
     ) -> Path:
         ffi_interface = cffi.FFI()
         ffi_interface.cdef(cdefs)
@@ -397,7 +402,7 @@ class ContextCpu(XContext):
             so_file = str(
                 _so_for_module_name(module_name, containing_dir).absolute()
             )
-            output_file = ffi_interface.compile(target=so_file, verbose=True)
+            output_file = ffi_interface.compile(target=so_file, verbose=verbose)
             return Path(output_file)
         finally:
             # Clean temp files

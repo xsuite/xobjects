@@ -410,7 +410,7 @@ class ContextCupy(XContext):
         extra_classes=(),
         extra_headers=(),
         compile=True,  # noqa
-        verbose=False
+        verbose=False,
     ) -> Dict[str, KernelType]:
         if not compile:
             raise NotImplementedError("compile=False available only on CPU.")

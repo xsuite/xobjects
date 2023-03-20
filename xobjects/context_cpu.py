@@ -328,7 +328,7 @@ class ContextCpu(XContext):
             out_kernels[pyname].description.pyname = pyname
 
         kernels_with_classes = {
-            (name, tuple(kernel.description.get_classes())): kernel
+            (name, tuple(kernel.description.get_overridable_classes())): kernel
             for name, kernel in out_kernels.items()
         }
         return kernels_with_classes

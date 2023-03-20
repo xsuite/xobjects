@@ -228,7 +228,7 @@ class ContextPyopencl(XContext):
             out_kernels[pyname].specialized_source = specialized_source
 
         kernels_with_classes = {
-            (name, tuple(kernel.description.get_classes())): kernel
+            (name, tuple(kernel.description.get_overridable_classes())): kernel
             for name, kernel in out_kernels.items()
         }
         return kernels_with_classes

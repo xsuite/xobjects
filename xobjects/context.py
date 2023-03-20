@@ -148,6 +148,15 @@ class MinimalDotDict(dict):
 
 
 class KernelDict(dict):
+    """
+    A dictionary for storing kernels. The keys are tuples of the form
+    (kernel_name, kernel_classes), where kernel_classes is a tuple of the
+    xo.Struct classes that the kernel depends on.
+
+    The dictionary can be indexed by kernel name, in which case it returns a
+    KernelDispatcher object, which dynamically dispatches the kernel call to
+    the correct kernel based on the types of the arguments.
+    """
     def __getitem__(self, item):
         if isinstance(item, str):
             return KernelDispatcher(item, self)
@@ -158,6 +167,10 @@ class KernelDict(dict):
 
 
 class KernelDispatcher:
+    """
+    Dispatches a kernel call to the correct kernel based on the types of the
+    arguments.
+    """
     def __init__(self, kernel_name, kernels):
         self._kernels = kernels
         self._name = kernel_name
@@ -170,9 +183,19 @@ class KernelDispatcher:
         classes = []
         for arg in kwargs.values():
             if isinstance(arg, HybridClass):
-                classes.append(arg._XoStruct)
-            if isinstance(arg, Struct):
-                classes.append(type(arg))
+                overridable = arg._overridable
+                arg_cls = arg._XoStruct
+            elif isinstance(arg, Struct):
+                arg_cls = type(arg)
+                try:
+                    overridable = arg_cls._DressingClass._overridable
+                except AttributeError:
+                    overridable = False
+            else:
+                continue
+
+            if overridable:
+                classes.append(arg_cls)
 
         return self._kernels[(self._name, tuple(classes))](**kwargs)
 
@@ -565,6 +588,11 @@ class Kernel:
         if isinstance(self.ret, Arg) and hasattr(self.ret.atype, "_gen_c_api"):
             classes.append(self.ret.atype)
         return classes
+
+    def get_overridable_classes(self):
+        return [cls for cls in self.get_classes()
+                if hasattr(cls, '_DressingClass') and
+                cls._DressingClass._overridable]
 
 
 class Source:

@@ -197,6 +197,7 @@ class MetaHybridClass(type):
 
 class HybridClass(metaclass=MetaHybridClass):
     _movable = True
+    _overridable = True
 
     def move(self, _context=None, _buffer=None, _offset=None):
         if not self._movable:

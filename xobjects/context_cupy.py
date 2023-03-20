@@ -417,6 +417,13 @@ class ContextCupy(XContext):
         classes = list(classes_from_kernels(kernel_descriptions))
         classes += list(extra_classes)
         classes = sort_classes(classes)
+
+        # Update the kernel descriptions with the overriden classes
+        cls_for_name = {cls.__name__: cls for cls in classes}
+        for kernel_name, kernel in kernel_descriptions.items():
+            for arg in kernel.args:
+                arg.atype = cls_for_name.get(arg.atype.__name__, arg.atype)
+
         cls_sources = sources_from_classes(classes)
 
         headers = cudaheader + list(extra_headers)

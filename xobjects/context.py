@@ -147,6 +147,41 @@ class MinimalDotDict(dict):
         return list(self.keys())
 
 
+class KernelDict(dict):
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            return KernelDispatcher(item, self)
+        return super().__getitem__(item)
+
+    def __getattr__(self, attr):
+        return KernelDispatcher(attr, self)
+
+
+class KernelDispatcher:
+    def __init__(self, kernel_name, kernels):
+        self._kernels = kernels
+        self._name = kernel_name
+
+    def __call__(self, *args, **kwargs):
+        if args:
+            raise ValueError("Kernels can only be called with named arguments.")
+
+        from . import HybridClass, Struct
+        classes = []
+        for arg in kwargs.values():
+            if isinstance(arg, HybridClass):
+                classes.append(arg._XoStruct)
+            if isinstance(arg, Struct):
+                classes.append(type(arg))
+
+        return self._kernels[(self._name, tuple(classes))](**kwargs)
+
+    def set_n_threads(self, n_threads):
+        for name, kernel in self._kernels.items():
+            if name == self._name:
+                kernel.description.n_threads = n_threads
+
+
 class ModuleNotAvailable(object):
     def __init__(self, message="Module not available"):
         self.message = message
@@ -159,7 +194,7 @@ class XContext(ABC):
     minimum_alignment = 1
 
     def __init__(self):
-        self._kernels = MinimalDotDict()
+        self._kernels = KernelDict()
         self._buffers = []
 
     def new_buffer(self, capacity=1048576):

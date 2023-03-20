@@ -455,7 +455,11 @@ class ContextCupy(XContext):
             out_kernels[pyname].source = source
             out_kernels[pyname].specialized_source = specialized_source
 
-        return out_kernels
+        kernels_with_classes = {
+            (name, tuple(kernel.description.get_classes())): kernel
+            for name, kernel in out_kernels.items()
+        }
+        return kernels_with_classes
 
     def nparray_to_context_array(self, arr):
         """

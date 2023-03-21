@@ -6,6 +6,7 @@
 import logging
 import os
 import weakref
+import xobjects as xo
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from pathlib import Path
@@ -179,13 +180,12 @@ class KernelDispatcher:
         if args:
             raise ValueError("Kernels can only be called with named arguments.")
 
-        from . import HybridClass, Struct
         classes = []
         for arg in kwargs.values():
-            if isinstance(arg, HybridClass):
+            if isinstance(arg, xo.HybridClass):
                 overridable = arg._overridable
                 arg_cls = arg._XoStruct
-            elif isinstance(arg, Struct):
+            elif isinstance(arg, xo.Struct):
                 arg_cls = type(arg)
                 try:
                     overridable = arg_cls._DressingClass._overridable

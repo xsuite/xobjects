@@ -200,7 +200,7 @@ class KernelDispatcher:
         return self._kernels[(self._name, tuple(classes))](**kwargs)
 
     def set_n_threads(self, n_threads):
-        for name, kernel in self._kernels.items():
+        for (name, _), kernel in self._kernels.items():
             if name == self._name:
                 kernel.description.n_threads = n_threads
 

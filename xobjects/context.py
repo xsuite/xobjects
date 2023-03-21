@@ -158,6 +158,7 @@ class KernelDict(dict):
     KernelDispatcher object, which dynamically dispatches the kernel call to
     the correct kernel based on the types of the arguments.
     """
+
     def __getitem__(self, item):
         if isinstance(item, str):
             return KernelDispatcher(item, self)
@@ -172,13 +173,16 @@ class KernelDispatcher:
     Dispatches a kernel call to the correct kernel based on the types of the
     arguments.
     """
+
     def __init__(self, kernel_name, kernels):
         self._kernels = kernels
         self._name = kernel_name
 
     def __call__(self, *args, **kwargs):
         if args:
-            raise ValueError("Kernels can only be called with named arguments.")
+            raise ValueError(
+                "Kernels can only be called with named arguments."
+            )
 
         classes = []
         for arg in kwargs.values():
@@ -590,9 +594,12 @@ class Kernel:
         return classes
 
     def get_overridable_classes(self):
-        return [cls for cls in self.get_classes()
-                if hasattr(cls, '_DressingClass') and
-                cls._DressingClass._overridable]
+        return [
+            cls
+            for cls in self.get_classes()
+            if hasattr(cls, "_DressingClass")
+            and cls._DressingClass._overridable
+        ]
 
 
 class Source:

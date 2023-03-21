@@ -254,7 +254,7 @@ class ContextCpu(XContext):
         extra_classes=(),
         extra_headers=(),
         compile=True,  # noqa
-    ) -> dict[str, 'KernelCpu']:
+    ) -> dict[str, "KernelCpu"]:
         # Determine names and paths
         clean_up_so = not module_name
         module_name = module_name or str(uuid.uuid4().hex)

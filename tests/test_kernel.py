@@ -189,7 +189,7 @@ def test_kernels_save_files(tmp_path):
     )
     test_context.kernels.update(kernels)
 
-    assert kernels["myfun"].function(3, 4) == 12
+    assert test_context.kernels.myfun(x=3, y=4) == 12
 
     assert my_folder.exists()
     so_file = my_folder / (

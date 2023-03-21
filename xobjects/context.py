@@ -6,6 +6,7 @@
 import logging
 import os
 import weakref
+import xobjects as xo
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from pathlib import Path
@@ -56,27 +57,38 @@ def topological_sort(source):
     return result, has_cycle
 
 
-def sort_classes(classes):
-    cdict = {cls.__name__: cls for cls in classes}
+def sort_classes(classes: list):
+    """Sort classes in order of dependencies. The input is a list: in case of
+    multiple classes with the same name, the last one is used.
+    """
+    class_by_name = {
+        cls.__name__: cls for cls in classes
+    }  # cls.__name__ may repeat
     deps = {}
-    lst = list(classes)
-    for cls in lst:
-        cldeps = []
-        cllist = []
+    for cls in classes:
+        cls_deps = []
+        cls_dep_names = []
         if hasattr(cls, "_get_inner_types"):
-            cllist.extend(cls._get_inner_types())
+            cls_deps.extend(cls._get_inner_types())
         if hasattr(cls, "_depends_on"):
-            cllist.extend(cls._depends_on)
-        for cl in cllist:
-            if not cl.__name__ in cdict:
-                cdict[cl.__name__] = cl
-                lst.append(cl)
-            cldeps.append(cl.__name__)
-        deps[cls.__name__] = cldeps
-    lst, has_cycle = topological_sort(deps)
+            cls_deps.extend(cls._depends_on)
+        for local_dep in cls_deps:
+            if local_dep.__name__ not in class_by_name:
+                # Since we keep `classes` and `class_by_name` synchronised, even
+                # if there is a dependency loop, the below on-line modification
+                # of `classes` will not lead to an infinite loop.
+                class_by_name[local_dep.__name__] = local_dep
+                classes.append(local_dep)
+            cls_dep_names.append(local_dep.__name__)
+        deps[cls.__name__] = cls_dep_names
+    classes, has_cycle = topological_sort(deps)
     if has_cycle:
         raise ValueError("Class dependencies have cycles")
-    return [cdict[cn] for cn in lst if hasattr(cdict[cn], "_gen_c_api")]
+    return [
+        class_by_name[cn]
+        for cn in classes
+        if hasattr(class_by_name[cn], "_gen_c_api")
+    ]
 
 
 def sources_from_classes(classes):
@@ -136,6 +148,67 @@ class MinimalDotDict(dict):
         return list(self.keys())
 
 
+class KernelDict(dict):
+    """
+    A dictionary for storing kernels. The keys are tuples of the form
+    (kernel_name, kernel_classes), where kernel_classes is a tuple of the
+    xo.Struct classes that the kernel depends on.
+
+    The dictionary can be indexed by kernel name, in which case it returns a
+    KernelDispatcher object, which dynamically dispatches the kernel call to
+    the correct kernel based on the types of the arguments.
+    """
+
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            return KernelDispatcher(item, self)
+        return super().__getitem__(item)
+
+    def __getattr__(self, attr):
+        return KernelDispatcher(attr, self)
+
+
+class KernelDispatcher:
+    """
+    Dispatches a kernel call to the correct kernel based on the types of the
+    arguments.
+    """
+
+    def __init__(self, kernel_name, kernels):
+        self._kernels = kernels
+        self._name = kernel_name
+
+    def __call__(self, *args, **kwargs):
+        if args:
+            raise ValueError(
+                "Kernels can only be called with named arguments."
+            )
+
+        classes = []
+        for arg in kwargs.values():
+            if isinstance(arg, xo.HybridClass):
+                overridable = arg._overridable
+                arg_cls = arg._XoStruct
+            elif isinstance(arg, xo.Struct):
+                arg_cls = type(arg)
+                try:
+                    overridable = arg_cls._DressingClass._overridable
+                except AttributeError:
+                    overridable = False
+            else:
+                continue
+
+            if overridable:
+                classes.append(arg_cls)
+
+        return self._kernels[(self._name, tuple(classes))](**kwargs)
+
+    def set_n_threads(self, n_threads):
+        for (name, _), kernel in self._kernels.items():
+            if name == self._name:
+                kernel.description.n_threads = n_threads
+
+
 class ModuleNotAvailable(object):
     def __init__(self, message="Module not available"):
         self.message = message
@@ -148,7 +221,7 @@ class XContext(ABC):
     minimum_alignment = 1
 
     def __init__(self):
-        self._kernels = MinimalDotDict()
+        self._kernels = KernelDict()
         self._buffers = []
 
     def new_buffer(self, capacity=1048576):
@@ -519,6 +592,14 @@ class Kernel:
         if isinstance(self.ret, Arg) and hasattr(self.ret.atype, "_gen_c_api"):
             classes.append(self.ret.atype)
         return classes
+
+    def get_overridable_classes(self):
+        return [
+            cls
+            for cls in self.get_classes()
+            if hasattr(cls, "_DressingClass")
+            and cls._DressingClass._overridable
+        ]
 
 
 class Source:

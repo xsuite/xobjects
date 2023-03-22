@@ -3,6 +3,7 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 
+import cffi
 import sysconfig
 
 import numpy as np
@@ -197,3 +198,66 @@ def test_kernels_save_files(tmp_path):
     )
     assert so_file.exists()
     assert (my_folder / "my_module.c").exists()
+
+
+@requires_context("ContextCpu")
+def test_kernels_save_load_with_classes(tmp_path, mocker):
+    """Test the use case of xtrack.
+
+    We build a class with a kernel, verify that the kernel works, and then we
+    save the kernel to a file. We then reload the kernel from the file and
+    verify that it still works on a fresh context.
+    """
+    test_context = xo.ContextCpu()
+    my_folder = tmp_path / "my_folder"
+
+    class TestClass(xo.HybridClass):
+        _xofields = {
+            "x": xo.Float64,
+            "y": xo.Float64,
+        }
+        _extra_c_sources = [
+            """
+            /*gpufun*/ double myfun(TestClassData tc){
+                double x = TestClassData_get_x(tc);
+                double y = TestClassData_get_y(tc);
+                return x * y;
+            }
+        """
+        ]
+        _kernels = {
+            "myfun": xo.Kernel(
+                args=[
+                    xo.Arg(xo.ThisClass, name="tc"),
+                ],
+                ret=xo.Arg(xo.Float64),
+            ),
+        }
+
+    kernels = test_context.build_kernels(
+        kernel_descriptions=TestClass._kernels,
+        save_source_as="test_class.c",
+        compile=True,
+        containing_dir=str(my_folder),
+        extra_classes=[TestClass],
+        module_name="test_class",
+    )
+    test_context.kernels.update(kernels)
+
+    tc = TestClass(x=3, y=4)
+    assert test_context.kernels.myfun(tc=tc) == 12
+
+    # On a new context, load the kernels and test them,
+    # making sure we don't recompile
+    cffi_compile = mocker.patch.object(cffi.FFI, "compile")
+    fresh_context = xo.ContextCpu()
+    loaded_kernels = fresh_context.kernels_from_file(
+        "test_class",
+        TestClass._kernels,
+        str(my_folder),
+    )
+    fresh_context.kernels.update(loaded_kernels)
+
+    tc = TestClass(x=5, y=7, _context=fresh_context)
+    assert fresh_context.kernels.myfun(tc=tc) == 35
+    cffi_compile.assert_not_called()

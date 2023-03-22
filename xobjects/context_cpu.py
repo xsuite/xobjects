@@ -314,31 +314,28 @@ class ContextCpu(XContext):
             # Only kernel information, but no possibility to call the kernel
             out_kernels = {}
             for pyname, kernel in kernel_descriptions.items():
-                out_kernels[pyname] = KernelCpu(
+                classes = tuple(kernel.description.get_overridable_classes())
+                out_kernels[(pyname, classes)] = KernelCpu(
                     function=None,
                     description=kernel,
                     ffi_interface=None,
                     context=self,
                 )
 
-        for pyname in kernel_descriptions.keys():
-            out_kernels[pyname].source = source
-            out_kernels[pyname].specialized_source = specialized_source
+        for (pyname, _), kernel in out_kernels.items():
+            kernel.source = source
+            kernel.specialized_source = specialized_source
             # TODO: find better implementation?
-            out_kernels[pyname].description.pyname = pyname
+            kernel.description.pyname = pyname
 
-        kernels_with_classes = {
-            (name, tuple(kernel.description.get_overridable_classes())): kernel
-            for name, kernel in out_kernels.items()
-        }
-        return kernels_with_classes
+        return out_kernels
 
     def kernels_from_file(
         self,
         module_name: str,
         kernel_descriptions: Dict[str, Kernel],
         containing_dir=".",
-    ) -> Dict[str, "KernelCpu"]:
+    ) -> Dict[Tuple[str, tuple], "KernelCpu"]:
         """
         Import a compiled module `module_name` located in `containing_dir`
         (by default it is the current working directory), and add the kernels
@@ -351,7 +348,8 @@ class ContextCpu(XContext):
         )
         out_kernels = {}
         for pyname, kernel_desc in kernel_descriptions.items():
-            out_kernels[pyname] = KernelCpu(
+            classes = tuple(kernel_desc.get_overridable_classes())
+            out_kernels[(pyname, classes)] = KernelCpu(
                 function=getattr(module.lib, kernel_desc.c_name),
                 description=kernel_desc,
                 ffi_interface=module.ffi,

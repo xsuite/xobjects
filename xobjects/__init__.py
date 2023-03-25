@@ -34,4 +34,7 @@ from .hybrid_class import JEncoder, HybridClass, MetaHybridClass, ThisClass
 
 from .linkedarray import BypassLinked
 
+from .general import _print
+
 from ._version import __version__
+

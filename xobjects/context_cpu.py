@@ -119,6 +119,8 @@ class ContextCpu(XContext):
 
     """
 
+    _cffi_verbose = False
+
     @property
     def nplike_array_type(self):
         return np.ndarray
@@ -405,7 +407,8 @@ class ContextCpu(XContext):
             so_file = str(
                 _so_for_module_name(module_name, containing_dir).absolute()
             )
-            output_file = ffi_interface.compile(target=so_file, verbose=True)
+            output_file = ffi_interface.compile(target=so_file,
+                                                verbose=self._cffi_verbose)
             return Path(output_file)
         finally:
             # Clean temp files

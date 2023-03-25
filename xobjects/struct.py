@@ -465,6 +465,7 @@ class Struct(metaclass=MetaStruct):
         only_if_needed=False,
         apply_to_source=(),
         save_source_as=None,
+        extra_classes=(),
     ):
         if only_if_needed:
             all_found = True
@@ -478,7 +479,7 @@ class Struct(metaclass=MetaStruct):
         context.add_kernels(
             sources=[],
             kernels=cls._kernels,
-            extra_classes=[cls],
+            extra_classes=[cls] + list(extra_classes),
             apply_to_source=apply_to_source,
             save_source_as=save_source_as,
         )
@@ -488,12 +489,14 @@ class Struct(metaclass=MetaStruct):
         only_if_needed=False,
         apply_to_source=(),
         save_source_as=None,
+        extra_classes=(),
     ):
         self.compile_class_kernels(
             context=self._context,
             only_if_needed=only_if_needed,
             apply_to_source=apply_to_source,
             save_source_as=save_source_as,
+            extra_classes=extra_classes,
         )
 
 

@@ -9,7 +9,7 @@ import os
 import sysconfig
 import uuid
 from pathlib import Path
-from typing import Callable, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Tuple
 
 import numpy as np
 
@@ -255,15 +255,21 @@ class ContextCpu(XContext):
         extra_classes=(),
         extra_headers=(),
         compile=True,  # noqa
-    ) -> Dict[str, "KernelCpu"]:
+    ) -> dict[str, "KernelCpu"]:
         # Determine names and paths
         clean_up_so = not module_name
         module_name = module_name or str(uuid.uuid4().hex)
         containing_dir = containing_dir
 
-        classes = classes_from_kernels(kernel_descriptions)
-        classes.update(extra_classes)
+        classes = list(classes_from_kernels(kernel_descriptions))
+        classes += list(extra_classes)
         classes = sort_classes(classes)
+
+        # Update the kernel descriptions with the overriden classes
+        cls_for_name = {cls.__name__: cls for cls in classes}
+        for kernel_name, kernel in kernel_descriptions.items():
+            for arg in kernel.args:
+                arg.atype = cls_for_name.get(arg.atype.__name__, arg.atype)
 
         source, specialized_source = self._build_sources(
             sources=sources,
@@ -309,18 +315,19 @@ class ContextCpu(XContext):
             # Only kernel information, but no possibility to call the kernel
             out_kernels = {}
             for pyname, kernel in kernel_descriptions.items():
-                out_kernels[pyname] = KernelCpu(
+                classes = tuple(kernel.description.get_overridable_classes())
+                out_kernels[(pyname, classes)] = KernelCpu(
                     function=None,
                     description=kernel,
                     ffi_interface=None,
                     context=self,
                 )
 
-        for pyname in kernel_descriptions.keys():
-            out_kernels[pyname].source = source
-            out_kernels[pyname].specialized_source = specialized_source
+        for (pyname, _), kernel in out_kernels.items():
+            kernel.source = source
+            kernel.specialized_source = specialized_source
             # TODO: find better implementation?
-            out_kernels[pyname].description.pyname = pyname
+            kernel.description.pyname = pyname
 
         return out_kernels
 
@@ -329,7 +336,7 @@ class ContextCpu(XContext):
         module_name: str,
         kernel_descriptions: Dict[str, Kernel],
         containing_dir=".",
-    ) -> Dict[str, "KernelCpu"]:
+    ) -> Dict[Tuple[str, tuple], "KernelCpu"]:
         """
         Import a compiled module `module_name` located in `containing_dir`
         (by default it is the current working directory), and add the kernels
@@ -342,7 +349,8 @@ class ContextCpu(XContext):
         )
         out_kernels = {}
         for pyname, kernel_desc in kernel_descriptions.items():
-            out_kernels[pyname] = KernelCpu(
+            classes = tuple(kernel_desc.get_overridable_classes())
+            out_kernels[(pyname, classes)] = KernelCpu(
                 function=getattr(module.lib, kernel_desc.c_name),
                 description=kernel_desc,
                 ffi_interface=module.ffi,

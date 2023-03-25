@@ -188,9 +188,16 @@ class ContextPyopencl(XContext):
         if not compile:
             raise NotImplementedError("compile=False available only on CPU.")
 
-        classes = classes_from_kernels(kernel_descriptions)
-        classes.update(extra_classes)
+        classes = list(classes_from_kernels(kernel_descriptions))
+        classes += list(extra_classes)
         classes = sort_classes(classes)
+
+        # Update the kernel descriptions with the overriden classes
+        cls_for_name = {cls.__name__: cls for cls in classes}
+        for kernel_name, kernel in kernel_descriptions.items():
+            for arg in kernel.args:
+                arg.atype = cls_for_name.get(arg.atype.__name__, arg.atype)
+
         cls_sources = sources_from_classes(classes)
 
         headers = openclheader + list(extra_headers)
@@ -227,7 +234,11 @@ class ContextPyopencl(XContext):
             out_kernels[pyname].source = source
             out_kernels[pyname].specialized_source = specialized_source
 
-        return out_kernels
+        kernels_with_classes = {
+            (name, tuple(kernel.description.get_overridable_classes())): kernel
+            for name, kernel in out_kernels.items()
+        }
+        return kernels_with_classes
 
     def nparray_to_context_array(self, arr):
         """

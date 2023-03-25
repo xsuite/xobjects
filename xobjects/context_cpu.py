@@ -9,7 +9,7 @@ import os
 import sysconfig
 import uuid
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+from typing import Callable, Dict, List, Sequence, Tuple
 
 import numpy as np
 
@@ -254,7 +254,7 @@ class ContextCpu(XContext):
         extra_classes=(),
         extra_headers=(),
         compile=True,  # noqa
-    ) -> dict[str, "KernelCpu"]:
+    ) -> Dict[Tuple[str, tuple], "KernelCpu"]:
         # Determine names and paths
         clean_up_so = not module_name
         module_name = module_name or str(uuid.uuid4().hex)

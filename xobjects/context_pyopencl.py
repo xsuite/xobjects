@@ -6,7 +6,7 @@
 import logging
 
 import numpy as np
-from typing import List
+from typing import List, Dict, Tuple
 
 from .context import (
     ModuleNotAvailable,
@@ -184,7 +184,7 @@ class ContextPyopencl(XContext):
         extra_classes=(),
         extra_headers=(),
         compile=True,  # noqa
-    ):
+    ) -> Dict[Tuple[str, tuple], "KernelPyopencl"]:
         if not compile:
             raise NotImplementedError("compile=False available only on CPU.")
 

@@ -11,6 +11,8 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Sequence, Tuple
 
+from .general import _print
+
 import numpy as np
 
 from .context import (
@@ -372,6 +374,8 @@ class ContextCpu(XContext):
         ffi_interface = cffi.FFI()
         ffi_interface.cdef(cdefs)
 
+        _print('Compiling ContextCpu kernels...')
+
         for pyname, kernel in kernel_descriptions.items():
             if pyname not in cdefs:  # check if kernel not already declared
                 signature = cdef_from_kernel(kernel, pyname)
@@ -409,6 +413,7 @@ class ContextCpu(XContext):
             )
             output_file = ffi_interface.compile(target=so_file,
                                                 verbose=self._cffi_verbose)
+            _print('Done compiling ContextCpu kernels.')
             return Path(output_file)
         finally:
             # Clean temp files
@@ -420,6 +425,8 @@ class ContextCpu(XContext):
             for ff in files_to_remove:
                 if os.path.exists(ff):
                     os.remove(ff)
+
+
 
     def _build_sources(
         self,

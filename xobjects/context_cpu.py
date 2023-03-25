@@ -122,6 +122,7 @@ class ContextCpu(XContext):
     """
 
     _cffi_verbose = False
+    _compile_kernels_info = True
 
     @property
     def nplike_array_type(self):
@@ -374,7 +375,8 @@ class ContextCpu(XContext):
         ffi_interface = cffi.FFI()
         ffi_interface.cdef(cdefs)
 
-        _print('Compiling ContextCpu kernels...')
+        if self._compile_kernels_info:
+            _print('Compiling ContextCpu kernels...')
 
         for pyname, kernel in kernel_descriptions.items():
             if pyname not in cdefs:  # check if kernel not already declared
@@ -413,7 +415,8 @@ class ContextCpu(XContext):
             )
             output_file = ffi_interface.compile(target=so_file,
                                                 verbose=self._cffi_verbose)
-            _print('Done compiling ContextCpu kernels.')
+            if self._compile_kernels_info:
+                _print('Done compiling ContextCpu kernels.')
             return Path(output_file)
         finally:
             # Clean temp files

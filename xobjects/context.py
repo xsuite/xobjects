@@ -10,7 +10,16 @@ import xobjects as xo
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional, Sequence, Type, Union
+from typing import (
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Type,
+    Tuple,
+    Union,
+)
 
 """
 
@@ -346,7 +355,7 @@ class XContext(ABC):
         extra_classes: Sequence[Type],
         extra_headers: Sequence[SourceType],
         compile: bool,
-    ) -> Dict[str, KernelType]:
+    ) -> Dict[Tuple[str, tuple], KernelType]:
         pass
 
     @abstractmethod

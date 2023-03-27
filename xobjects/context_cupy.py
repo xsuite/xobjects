@@ -4,12 +4,11 @@
 # ########################################### #
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import numpy as np
 
 from .context import (
-    KernelType,
     ModuleNotAvailable,
     SourceType,
     XBuffer,
@@ -410,7 +409,7 @@ class ContextCupy(XContext):
         extra_classes=(),
         extra_headers=(),
         compile=True,  # noqa
-    ) -> Dict[str, KernelType]:
+    ) -> Dict[Tuple[str, tuple], "KernelCupy"]:
         if not compile:
             raise NotImplementedError("compile=False available only on CPU.")
 

@@ -376,7 +376,7 @@ class ContextCpu(XContext):
         ffi_interface.cdef(cdefs)
 
         if self._compile_kernels_info:
-            _print('Compiling ContextCpu kernels...')
+            _print("Compiling ContextCpu kernels...")
 
         for pyname, kernel in kernel_descriptions.items():
             if pyname not in cdefs:  # check if kernel not already declared
@@ -413,10 +413,11 @@ class ContextCpu(XContext):
             so_file = str(
                 _so_for_module_name(module_name, containing_dir).absolute()
             )
-            output_file = ffi_interface.compile(target=so_file,
-                                                verbose=self._cffi_verbose)
+            output_file = ffi_interface.compile(
+                target=so_file, verbose=self._cffi_verbose
+            )
             if self._compile_kernels_info:
-                _print('Done compiling ContextCpu kernels.')
+                _print("Done compiling ContextCpu kernels.")
             return Path(output_file)
         finally:
             # Clean temp files
@@ -428,8 +429,6 @@ class ContextCpu(XContext):
             for ff in files_to_remove:
                 if os.path.exists(ff):
                     os.remove(ff)
-
-
 
     def _build_sources(
         self,

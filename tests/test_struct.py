@@ -2,9 +2,10 @@
 # This file is part of the Xobjects Package.  #
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
+import cffi
 
 import xobjects as xo
-from xobjects.test_helpers import for_all_test_contexts
+from xobjects.test_helpers import for_all_test_contexts, requires_context
 
 
 def test_static_struct_def():
@@ -210,3 +211,52 @@ def test_copy_dynamic():
     assert s1.b[1] == s2.b[1]
     s1.b[1] = 33
     assert s2.b[1] == 4
+
+
+@requires_context("ContextCpu")
+def test_compile_kernels_only_if_needed(tmp_path, mocker):
+    """Test the use case of xtrack.
+
+    We build a class with a kernel, verify that the kernel works, and then we
+    save the kernel to a file. We then reload the kernel from the file and
+    verify that it still works on a fresh context.
+    """
+    test_context = xo.ContextCpu()
+    my_folder = tmp_path / "my_folder"
+
+    class TestClass(xo.HybridClass):
+        _xofields = {
+            "x": xo.Float64,
+            "y": xo.Float64,
+        }
+        _extra_c_sources = [
+            """
+            /*gpufun*/ double myfun(TestClassData tc){
+                double x = TestClassData_get_x(tc);
+                double y = TestClassData_get_y(tc);
+                return x * y;
+            }
+        """
+        ]
+        _kernels = {
+            "myfun": xo.Kernel(
+                args=[
+                    xo.Arg(xo.ThisClass, name="tc"),
+                ],
+                ret=xo.Arg(xo.Float64),
+            ),
+        }
+
+        def myfun(self):
+            return self._context.kernels.myfun(tc=self)
+
+    tc = TestClass(x=3, y=4, _context=test_context)
+    tc.compile_kernels(only_if_needed=True)
+    assert tc.myfun() == 12
+
+    # Do it again, but this time we make sure that the kernel is not recompiled
+    cffi_compile = mocker.patch.object(cffi.FFI, "compile")
+    tc = TestClass(x=5, y=7, _context=test_context)
+    tc.compile_kernels(only_if_needed=True)
+    assert tc.myfun() == 35
+    cffi_compile.assert_not_called()

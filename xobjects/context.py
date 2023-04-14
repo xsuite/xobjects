@@ -233,6 +233,9 @@ class XContext(ABC):
         self._kernels = KernelDict()
         self._buffers = []
 
+    def __str__(self):
+        return type(self).__name__
+
     def new_buffer(self, capacity=1048576):
         buf = self._make_buffer(capacity=capacity)
         self.buffers.append(weakref.finalize(buf, log.debug, "free buf"))

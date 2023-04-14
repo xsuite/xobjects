@@ -136,6 +136,12 @@ class ContextCpu(XContext):
         super().__init__()
         self.omp_num_threads = omp_num_threads
 
+    def __str__(self):
+        if self.omp_num_threads == 0:
+            return super().__str__()
+        else:
+            return f"{type(self).__name__}:{self.omp_num_threads}"
+
     def _make_buffer(self, capacity):
         return BufferNumpy(capacity=capacity, context=self)
 

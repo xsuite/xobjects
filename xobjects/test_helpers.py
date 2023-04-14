@@ -21,9 +21,9 @@ def _for_all_test_contexts_excluding(
         excluding = (excluding,)
 
     test_context_names = tuple(
-        ctx_name
+        str(ctx)
         for ctx in get_test_contexts()
-        if (ctx_name := type(ctx).__name__) not in excluding
+        if type(ctx).__name__ not in excluding
     )
 
     @wraps(test_function)

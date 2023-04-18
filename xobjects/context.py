@@ -652,6 +652,8 @@ def get_context_from_string(ctxstr):
     if ctxtype == "ContextCpu":
         if len(option) == 0:
             return xo.ContextCpu()
+        elif option[0] == "auto":
+            return xo.ContextCpu(omp_num_threads="auto")
         else:
             return xo.ContextCpu(omp_num_threads=int(option[0]))
     elif ctxtype == "ContextCupy":
@@ -682,7 +684,7 @@ def get_test_contexts():
             yield xo.ContextPyopencl()
     elif ctxstr == "all":
         yield xo.ContextCpu()
-        yield xo.ContextCpu(omp_num_threads=2)
+        yield xo.ContextCpu(omp_num_threads="auto")
         if xo.ContextCupy in xo.context.available:
             yield xo.ContextCupy()
         if xo.ContextPyopencl in xo.context.available:
@@ -705,6 +707,7 @@ def get_user_context():
        ContextPyopencl      -> ContextPyopencl()
        ContextCpu           -> ContextCpu()
        ContextCpu:2         -> ContextCpu(omp_num_threads=2)
+       ContextCpu:auto      -> ContextCpu(omp_num_threads='auto')
        ContextCupy:0        -> ContextCupy(device=0)
     """
     import os

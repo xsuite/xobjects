@@ -133,11 +133,18 @@ class ContextCpu(XContext):
         return LinkedArrayCpu
 
     def __init__(self, omp_num_threads=0):
+        """
+        Create a new CPU context, serial or with parallelization using OpenMP.
+        Args:
+            omp_num_threads (int | Literal['auto']): Number of threads to be
+            used by OpenMP. If 0, no parallelization is used. If 'auto', the
+            number of threads is selected automatically by OpenMP.
+        """
         super().__init__()
         self.omp_num_threads = omp_num_threads
 
     def __str__(self):
-        if self.omp_num_threads == 0:
+        if not self.openmp_enabled:
             return super().__str__()
         else:
             return f"{type(self).__name__}:{self.omp_num_threads}"
@@ -385,8 +392,9 @@ class ContextCpu(XContext):
                 ffi_interface.cdef(signature)
                 log.debug(f"cffi def {pyname} {signature}")
 
-        if self.omp_num_threads > 0:
+        if self.openmp_enabled:
             ffi_interface.cdef("void omp_set_num_threads(int);")
+            ffi_interface.cdef("int omp_get_max_threads();")
 
         # Compile
         xtr_compile_args = ["-std=c99"]
@@ -394,7 +402,7 @@ class ContextCpu(XContext):
         xtr_compile_args += extra_compile_args
         xtr_link_args += extra_link_args
 
-        if self.omp_num_threads > 0:
+        if self.openmp_enabled:
             xtr_compile_args.append("-fopenmp")
             xtr_link_args.append("-fopenmp")
 
@@ -445,7 +453,7 @@ class ContextCpu(XContext):
 
         headers = ["#include <stdint.h>"]
 
-        if self.omp_num_threads > 0:
+        if self.openmp_enabled:
             headers = ["#include <omp.h>"] + headers
 
         headers += extra_headers
@@ -453,7 +461,7 @@ class ContextCpu(XContext):
         source, folders = _concatenate_sources(sources, apply_to_source)
 
         if specialize:
-            if self.omp_num_threads > 0:
+            if self.openmp_enabled:
                 specialize_for = "cpu_openmp"
             else:
                 specialize_for = "cpu_serial"
@@ -482,8 +490,9 @@ class ContextCpu(XContext):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
-        if self.omp_num_threads > 0:
+        if self.openmp_enabled:
             self.omp_set_num_threads = module.lib.omp_set_num_threads
+            self.omp_get_max_threads = module.lib.omp_get_max_threads
 
         return module
 
@@ -566,7 +575,11 @@ class ContextCpu(XContext):
             # Inverse tranform (in place)
             plan.itransform(data2)
         """
-        return FFTCpu(data, axes, threads=self.omp_num_threads)
+        try:
+            num_threads = self.omp_get_max_threads()
+        except AttributeError:
+            num_threads = 1
+        return FFTCpu(data, axes, threads=num_threads)
 
     @property
     def kernels(self):
@@ -576,6 +589,10 @@ class ContextCpu(XContext):
         """
 
         return self._kernels
+
+    @property
+    def openmp_enabled(self):
+        return self.omp_num_threads != 0
 
 
 class BufferByteArray(XBuffer):
@@ -760,8 +777,9 @@ class KernelCpu:
             vv = kwargs[arg.name]
             arg_list.append(self.to_function_arg(arg, vv))
 
-        if self.context.omp_num_threads > 0:
-            self.context.omp_set_num_threads(self.context.omp_num_threads)
+        if self.context.openmp_enabled:
+            if isinstance(self.context.omp_num_threads, int):
+                self.context.omp_set_num_threads(self.context.omp_num_threads)
 
         ret = self.function(*arg_list)
 

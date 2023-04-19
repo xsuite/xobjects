@@ -273,6 +273,13 @@ class ContextPyopencl(XContext):
         """
         return cla
 
+    @property
+    def splike_lib(self):
+        """
+        Scipy features are not available through openCL
+        """
+        raise NotImplementedError
+
     def synchronize(self):
         """
         Ensures that all computations submitted to the context are completed.

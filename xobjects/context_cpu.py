@@ -14,6 +14,7 @@ from typing import Callable, Dict, List, Sequence, Tuple
 from .general import _print
 
 import numpy as np
+import scipy as sp
 
 from .context import (
     Kernel,
@@ -525,6 +526,16 @@ class ContextCpu(XContext):
         """
 
         return np
+
+    @property
+    def splike_lib(self):
+        """
+        Module containing all the scipy features. Numpy members should be accessed
+        through ``splike_lib`` to keep compatibility with the other contexts.
+
+        """
+
+        return sp
 
     def synchronize(self):
         """

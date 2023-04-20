@@ -677,7 +677,7 @@ def get_test_contexts():
     ctxstr = os.environ.get("XOBJECTS_TEST_CONTEXTS")
     if ctxstr is None:
         yield xo.ContextCpu()
-        # yield xo.ContextCpu(omp_num_threads=2)
+        yield xo.ContextCpu(omp_num_threads="auto")
         if xo.ContextCupy in xo.context.available:
             yield xo.ContextCupy()
         if xo.ContextPyopencl in xo.context.available:

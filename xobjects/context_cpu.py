@@ -403,8 +403,12 @@ class ContextCpu(XContext):
         xtr_link_args += extra_link_args
 
         if self.openmp_enabled:
+            #xtr_compile_args.append("-fopenmp")
+            #xtr_link_args.append("-fopenmp")
+            # on macos
+            xtr_compile_args.append("-Xclang")
             xtr_compile_args.append("-fopenmp")
-            xtr_link_args.append("-fopenmp")
+            xtr_link_args.append("-lomp")
 
         if os.name == "nt":  # windows
             # TODO: to be handled properly

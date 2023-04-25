@@ -387,13 +387,14 @@ class ContextCupy(XContext):
     def linked_array_type(self):
         return LinkedArrayCupy
 
-    def __init__(self, default_block_size=256, device=None):
+    def __init__(self, default_block_size=256, default_shared_mem_size_bytes=0, device=None):
         if device is not None:
             cupy.cuda.Device(device).use()
 
         super().__init__()
 
         self.default_block_size = default_block_size
+        self.default_shared_mem_size_bytes = default_shared_mem_size_bytes
 
     def _make_buffer(self, capacity):
         return BufferCupy(capacity=capacity, context=self)
@@ -412,7 +413,6 @@ class ContextCupy(XContext):
     ) -> Dict[Tuple[str, tuple], "KernelCupy"]:
         if not compile:
             raise NotImplementedError("compile=False available only on CPU.")
-
         classes = list(classes_from_kernels(kernel_descriptions))
         classes += list(extra_classes)
         classes = sort_classes(classes)
@@ -448,14 +448,15 @@ class ContextCupy(XContext):
 
         out_kernels = {}
         for pyname, kernel in kernel_descriptions.items():
+            #print(f"[context_cupy.py] trying to compile {kernel.c_name} with kernel: __________________________________________________________________________\n", source)
             if kernel.c_name is None:
                 kernel.c_name = pyname
-
             out_kernels[pyname] = KernelCupy(
                 function=module.get_function(kernel.c_name),
                 description=kernel,
                 block_size=self.default_block_size,
                 context=self,
+                shared_mem_size_bytes=self.default_shared_mem_size_bytes
             )
 
             out_kernels[pyname].source = source
@@ -621,11 +622,13 @@ class KernelCupy(object):
         description,
         block_size,
         context,
+        shared_mem_size_bytes
     ):
         self.function = function
         self.description = description
         self.block_size = block_size
         self.context = context
+        self.shared_mem_size_bytes = shared_mem_size_bytes
 
     def to_function_arg(self, arg, value):
         if arg.pointer:
@@ -670,7 +673,8 @@ class KernelCupy(object):
             n_threads = self.description.n_threads
 
         grid_size = int(np.ceil(n_threads / self.block_size))
-        self.function((grid_size,), (self.block_size,), arg_list)
+        #print(f"[context_cupy.py] {kwargs.keys()}, num blocks: {grid_size}, num threads per block: {self.block_size}, shared mem: {self.shared_mem_size_bytes}")
+        self.function((grid_size,), (self.block_size,), arg_list, shared_mem=self.shared_mem_size_bytes)
 
 
 class FFTCupy(object):

@@ -406,6 +406,12 @@ class Struct(metaclass=MetaStruct):
         else:
             return longform
 
+    def __getstate__(self):
+        return self._buffer, self._offset
+
+    def __setstate__(self, state):
+        self._buffer, self._offset = state
+
     @classmethod
     def _gen_data_paths(cls, base=None):
         paths = []

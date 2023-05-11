@@ -703,6 +703,12 @@ class BufferNumpy(XBuffer):
         """return data that can be used as argument in kernel"""
         return self.buffer[offset : offset + nbytes]
 
+class XobjectPointer:
+
+    def __init__(self, xobject):
+        self._buffer = xobject._buffer
+        self._offset = xobject._offset
+
 
 class KernelCpu:
     def __init__(
@@ -747,7 +753,8 @@ class KernelCpu:
         else:
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 return arg.atype(value)  # try to return a numpy scalar
-            elif hasattr(arg.atype, "_size"):  # it is a compound xobject
+            elif (hasattr(arg.atype, "_size")  # it is a compound xobject
+                  or isinstance(arg.atype, XobjectPointer)):
                 assert isinstance(
                     value._buffer.context, ContextCpu
                 ), f"Incompatible context for argument `{arg.name}`."

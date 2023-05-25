@@ -594,6 +594,14 @@ class ContextCpu(XContext):
     def openmp_enabled(self):
         return self.omp_num_threads != 0
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_kernels"] = {}
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
 
 class BufferByteArray(XBuffer):
     def _make_context(self):
@@ -702,13 +710,6 @@ class BufferNumpy(XBuffer):
     def to_pointer_arg(self, offset, nbytes):
         """return data that can be used as argument in kernel"""
         return self.buffer[offset : offset + nbytes]
-
-class XobjectPointer:
-
-    def __init__(self, xobject):
-        self._buffer = xobject._buffer
-        self._offset = xobject._offset
-
 
 class KernelCpu:
     def __init__(

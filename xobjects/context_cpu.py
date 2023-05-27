@@ -754,8 +754,7 @@ class KernelCpu:
         else:
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 return arg.atype(value)  # try to return a numpy scalar
-            elif (hasattr(arg.atype, "_size")  # it is a compound xobject
-                  or isinstance(arg.atype, XobjectPointer)):
+            elif (hasattr(arg.atype, "_size")):  # it is a compound xobject
                 assert isinstance(
                     value._buffer.context, ContextCpu
                 ), f"Incompatible context for argument `{arg.name}`."

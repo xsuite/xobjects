@@ -341,7 +341,8 @@ class HybridClass(metaclass=MetaHybridClass):
 
     def __setstate__(self, state):
         self._xobject = self._XoStruct._from_buffer(
-            buffer=state[0], offset=state[1])
+            buffer=state[0], offset=state[1]
+        )
         self._reinit_from_xobject(_xobject=self._xobject)
 
     @property

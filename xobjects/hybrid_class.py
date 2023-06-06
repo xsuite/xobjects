@@ -341,7 +341,8 @@ class HybridClass(metaclass=MetaHybridClass):
 
     def __setstate__(self, state):
         self._xobject = self._XoStruct._from_buffer(
-            buffer=state[0], offset=state[1])
+            buffer=state[0], offset=state[1]
+        )
         self._reinit_from_xobject(_xobject=self._xobject)
 
     @property
@@ -358,6 +359,10 @@ class HybridClass(metaclass=MetaHybridClass):
 
     def compile_kernels(self, *args, **kwargs):
         return self._xobject.compile_kernels(*args, **kwargs)
+
+    def __repr__(self):
+        args = [f"{fname}={getattr(self, fname)}" for fname in self._fields]
+        return f'{type(self).__name__}({", ".join(args)})'
 
 
 class ThisClass:  # Place holder

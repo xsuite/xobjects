@@ -33,6 +33,6 @@ setup(
         "Source Code": "https://github.com/xsuite/xobjects",
     },
     extras_require={
-        "tests": ["pytest"],
+        "tests": ["pytest", "pytest-mock"],
     },
 )

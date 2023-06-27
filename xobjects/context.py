@@ -171,9 +171,11 @@ class KernelDict(dict):
     def __getitem__(self, item):
         if isinstance(item, str):
             return KernelDispatcher(item, self)
-        return super().__getitem__(item)
+        return dict.__getitem__(self, item)
 
     def __getattr__(self, attr):
+        if attr.startswith("__"):
+            raise AttributeError(attr)
         return KernelDispatcher(attr, self)
 
 

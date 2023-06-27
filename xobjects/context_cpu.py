@@ -600,6 +600,14 @@ class ContextCpu(XContext):
     def openmp_enabled(self):
         return self.omp_num_threads != 0
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_kernels"] = {}
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
 
 class BufferByteArray(XBuffer):
     def _make_context(self):

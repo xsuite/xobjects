@@ -24,23 +24,20 @@ from .specialize_source import specialize_source
 
 log = logging.getLogger(__name__)
 
-try:
-    import cupy
-    import cupyx.scipy
-    import cupyx.scipy.interpolate
-    import cupyx.scipy.signal
-    import cupyx.scipy.special
-    import cupyx.scipy.stats
-    from cupyx.scipy import fftpack as cufftp
+# try:
+import cupy
+import cupyx.scipy
+from cupyx.scipy import fftpack as cufftp
 
-    _enabled = True
-except ImportError:
-    log.info("cupy is not installed, ContextCupy will not be available")
-    cupy = ModuleNotAvailable(
-        message=("cupy is not installed. " "ContextCupy is not available!")
-    )
-    cufftp = cupy
-    _enabled = False
+_enabled = True
+
+# except ImportError:
+#     log.info("cupy is not installed, ContextCupy will not be available")
+#     cupy = ModuleNotAvailable(
+#         message=("cupy is not installed. " "ContextCupy is not available!")
+#     )
+#     cufftp = cupy
+#     _enabled = False
 
 if _enabled:
     # order of base classes matters as it defines which __setitem__ is used

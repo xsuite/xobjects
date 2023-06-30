@@ -111,15 +111,6 @@ def specialize_source(source, specialize_for, search_in_folders=[]):
             "cuda": " ",
         }[specialize_for],
     )
-    newfilecontent = newfilecontent.replace(
-        "/*gpulocmem*/",
-        {
-            "cpu_serial": " ",
-            "cpu_openmp": " ",
-            "opencl": " ",
-            "cuda": " __device__ ",
-        }[specialize_for],
-    )
 
     if os.name == "nt":  # windows
         restrict_qualifier = " "

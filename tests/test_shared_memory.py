@@ -1,6 +1,5 @@
 import xobjects as xo
 import numpy as np
-import cupy as cp
 
 def test_shared_memory():
     for test_context in xo.context.get_test_contexts():

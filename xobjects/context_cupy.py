@@ -26,6 +26,11 @@ log = logging.getLogger(__name__)
 
 try:
     import cupy
+    import cupyx.scipy
+    import cupyx.scipy.interpolate
+    import cupyx.scipy.signal
+    import cupyx.scipy.special
+    import cupyx.scipy.stats
     from cupyx.scipy import fftpack as cufftp
 
     _enabled = True
@@ -500,6 +505,13 @@ class ContextCupy(XContext):
         Module containing all the numpy features supported by cupy.
         """
         return cupy
+
+    @property
+    def splike_lib(self):
+        """
+        Module containing all the scipy features supported by cupy.
+        """
+        return cupyx.scipy
 
     def synchronize(self):
         """

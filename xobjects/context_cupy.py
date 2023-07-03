@@ -453,7 +453,6 @@ class ContextCupy(XContext):
 
         out_kernels = {}
         for pyname, kernel in kernel_descriptions.items():
-            #print(f"[context_cupy.py] trying to compile {kernel.c_name} with kernel: __________________________________________________________________________\n", source)
             if kernel.c_name is None:
                 kernel.c_name = pyname
             out_kernels[pyname] = KernelCupy(
@@ -685,7 +684,6 @@ class KernelCupy(object):
             n_threads = self.description.n_threads
 
         grid_size = int(np.ceil(n_threads / self.block_size))
-        #print(f"[context_cupy.py] {kwargs.keys()}, num blocks: {grid_size}, num threads per block: {self.block_size}, shared mem: {self.shared_mem_size_bytes}")
         self.function((grid_size,), (self.block_size,), arg_list, shared_mem=self.shared_mem_size_bytes)
 
 

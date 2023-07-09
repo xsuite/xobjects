@@ -16,6 +16,8 @@ from .general import _print
 import numpy as np
 import scipy as sp
 
+_forbid_compile = False
+
 from .context import (
     Kernel,
     ModuleNotAvailable,
@@ -300,6 +302,9 @@ class ContextCpu(XContext):
         if compile:
             cdefs = "\n".join(cls._gen_c_decl({}) for cls in classes)
             cdefs += "\n" + extra_cdef
+
+            if _forbid_compile:
+                raise RuntimeError("Compilation is forbidden")
 
             so_file = self.compile_kernel(
                 module_name,

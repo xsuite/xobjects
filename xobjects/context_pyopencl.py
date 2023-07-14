@@ -337,6 +337,8 @@ class BufferPyopencl(XBuffer):
         return ContextPyopencl()
 
     def _new_buffer(self, capacity):
+        if capacity == 0:
+            return None
         return cl.Buffer(
             self.context.context, cl.mem_flags.READ_WRITE, capacity
         )
@@ -372,6 +374,8 @@ class BufferPyopencl(XBuffer):
         self, offset: int, source: cl.Buffer, source_offset: int, nbytes: int
     ):
         """Copy data from native buffer into self.buffer starting from offset"""
+        if nbytes == 0:
+            return
         cl.enqueue_copy(
             self.context.queue,
             self.buffer,

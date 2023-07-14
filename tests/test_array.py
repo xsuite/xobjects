@@ -301,3 +301,20 @@ def test_array_custom_strides(test_context):
     for i0, i1, i2 in np.ndindex(2, 3, 4):
         assert a_xo[i0, i1, i2] == j
         j += 1
+
+
+@for_all_test_contexts
+def test_zero_length_arrays(test_context):
+    dynamic_py = xo.Int64[:]([], _context=test_context)
+    assert len(dynamic_py) == 0
+
+    dynamic_np = xo.Int64[:](np.array([]), _context=test_context)
+    assert len(dynamic_np) == 0
+
+    fixed_py = xo.Int64[0]([], _context=test_context)
+    assert len(fixed_py) == 0
+    assert fixed_py._buffer.capacity == 0
+
+    fixed_np = xo.Int64[0](np.array([]), _context=test_context)
+    assert len(fixed_np) == 0
+    assert fixed_np._buffer.capacity == 0

@@ -307,7 +307,7 @@ class HybridClass(metaclass=MetaHybridClass):
                 elif hasattr(ww, "_to_dict"):
                     out[nn] = ww._to_dict()
                 else:
-                    out[nn] = vv
+                    out[nn] = ww
 
         return out
 

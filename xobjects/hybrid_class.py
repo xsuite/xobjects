@@ -301,7 +301,13 @@ class HybridClass(metaclass=MetaHybridClass):
 
         if hasattr(obj, "_store_in_to_dict"):
             for nn in obj._store_in_to_dict:
-                out[nn] = getattr(obj, nn)
+                ww = getattr(obj, nn)
+                if hasattr(ww, "to_dict"):
+                    out[nn] = ww.to_dict()
+                elif hasattr(ww, "_to_dict"):
+                    out[nn] = ww._to_dict()
+                else:
+                    out[nn] = vv
 
         return out
 

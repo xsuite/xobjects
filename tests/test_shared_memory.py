@@ -44,10 +44,10 @@ def test_shared_memory():
                   // reduction with an array of 4 doubles using 2 blocks each 2 threads
                   // use reduction with interleaved addressing: https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
                   // all threads within a block have access to shared memory
-                            
+
                   unsigned int tid = threadIdx.x;  // thread ID within the block: 0,1
                   unsigned int gid = blockIdx.x*blockDim.x + threadIdx.x;  // global thread ID: 0,1,2,3
-                    
+
                   // init shared memory with chunk of input array
                   extern __shared__ double sdata[2];
                   sdata[tid] = input_arr[gid];

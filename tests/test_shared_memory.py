@@ -4,9 +4,7 @@ import numpy as np
 
 def test_shared_memory():
     for test_context in xo.context.get_test_contexts():
-
         print(repr(test_context))
-
         if isinstance(test_context, xo.ContextCupy):
             test_context.default_block_size = 2
             test_context.default_shared_mem_size_bytes = (
@@ -68,7 +66,6 @@ def test_shared_memory():
             def __init__(
                 self, _context=None, _buffer=None, _offset=None, _xobject=None
             ):
-
                 if _xobject is not None:
                     self.xoinitialize(
                         _xobject=_xobject,

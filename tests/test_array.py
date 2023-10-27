@@ -234,7 +234,7 @@ def test_init_with_nparray2d():
 
 
 def test_init_with_list():
-    xo.Float64[:,:]([[3,3],[3,3]])
+    xo.Float64[:, :]([[3, 3], [3, 3]])
 
 
 def test_init_with_nparray2d_dynamic():

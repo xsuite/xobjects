@@ -4,9 +4,7 @@ import numpy as np
 
 def test_shared_memory():
     for test_context in xo.context.get_test_contexts():
-
         print(repr(test_context))
-
         if isinstance(test_context, xo.ContextCupy):
             test_context.default_block_size = 2
             test_context.default_shared_mem_size_bytes = (
@@ -44,10 +42,10 @@ def test_shared_memory():
                   // reduction with an array of 4 doubles using 2 blocks each 2 threads
                   // use reduction with interleaved addressing: https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
                   // all threads within a block have access to shared memory
-                            
+
                   unsigned int tid = threadIdx.x;  // thread ID within the block: 0,1
                   unsigned int gid = blockIdx.x*blockDim.x + threadIdx.x;  // global thread ID: 0,1,2,3
-                    
+
                   // init shared memory with chunk of input array
                   extern __shared__ double sdata[2];
                   sdata[tid] = input_arr[gid];
@@ -68,7 +66,6 @@ def test_shared_memory():
             def __init__(
                 self, _context=None, _buffer=None, _offset=None, _xobject=None
             ):
-
                 if _xobject is not None:
                     self.xoinitialize(
                         _xobject=_xobject,

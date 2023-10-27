@@ -233,6 +233,10 @@ def test_init_with_nparray2d():
     assert m.m0[3] == 1
 
 
+def test_init_with_list():
+    xo.Float64[:,:]([[3,3],[3,3]])
+
+
 def test_init_with_nparray2d_dynamic():
     class Mys(xo.Struct):
         m0 = xo.Float64[:]

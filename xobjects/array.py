@@ -500,6 +500,8 @@ class Array(metaclass=MetaArray):
                             info.extra.get(idx),
                         )
         else:  # there is a value for initialization
+            if not hasattr(value,'shape'): # not nplike
+                value=np.asarray(value,dtype=object)
             if cls._is_static_type:
                 ioffset = offset + cls._data_offset
                 for idx in iter_index(info.shape, cls._order):

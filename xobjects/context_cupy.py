@@ -392,7 +392,12 @@ class ContextCupy(XContext):
     def linked_array_type(self):
         return LinkedArrayCupy
 
-    def __init__(self, default_block_size=256, default_shared_mem_size_bytes=0, device=None):
+    def __init__(
+        self,
+        default_block_size=256,
+        default_shared_mem_size_bytes=0,
+        device=None,
+    ):
         if device is not None:
             cupy.cuda.Device(device).use()
 
@@ -460,7 +465,7 @@ class ContextCupy(XContext):
                 description=kernel,
                 block_size=self.default_block_size,
                 context=self,
-                shared_mem_size_bytes=self.default_shared_mem_size_bytes
+                shared_mem_size_bytes=self.default_shared_mem_size_bytes,
             )
 
             out_kernels[pyname].source = source
@@ -628,12 +633,7 @@ class BufferCupy(XBuffer):
 
 class KernelCupy(object):
     def __init__(
-        self,
-        function,
-        description,
-        block_size,
-        context,
-        shared_mem_size_bytes
+        self, function, description, block_size, context, shared_mem_size_bytes
     ):
         self.function = function
         self.description = description
@@ -684,7 +684,12 @@ class KernelCupy(object):
             n_threads = self.description.n_threads
 
         grid_size = int(np.ceil(n_threads / self.block_size))
-        self.function((grid_size,), (self.block_size,), arg_list, shared_mem=self.shared_mem_size_bytes)
+        self.function(
+            (grid_size,),
+            (self.block_size,),
+            arg_list,
+            shared_mem=self.shared_mem_size_bytes,
+        )
 
 
 class FFTCupy(object):

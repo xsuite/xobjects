@@ -426,10 +426,10 @@ class Array(metaclass=MetaArray):
                 else:
                     shape.append(dd)
             self._shape = shape
-            if len(self._shape) > 1:  # getting strides
+            if len(shape) > 1:  # getting strides
                 # could be computed from shape and order but offset needs to taken
                 strides = []
-                for _ in range(shape):
+                for _ in range(len(shape)):
                     strides.append(Int64._from_buffer(self._buffer, coffset))
                     coffset += 8
             else:
@@ -500,6 +500,8 @@ class Array(metaclass=MetaArray):
                             info.extra.get(idx),
                         )
         else:  # there is a value for initialization
+            if not hasattr(value, "shape"):  # not nplike
+                value = np.asarray(value, dtype=object)
             if cls._is_static_type:
                 ioffset = offset + cls._data_offset
                 for idx in iter_index(info.shape, cls._order):

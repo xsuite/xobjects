@@ -224,8 +224,7 @@ class MetaStruct(type):
                             finfo = dispatch_arg(
                                 field.ftype._inspect_args, farg
                             )
-                            if hasattr(finfo, "_offsets"):  # is dinamic
-                                extra[field.index] = finfo
+                            extra[field.index] = finfo
                             offsets[field.index] = offset
                             offset += _to_slot_size(finfo.size)
                         # _offsets is used to because of field.get_offset(info)

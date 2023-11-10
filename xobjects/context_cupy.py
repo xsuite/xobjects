@@ -392,7 +392,12 @@ class ContextCupy(XContext):
     def linked_array_type(self):
         return LinkedArrayCupy
 
-    def __init__(self, default_block_size=256, default_shared_mem_size_bytes=0, device=None):
+    def __init__(
+        self,
+        default_block_size=256,
+        default_shared_mem_size_bytes=0,
+        device=None,
+    ):
         if device is not None:
             cupy.cuda.Device(device).use()
 
@@ -459,8 +464,8 @@ class ContextCupy(XContext):
                 function=module.get_function(kernel.c_name),
                 description=kernel,
                 block_size=self.default_block_size,
-                shared_mem_size_bytes=self.default_shared_mem_size_bytes,
                 context=self,
+                shared_mem_size_bytes=self.default_shared_mem_size_bytes,
             )
 
             out_kernels[pyname].source = source
@@ -627,19 +632,15 @@ class BufferCupy(XBuffer):
 
 
 class KernelCupy(object):
-    def __init__(
-        self,
-        function,
-        description,
-        block_size,
-        shared_mem_size_bytes,
-        context,
-    ):
+    def __init__(self, function, description, block_size, context,
+                 shared_mem_size_bytes):
+
         self.function = function
         self.description = description
         self.block_size = block_size
         self.shared_mem_size_bytes = shared_mem_size_bytes
         self.context = context
+
     def to_function_arg(self, arg, value):
         if arg.pointer:
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
@@ -670,7 +671,7 @@ class KernelCupy(object):
     def num_args(self):
         return len(self.description.args)
 
-    def __call__(self, **kwargs):
+    def __call__(self, shared_mem_size_bytes=None, **kwargs):
         assert len(kwargs.keys()) == self.num_args
         arg_list = []
         for arg in self.description.args:
@@ -681,15 +682,13 @@ class KernelCupy(object):
             n_threads = kwargs[self.description.n_threads]
         else:
             n_threads = self.description.n_threads
-        if "shared_mem_size_bytes" in kwargs.keys():
-            shared_mem_size_bytes = kwargs["shared_mem_size_bytes"]
-        else:
+
+        if shared_mem_size_bytes is None:
             shared_mem_size_bytes = self.shared_mem_size_bytes
 
         grid_size = int(np.ceil(n_threads / self.block_size))
-        # print(f"[context_cupy.py] function: {self.c_name}, shared mem size: default: {self.shared_mem_size_bytes}, used: {shared_mem_size_bytes}, blocksize: {self.block_size}")
-        self.function((grid_size,), (self.block_size,), arg_list, shared_mem=shared_mem_size_bytes)
-
+        self.function((grid_size,), (self.block_size,), arg_list,
+                      shared_mem=shared_mem_size_bytes)
 
 class FFTCupy(object):
     def __init__(self, context, data, axes):

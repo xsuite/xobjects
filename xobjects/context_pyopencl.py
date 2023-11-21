@@ -100,9 +100,9 @@ class ContextPyopencl(XContext):
     @classmethod
     def print_devices(cls):
         for ip, platform in enumerate(cl.get_platforms()):
-            print(f"Context {ip}: {platform.name}")
+            print(f"Platform {ip}  : {platform.name}")
             for id, device in enumerate(platform.get_devices()):
-                print(f"Device {ip}.{id}: {device.name}")
+                print(f"Device   {ip}.{id}: {device.name}")
 
     def __init__(
         self, device=None, patch_pyopencl_array=True, minimum_alignment=None

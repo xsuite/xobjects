@@ -135,12 +135,12 @@ class ContextPyopencl(XContext):
         else:
             if isinstance(device, str):
                 platform, device = map(int, device.split("."))
+                self.platform = cl.get_platforms()[platform]
+                self.device = self.platform.get_devices()[device]
             else:
                 self.device = device
                 self.platform = device.platform
 
-            self.platform = cl.get_platforms()[platform]
-            self.device = self.platform.get_devices()[device]
             self.context = cl.Context([self.device])
 
         self.queue = cl.CommandQueue(self.context)

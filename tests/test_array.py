@@ -255,6 +255,7 @@ def test_update():
         b = xo.Float64[10]
 
     a = A(a=3)
+
     with pytest.raises(Exception) as e:
         a.a = 2
         assert e.type == ValueError

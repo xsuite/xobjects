@@ -2,26 +2,64 @@
 # This file is part of the Xobjects Package.  #
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
+"""A structure type for xobjects.
 
-"""
+The xobjects structure type can be inherited to implement a collection of
+values, both of static (know at C API compile time) and dynamic (known at
+initialisation) length.
 
+We define a structure by giving a list of fields, determining the types of
+values. For example, consider the following 4-field structure:
 
-struct <name> field1 type1 ... fieldn typen
+    >>> class Example(xo.Struct):
+    ...     f0 = xo.UInt8[:]
+    ...     f1 = xo.UInt16[2]
+    ...     f2 = xo.UInt8[:]
+    ...     f3 = xo.UInt8
 
-Layout:
-  [ instance size ]: is not static
-  static-field1
-  ..
-  static-fieldn
-  [ offset field 2 ]
-  [ offset ...
-  [ offset field n ]
-  [ dynamic-field1 ]
-  [ ...
-  [ dynamic-fieldn ]
+The fields f1 and f3 are static, as their sizes are know in advance, whereas
+the fields f0 and f2 are dynamic, as the amount of memory needed for these
+values will only be determined at initialisation.
 
-Current implementation:
-    1) instance stores the actual offsets for dynamic offset. Although it is wasteful for memory, it avoids a double round trip. This hinges on the structure being frozen at initializations.
+The memory layout of a general struct is as follows (let N be the number of
+static fields, and M the number of dynamic fields):
+
+(1) At offset 0: int64 size of the struct if the struct is dynamic (i.e. has
+    dynamic fields); otherwise size is omitted and (2) is here.
+(2) At offset 8 (or 0, see above): the N static field values in order, the
+    fields are 8-byte aligned.
+(3) At the next 8-byte aligned offset: (M - 1) int64 values representing the
+    offsets, from the beginning of the struct, of the data corresponding to
+    the dynamic fields indexed 1 through (M - 1). Note in particular, that the
+    offset of the static field 0 is omitted, as it is implicitly known to start
+    immediately after the end of this section.
+(4) At the next 8-byte aligned offset: the data corresponding to the dynamic
+    field index 0.
+(5) At the next 8-byte aligned offset begin, 8-byte aligned, values of dynamic
+    fields 1 though (M - 1) pointed to by the offsets specified in (3).
+(6) The whole structure is padded, as needed, with zeros to make the size, as
+    given in (1), a multiple of 8.
+
+Consider as an instance of the struct `Example` defined above:
+
+    >>> example = Example(f0=[1, 2, 3], f1=[4, 5], f2=[6, 7, 8, 9, 10], f3=11)
+
+Its memory layout can be viewed with:
+
+    >>> example._buffer.buffer.reshape(10, 8)
+
+This reveals the following structure of `example`:
+
+[ 0] 80,  0,  0,  0,  0,  0,  0,  0  # int64 length (here: little endian)
+[ 8]  4,  0,  5,  0,  0,  0,  0,  0  # f1: uint16[2] array; 4 bytes padding
+[16] 11,  0,  0,  0,  0,  0,  0,  0  # f3: uint8; 7 bytes padding
+[24] 56,  0,  0,  0,  0,  0,  0,  0  # int64 field 1 offset (f1 starts at 56)
+[32] 24,  0,  0,  0,  0,  0,  0,  0  # f0 header (1/2): int64 size in bytes
+[40]  3,  0,  0,  0,  0,  0,  0,  0  # f0 header (2/2): int64 no. of elements
+[48]  1,  2,  3,  0,  0,  0,  0,  0  # f0 items: uint8[3]; 5 bytes of padding
+[56] 24,  0,  0,  0,  0,  0,  0,  0  # f1 header (1/2): int64 size in bytes
+[64]  5,  0,  0,  0,  0,  0,  0,  0  # f1 header (2/2): int64 no. of elements
+[72]  6,  7,  8,  9, 10,  0,  0,  0  # f1 items: uint8[5]; 3 bytes of padding
 
 Struct class:
 - _size: class size, None if not static
@@ -31,7 +69,6 @@ Struct class:
 
 Struct instance:
 - _offsets: cached offsets of dynamic fields dict indexed by field.index
-- _sizes: cached sizes of dynamic fields dict indexed by field.index
 - _size: cached size of the object
 
 Field instance:
@@ -42,9 +79,8 @@ Field instance:
 - is_static_type
 - has_update
 - readonly
-
-
 """
+
 import logging
 from typing import Callable, Optional
 
@@ -54,7 +90,7 @@ from .typeutils import (
     Info,
     _to_slot_size,
     _is_dynamic,
-    default_conf,
+    default_conf, is_xo_type,
 )
 
 from .scalar import Int64
@@ -65,17 +101,50 @@ log = logging.getLogger(__name__)
 
 
 class Field:
+    """Represent metadata of a field inside an instance of a Struct.
+
+    Parameters
+    ----------
+    ftype: Any
+        A type of the field, can be an xobjects scalar, array, struct, etc.
+    default: instance of ftype
+        Initial value of the field; if unspecified the field's value defaults
+        to `ftype()`.
+    readonly: bool
+        Whether the modification of the value is locked after instantiation.
+    default_factory: callable
+        A callable to be executed in order to create the value of the field.
+        If unspecified the field's value defaults to `ftype(default)`.
+
+    Attributes
+    ----------
+    index: int
+        The index of the field within the order of fields in the struct.
+    name: str
+        The name of the field.
+    offset: int
+        The offset of the field, in bytes, from the start of the struct.
+    is_reference: bool
+        A flag indicating if the field is really a pointer. Dynamic fields
+        will have a constant `offset` which is a pointer to the actual data
+        located later in the struct.
+    has_update: bool
+        Does the field type implement an _update method, used to update
+        the field value.
+    is_union: bool
+        A flag indicating if the field represents an instance of a union type.
+    """
     def __init__(
         self, ftype, default=None, readonly=False, default_factory=None
     ):
         self.ftype = ftype
         self.default = default
         self.default_factory = default_factory
+        self.has_update = hasattr(ftype, '_update')
         self.index = None  # filled by class creation
         self.name = None  # filled by class creation
         self.offset = None  # filled by class creation
         self.is_reference = None  # filled by class creation
-        self.has_update = False  # filled by class creation
         self.readonly = readonly
         self.is_union = None  # filled by class creation
 
@@ -101,11 +170,20 @@ class Field:
 
         if hasattr(self.ftype, "_update"):
             self.__get__(instance)._update(value)
-        else:  # TODO check if below is really needed
+        else:
             ftype, offset = self.get_offset(instance)
             ftype._to_buffer(instance._buffer, offset, value)
 
+    def is_initialised(self):
+        """Has the field been processed by the class creation already."""
+        return self.index is not None
+
     def get_offset(self, instance):  # compatible with info
+        """Given an instance of a struct give an offset of the field's data.
+
+        Return an offset, in bytes, where the data of the field begins. This is
+        not necessarily the same as `self.offset` for dynamic fields.
+        """
         if self.is_reference:
             reloffset = instance._offsets[self.index]
             if self.is_union:
@@ -121,6 +199,7 @@ class Field:
         return ftype, instance._offset + reloffset
 
     def get_default(self):
+        """Return the default value of the field."""
         if self.default_factory is None:
             if self.default is None:
                 return self.ftype()
@@ -137,46 +216,66 @@ class Field:
 
 
 class MetaStruct(type):
-    def __new__(cls, name, bases, data):
-        offset = 0
-        fields = []
-        s_fields = []
-        d_fields = []
+    def __new__(mcs, name, bases, data):
+        inherits = False
         is_static = True
-        findex = 0
-        for aname, field in data.items():
-            if hasattr(field, "_inspect_args"):
-                data[aname] = Field(field)
-        for aname, field in data.items():
-            if isinstance(field, Field):
-                field.index = findex
-                findex += 1
-                field.name = aname
-                if hasattr(field.ftype, "_update"):
-                    field.has_update = True
-                fields.append(field)
-                if field.ftype._size is None:
-                    d_fields.append(field)
-                    is_static = False
-                else:
-                    s_fields.append(field)
+        fields = []
+
+        if bases:
+            base_structs = tuple(base for base in bases if issubclass(base, Struct))
+            if len(base_structs) > 1:
+                raise TypeError(
+                    'Multiple inheritance of xobject structs is not supported.'
+                )
+            base_struct = base_structs[0]
+
+            if base_struct == Struct:
+                pass
+            else:
+                inherits = True
+                base_is_static = base_struct._size is not None
+                is_static = base_is_static
+                fields += base_struct._fields
+
+        field_index = len(fields)
+        for field_name, field in data.items():
+            if not is_xo_type(field) and not isinstance(field, Field):
+                continue
+
+            if is_xo_type(field):
+                field = Field(field)
+
+            field.name = field_name
+            field.index = field_index
+
+            fields.append(field)
+            data[field_name] = field
+
+            if _is_dynamic(field.ftype):
+                is_static = False
+            field_index += 1
+
+        if inherits and is_static != base_is_static:  # noqa
+            raise TypeError(
+                'A dynamic struct can only inherit from another dynamic struct.'
+            )
+
         data["_fields"] = fields
-        data["_s_fields"] = s_fields
-        data["_d_fields"] = d_fields
 
         if is_static:
-            offset = 0
+            offset = base_struct._size if inherits else 0
             for field in fields:
                 field.offset = offset
                 field.is_reference = False
                 offset += _to_slot_size(field.ftype._size)
             size = offset
 
-            def _get_size(self):
-                return self.__class__._size
+            def _get_size(_):
+                """Get the size of a static struct."""
+                return size
 
-            def _inspect_args(cls, *args, **kwargs):
-                info = Info(size=cls._size, is_static_size=True)
+            def _inspect_args(_, *args, **kwargs):
+                info = Info(size=size, is_static_size=True)
                 if len(args) == 1:
                     info.value = args[0]
                 else:
@@ -185,61 +284,77 @@ class MetaStruct(type):
 
         else:
             size = None
+            offset = base_struct._size if inherits else 8  # first slot is instance size
+
             for field in fields:
-                offset = 8  # first slot is instance size
-                for field in s_fields:
-                    field.offset = offset
-                    field.is_reference = False
-                    offset += _to_slot_size(field.ftype._size)
-                # other dynamic fields
-                for field in d_fields[1:]:
-                    field.offset = offset
+                field.offset = offset
+                if _is_dynamic(field.ftype):
                     field.is_reference = True
-                    offset += _to_slot_size(8)
-                # first dynamic field
-                d_fields[0].offset = offset
-                d_fields[0].is_reference = False
+                    field_size = 8  # only the size of the reference
+                else:
+                    field.is_reference = False
+                    field_size = _to_slot_size(field.ftype._size)
+
+                offset += field_size
+
+            dynamic_section_start = offset
 
             def _get_size(self):
+                """Get the size of a dynamic struct: first 8 bytes."""
                 return Int64._from_buffer(self._buffer, self._offset)
 
-            def _inspect_args(cls, *args, **kwargs):
+            def _inspect_args(cls, xo_or_dict=None, **kwargs):
                 # log.debug(f"get size for {cls} from {args} {kwargs}")
                 info = Info()
-                if len(args) == 1:  # is a dict or xobj
-                    arg = args[0]
-                    info.value = arg
-                    if isinstance(arg, dict):
-                        offsets = {}  # offset of dynamic data
-                        extra = {}
-                        offset = d_fields[
-                            0
-                        ].offset  # offset first dynamic data
-                        # log.debug(f"{arg}")
-                        for field in cls._d_fields:
-                            farg = field.value_from_args(arg)
-                            # log.debug(
-                            #    f"get size for field `{field.name}` using `{farg}`"
-                            # )
-                            finfo = dispatch_arg(
-                                field.ftype._inspect_args, farg
-                            )
-                            extra[field.index] = finfo
-                            offsets[field.index] = offset
-                            offset += _to_slot_size(finfo.size)
-                        # _offsets is used to because of field.get_offset(info)
-                        info.size = offset
-                        info._offsets = offsets
-                        if len(extra) > 0:
-                            info.extra = extra
-                    elif isinstance(arg, cls):  # is the same size
-                        info.size = arg._get_size()
-                        info._offsets = arg._offsets
-                    else:
-                        raise ValueError(f"{arg} Not valid type for {cls}")
-                else:  # python argument
+                extra = {}
+                offsets = {}
+
+                if kwargs:
+                    if xo_or_dict:
+                        raise ValueError(
+                            'Cannot initialise an object simultaneously from '
+                            'kwargs and from a dictionary/xobject.'
+                        )
                     return cls._inspect_args(kwargs)
-                return info
+
+                if not xo_or_dict:
+                    raise ValueError(
+                        f'Cannot initialise an instance of {cls.__name__} with '
+                        f'{xo_or_dict}.'
+                    )
+
+                info.value = xo_or_dict
+
+                if isinstance(xo_or_dict, dict):
+                    dict_ = xo_or_dict
+
+                    field_offset = dynamic_section_start
+                    for field in fields:
+                        if not _is_dynamic(field.ftype):
+                            continue
+                        field_arg = field.value_from_args(dict_)
+                        field_info = dispatch_arg(field.ftype._inspect_args, field_arg)
+
+                        extra[field.index] = field_info
+                        offsets[field.index] = field_offset
+
+                        field_offset += _to_slot_size(field_info.size)
+
+                    info.size = field_offset
+                    info.offsets = offsets
+                    info.extra = extra
+                    return info
+
+                elif isinstance(xo_or_dict, cls):
+                    instance = xo_or_dict
+                    info.size = instance._get_size()
+                    info.offsets = instance._offsets
+                    return info
+
+                raise TypeError(
+                    f'Cannot initialise an instance of {cls} with the argument '
+                    f'{xo_or_dict} of type {type(xo_or_dict)}.'
+                )
 
         data["_size"] = size
         data["_get_size"] = _get_size
@@ -262,7 +377,7 @@ class MetaStruct(type):
         if "_kernels" not in data.keys():
             data["_kernels"] = {}
 
-        return type.__new__(cls, name, bases, data)
+        return type.__new__(mcs, name, bases, data)
 
     def __getitem__(cls, shape):
         return Array.mk_arrayclass(cls, shape)
@@ -273,7 +388,6 @@ class MetaStruct(type):
 
 class Struct(metaclass=MetaStruct):
     _fields: list
-    _d_fields: list
     _inspect_args: Callable
     _size: Optional[int]
 
@@ -289,12 +403,15 @@ class Struct(metaclass=MetaStruct):
         self = object.__new__(cls)
         self._buffer = buffer
         self._offset = offset
-        _offsets = {}
-        for field in self._d_fields:
+        offsets = {}
+        for field in self._fields:
+            if not _is_dynamic(field.ftype):
+                continue
             offset = self._offset + field.offset
             val = Int64._from_buffer(self._buffer, offset)
-            _offsets[field.index] = val
-        self._offsets = _offsets
+            offsets[field.index] = val
+
+        self._offsets = offsets
         self._size = self._get_size()
         self._post_init()
         return self
@@ -305,24 +422,27 @@ class Struct(metaclass=MetaStruct):
             buffer.update_from_xbuffer(
                 offset, value._buffer, value._offset, value._size
             )
-        else:  # value must be a dict, again potential disctructive
-            if info is None:
-                info = cls._inspect_args(value)
-            if cls._size is None:
-                Int64._to_buffer(buffer, offset, info.size)
-            if hasattr(
-                info, "_offsets"
-            ):  # if it has a least two dynamic fields
-                cls._set_offsets(buffer, offset, info._offsets)
-            extra = getattr(info, "extra", {})
-            for field in cls._fields:
-                fvalue = field.value_from_args(value)
-                if field.is_reference:
-                    foffset = offset + info._offsets[field.index]
-                else:
-                    foffset = offset + field.offset
-                finfo = extra.get(field.index)
-                field.ftype._to_buffer(buffer, foffset, fvalue, finfo)
+            return
+
+        # value must be a dict, again potential destructive
+        if info is None:
+            info = cls._inspect_args(value)
+
+        if _is_dynamic(cls):
+            Int64._to_buffer(buffer, offset, info.size)
+
+        if hasattr(info, "offsets"):
+            cls._set_offsets(buffer, offset, info.offsets)
+
+        extra = getattr(info, "extra", {})
+        for field in cls._fields:
+            fvalue = field.value_from_args(value)
+            if field.is_reference:
+                foffset = offset + info.offsets[field.index]
+            else:
+                foffset = offset + field.offset
+            finfo = extra.get(field.index)
+            field.ftype._to_buffer(buffer, foffset, fvalue, finfo)
 
     def _update(self, value):
         # check if direct copy is possible
@@ -352,14 +472,13 @@ class Struct(metaclass=MetaStruct):
             info.size, _context, _buffer, _offset
         )
         # if dynamic struct store dynamic offsets
-        if hasattr(info, "_offsets"):
-            self._offsets = info._offsets  # struct offsets
+        if hasattr(info, "offsets"):
+            self._offsets = info.offsets  # struct offsets
         cls._to_buffer(self._buffer, self._offset, info.value, info)
         self._post_init()
 
     @classmethod
     def _set_offsets(cls, buffer, offset, loffsets):
-        # log.debug(f"{cls} set offset {loffsets}")
         for index, data_offset in loffsets.items():
             foffset = offset + cls._fields[index].offset
             Int64._to_buffer(buffer, foffset, data_offset)

@@ -7,7 +7,6 @@ import logging
 
 import numpy as np
 
-
 from .typeutils import (
     allocate_on_buffer,
     Info,
@@ -72,6 +71,18 @@ def get_suffix(shape):
         else:
             sshape.append(str(dd))
     return "x".join(sshape)
+
+
+# def get_shape_from_array(value, num_dimensions):
+#     if hasattr(value, "shape"):
+#         return value.shape
+#     if hasattr(value, "_shape"):
+#         return value._shape
+#     if isinstance(value, str):  # test for string
+#         return ()
+#     if hasattr(value, "__len__"):
+#         return np.array(value, dtype=object).shape[:num_dimensions]
+#     return ()
 
 
 def get_shape_from_array(value, nd):
@@ -520,6 +531,7 @@ class Array(metaclass=MetaArray):
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
         # determin resources
+        print(args)
         cls = self.__class__
         info = cls._inspect_args(*args)
 

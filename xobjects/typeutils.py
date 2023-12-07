@@ -5,6 +5,7 @@
 
 import math
 import time
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -67,8 +68,22 @@ class Info:
         return self.__dict__ == other.__dict__
 
 
+# @dataclass
+# class Info:
+#     size: int = None
+#     data = None
+#     is_static_size: bool = False
+#     value = None
+#     extra = None
+#     offsets = None
+#     shape = None
+#     strides = None
+#     order = None
+#     items = None
+
+
 def _to_slot_size(size):
-    "round to nearest multiple of 8"
+    """Round to the nearest multiple of 8."""
     return (size + 7) & (-8)
 
 
@@ -78,6 +93,10 @@ def _is_dynamic(cls):
 
 def is_integer(i):
     return isinstance(i, (int, np.integer))
+
+
+def is_xo_type(cls):
+    return hasattr(cls, '_inspect_args')
 
 
 float2c = {2: "half", 4: "float", 8: "double", 16: "double[2]"}
@@ -111,8 +130,3 @@ def get_c_type(typ):
         return typ._c_type
     else:
         raise ValueError(f"Cannot find C type for type {typ}")
-
-
-class Register:
-    def __init__(self):
-        self.classes = {}

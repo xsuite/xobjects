@@ -3,6 +3,7 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 import cffi
+import pytest
 
 import xobjects as xo
 from xobjects.test_helpers import for_all_test_contexts, requires_context
@@ -95,8 +96,8 @@ def test_dynamic_nested_struct(test_context):
         c = xo.Field(xo.Int8, default=-1)
 
     info = StructE._inspect_args(b="this is a test")
-    assert info.size == 48
-    assert info._offsets == {1: 24}
+    assert info.size == 56
+    assert info.offsets == {1: 32}
 
     class StructF(xo.Struct):
         e = xo.Field(xo.Float64, default=3.5)
@@ -108,8 +109,8 @@ def test_dynamic_nested_struct(test_context):
     assert StructF._size is None
 
     info = StructF._inspect_args(g={"b": "this is a test"})
-    assert info.size == 80
-    assert info._offsets == {2: 32}
+    assert info.size == 96
+    assert info.offsets == {2: 40}
 
     s = StructF(g={"b": "this is a test"}, _context=test_context)
     assert s._size is not None
@@ -195,8 +196,8 @@ def test_nestednested():
 
     assert b.s.a._size == 96
     assert b.s.b._size == 96
-    assert b.s._size == 208
-    assert b._size == 216
+    assert b.s._size == 216
+    assert b._size == 232
 
 
 def test_copy_dynamic():
@@ -211,6 +212,35 @@ def test_copy_dynamic():
     assert s1.b[1] == s2.b[1]
     s1.b[1] = 33
     assert s2.b[1] == 4
+
+
+def test_struct_allow_single_xo_inheritance():
+    class Base(xo.Struct):
+        f1 = xo.UInt16
+
+    class Base2(xo.Struct):
+        f2 = xo.UInt64
+
+    with pytest.raises(TypeError) as e:
+        class Child(Base, Base2):  # noqa
+            f3 = xo.Float64
+
+    assert 'multiple' in str(e.value).lower()
+
+
+def test_struct_inheritance():
+    class Base(xo.Struct):
+        f1 = xo.UInt32
+        f2 = xo.UInt64
+
+    class Child(Base):
+        f3 = xo.UInt16
+
+    child = Child(f1=12, f2=43, f3=67)
+
+    assert child.f1 == 12
+    assert child.f2 == 43
+    assert child.f3 == 67
 
 
 @requires_context("ContextCpu")

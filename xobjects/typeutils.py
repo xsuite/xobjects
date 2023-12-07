@@ -56,30 +56,18 @@ def dispatch_arg(f, arg):
         return f(arg)
 
 
+@dataclass
 class Info:
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-
-    def __repr__(self):
-        args = [f"{k}={repr(v)}" for k, v in self.__dict__.items()]
-        return f"Info({','.join(args)})"
-
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
-
-
-# @dataclass
-# class Info:
-#     size: int = None
-#     data = None
-#     is_static_size: bool = False
-#     value = None
-#     extra = None
-#     offsets = None
-#     shape = None
-#     strides = None
-#     order = None
-#     items = None
+    size: int = None
+    data: object = None
+    items = None
+    is_static_size: bool = False
+    value = None
+    extra = {}
+    offsets = {}
+    shape = None
+    strides = None
+    order = None
 
 
 def _to_slot_size(size):

@@ -1,10 +1,10 @@
 # copyright ################################# #
 # This file is part of the Xobjects Package.  #
-# Copyright (c) CERN, 2021.                   #
+# Copyright (c) CERN, 2023.                   #
 # ########################################### #
-"""A structure type for xobjects.
+"""A structure type for Xobjects.
 
-The xobjects structure type can be inherited to implement a collection of
+The Xobjects structure type can be inherited to implement a collection of
 values, both of static (know at C API compile time) and dynamic (known at
 initialisation) length.
 
@@ -80,11 +80,12 @@ Field instance:
 - has_update
 - readonly
 """
-
 import logging
+from dataclasses import dataclass
 from typing import Callable, Optional
 
-from .typeutils import (
+from xobjects.base_type import XoTypeMeta, XoInstanceInfo, XoType
+from xobjects.typeutils import (
     allocate_on_buffer,
     dispatch_arg,
     Info,
@@ -92,12 +93,19 @@ from .typeutils import (
     _is_dynamic,
     default_conf, is_xo_type,
 )
-
-from .scalar import Int64
-from .array import Array
-from .context import Source
+from xobjects.scalar import Int64
+from xobjects.array import Array
+from xobjects.context import Source
 
 log = logging.getLogger(__name__)
+
+
+def is_struct(atype):
+    return isinstance(atype, MetaStruct)
+
+
+def is_field(atype):
+    return isinstance(atype, Field)
 
 
 class Field:
@@ -152,19 +160,18 @@ class Field:
         return f"<field{self.index} {self.name} at {self.offset}>"
 
     def __get__(self, instance, cls=None):
+        """When a field of a struct is accessed, return its value.
+
+        When accessed on the class return its metadata, i.e., the Field object.
+        """
         if instance is None:
             return self
-        else:
-            ftype, offset = self.get_offset(instance)
-            return ftype._from_buffer(instance._buffer, offset)
+
+        ftype, offset = self.get_offset(instance)
+        return ftype._from_buffer(instance._buffer, offset)
 
     def __set__(self, instance, value):
-        """
-        A value can be:
-          - python value: dict or scalar or list...
-          - another instance of the same type
-          - ???a buffer_protocol object???
-        """
+        """When a field is set on a struct, update the underlying value."""
         if self.readonly:
             raise AttributeError(f"Field {self.name} is read-only")
 
@@ -173,10 +180,6 @@ class Field:
         else:
             ftype, offset = self.get_offset(instance)
             ftype._to_buffer(instance._buffer, offset, value)
-
-    def is_initialised(self):
-        """Has the field been processed by the class creation already."""
-        return self.index is not None
 
     def get_offset(self, instance):  # compatible with info
         """Given an instance of a struct give an offset of the field's data.
@@ -200,44 +203,187 @@ class Field:
 
     def get_default(self):
         """Return the default value of the field."""
-        if self.default_factory is None:
-            if self.default is None:
-                return self.ftype()
-            else:
-                return dispatch_arg(self.ftype, self.default)
-        else:
+        if self.default_factory is not None:
             return self.default_factory()
+
+        if self.default is not None:
+            return dispatch_arg(self.ftype, self.default)
+
+        return self.ftype()
 
     def value_from_args(self, arg):
         if self.name in arg:
             return arg[self.name]
-        else:
-            return self.get_default()
+
+        return self.get_default()
 
 
-class MetaStruct(type):
+# @dataclass
+# class StructInstanceInfo(XoInstanceInfo):
+#     """Metadata representing the allocation requirements of a Struct."""
+#     # data: object = None
+#     # items = None
+#     is_static_size: bool = False
+#     value = None
+#     extra = {}
+#     offsets = {}
+
+
+class MetaStruct(XoTypeMeta):
     def __new__(mcs, name, bases, data):
+        MetaStruct._prepare_fields(bases, data)
+
+        is_static = data['_is_static']
+        fields = data['_fields']
+        base_struct = data.get('_base_struct')
+
+        if is_static:
+            MetaStruct._prepare_methods_if_static(base_struct, data, fields)
+        else:
+            MetaStruct._prepare_methods_if_dynamic(base_struct, data, fields)
+
+        data["_c_type"] = data.get("_c_type", name)
+
+        # determine own data
+        _has_refs = False
+        for ff in data["_fields"]:
+            ftype = ff.ftype
+            if hasattr(ftype, "_has_refs") and ftype._has_refs:
+                _has_refs = True
+                break
+
+        data["_has_refs"] = _has_refs
+
+        return XoTypeMeta.__new__(mcs, name, bases, data)
+
+    @staticmethod
+    def _prepare_methods_if_dynamic(base_struct, data, fields):
+        """Create methods for a dynamic struct."""
+        size = None
+        offset = base_struct._size if base_struct else 8  # first slot is instance size
+        for field in fields:
+            field.offset = offset
+            if _is_dynamic(field.ftype):
+                field.is_reference = True
+                field_size = 8  # only the size of the reference
+            else:
+                field.is_reference = False
+                field_size = _to_slot_size(field.ftype._size)
+
+            offset += field_size
+        dynamic_section_start = offset
+
+        def _get_size(self):
+            """Get the size of a dynamic struct: first 8 bytes."""
+            return Int64._from_buffer(self._buffer, self._offset)
+
+        def _inspect_args(cls, xo_or_dict=None, **kwargs):
+            info = Info()
+            extra = {}
+            offsets = {}
+
+            if kwargs:
+                if xo_or_dict:
+                    raise ValueError(
+                        'Cannot initialise an object simultaneously from '
+                        'kwargs and from a dictionary/xobject.'
+                    )
+                return cls._inspect_args(kwargs)
+
+            if not xo_or_dict:
+                raise ValueError(
+                    f'Cannot initialise an instance of {cls.__name__} with '
+                    f'{xo_or_dict}.'
+                )
+
+            info.value = xo_or_dict
+
+            if isinstance(xo_or_dict, dict):
+                dict_ = xo_or_dict
+
+                field_offset = dynamic_section_start
+                for field in fields:
+                    if not _is_dynamic(field.ftype):
+                        continue
+                    field_arg = field.value_from_args(dict_)
+                    field_info = dispatch_arg(field.ftype._inspect_args, field_arg)
+
+                    extra[field.index] = field_info
+                    offsets[field.index] = field_offset
+
+                    field_offset += _to_slot_size(field_info.size)
+
+                info.size = field_offset
+                info.offsets = offsets
+                info.extra = extra
+                return info
+
+            elif isinstance(xo_or_dict, cls):
+                instance = xo_or_dict
+                info.size = instance._get_size()
+                info.offsets = instance._offsets
+                return info
+
+            raise TypeError(
+                f'Cannot initialise an instance of {cls} with the argument '
+                f'{xo_or_dict} of type {type(xo_or_dict)}.'
+            )
+
+        data["_size"] = size
+        data["_get_size"] = _get_size
+        data["_inspect_args"] = classmethod(_inspect_args)
+
+    @staticmethod
+    def _prepare_methods_if_static(base_struct, data, fields):
+        """Create methods for a static struct."""
+        offset = base_struct._size if base_struct else 0
+
+        for field in fields:
+            field.offset = offset
+            field.is_reference = False
+            offset += _to_slot_size(field.ftype._size)
+        size = offset
+
+        def _get_size(_):
+            """Get the size of a static struct."""
+            return size
+
+        def _inspect_args(_, *args, **kwargs):
+            info = Info(size=size, is_static_size=True)
+            if len(args) == 1:
+                info.value = args[0]
+            else:
+                info.value = kwargs
+            return info
+
+        data["_size"] = size
+        data["_get_size"] = _get_size
+        data["_inspect_args"] = classmethod(_inspect_args)
+
+    @staticmethod
+    def _prepare_fields(bases, data):
+        base_struct = None
         inherits = False
         is_static = True
         fields = []
 
-        if bases:
-            base_structs = tuple(base for base in bases if issubclass(base, Struct))
-            if len(base_structs) > 1:
-                raise TypeError(
-                    'Multiple inheritance of xobject structs is not supported.'
-                )
-            base_struct = base_structs[0]
+        base_structs = tuple(
+            base for base in bases if is_struct(base) and base != Struct
+        )
 
-            if base_struct == Struct:
-                pass
-            else:
-                inherits = True
-                base_is_static = base_struct._size is not None
-                is_static = base_is_static
-                fields += base_struct._fields
+        if base_structs:
+            try:
+                base_struct, = base_structs
+            except ValueError:
+                raise TypeError('Multiple inheritance of xobjects unsupported.')
+
+            inherits = True
+            base_is_static = base_struct._size is not None
+            is_static = base_is_static
+            fields += base_struct._fields
 
         field_index = len(fields)
+
         for field_name, field in data.items():
             if not is_xo_type(field) and not isinstance(field, Field):
                 continue
@@ -260,124 +406,9 @@ class MetaStruct(type):
                 'A dynamic struct can only inherit from another dynamic struct.'
             )
 
+        data["_base_struct"] = base_struct
         data["_fields"] = fields
-
-        if is_static:
-            offset = base_struct._size if inherits else 0
-            for field in fields:
-                field.offset = offset
-                field.is_reference = False
-                offset += _to_slot_size(field.ftype._size)
-            size = offset
-
-            def _get_size(_):
-                """Get the size of a static struct."""
-                return size
-
-            def _inspect_args(_, *args, **kwargs):
-                info = Info(size=size, is_static_size=True)
-                if len(args) == 1:
-                    info.value = args[0]
-                else:
-                    info.value = kwargs
-                return info
-
-        else:
-            size = None
-            offset = base_struct._size if inherits else 8  # first slot is instance size
-
-            for field in fields:
-                field.offset = offset
-                if _is_dynamic(field.ftype):
-                    field.is_reference = True
-                    field_size = 8  # only the size of the reference
-                else:
-                    field.is_reference = False
-                    field_size = _to_slot_size(field.ftype._size)
-
-                offset += field_size
-
-            dynamic_section_start = offset
-
-            def _get_size(self):
-                """Get the size of a dynamic struct: first 8 bytes."""
-                return Int64._from_buffer(self._buffer, self._offset)
-
-            def _inspect_args(cls, xo_or_dict=None, **kwargs):
-                # log.debug(f"get size for {cls} from {args} {kwargs}")
-                info = Info()
-                extra = {}
-                offsets = {}
-
-                if kwargs:
-                    if xo_or_dict:
-                        raise ValueError(
-                            'Cannot initialise an object simultaneously from '
-                            'kwargs and from a dictionary/xobject.'
-                        )
-                    return cls._inspect_args(kwargs)
-
-                if not xo_or_dict:
-                    raise ValueError(
-                        f'Cannot initialise an instance of {cls.__name__} with '
-                        f'{xo_or_dict}.'
-                    )
-
-                info.value = xo_or_dict
-
-                if isinstance(xo_or_dict, dict):
-                    dict_ = xo_or_dict
-
-                    field_offset = dynamic_section_start
-                    for field in fields:
-                        if not _is_dynamic(field.ftype):
-                            continue
-                        field_arg = field.value_from_args(dict_)
-                        field_info = dispatch_arg(field.ftype._inspect_args, field_arg)
-
-                        extra[field.index] = field_info
-                        offsets[field.index] = field_offset
-
-                        field_offset += _to_slot_size(field_info.size)
-
-                    info.size = field_offset
-                    info.offsets = offsets
-                    info.extra = extra
-                    return info
-
-                elif isinstance(xo_or_dict, cls):
-                    instance = xo_or_dict
-                    info.size = instance._get_size()
-                    info.offsets = instance._offsets
-                    return info
-
-                raise TypeError(
-                    f'Cannot initialise an instance of {cls} with the argument '
-                    f'{xo_or_dict} of type {type(xo_or_dict)}.'
-                )
-
-        data["_size"] = size
-        data["_get_size"] = _get_size
-        data["_inspect_args"] = classmethod(_inspect_args)
-        if "_c_type" not in data:
-            data["_c_type"] = name
-
-        # determine owndata
-        _has_refs = False
-        for ff in data["_fields"]:
-            ftype = ff.ftype
-            if hasattr(ftype, "_has_refs") and ftype._has_refs:
-                _has_refs = True
-                break
-        data["_has_refs"] = _has_refs
-        if "_extra_c_sources" not in data.keys():
-            data["_extra_c_sources"] = []
-        if "_depends_on" not in data.keys():
-            data["_depends_on"] = []
-        if "_kernels" not in data.keys():
-            data["_kernels"] = {}
-
-        return type.__new__(mcs, name, bases, data)
+        data["_is_static"] = is_static
 
     def __getitem__(cls, shape):
         return Array.mk_arrayclass(cls, shape)
@@ -386,7 +417,7 @@ class MetaStruct(type):
         return f"<struct {cls.__name__}>"
 
 
-class Struct(metaclass=MetaStruct):
+class Struct(XoType, metaclass=MetaStruct):
     _fields: list
     _inspect_args: Callable
     _size: Optional[int]
@@ -623,11 +654,3 @@ class Struct(metaclass=MetaStruct):
             save_source_as=save_source_as,
             extra_classes=extra_classes,
         )
-
-
-def is_struct(atype):
-    return isinstance(atype, MetaStruct)
-
-
-def is_field(atype):
-    return isinstance(atype, Field)

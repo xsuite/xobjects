@@ -2,12 +2,11 @@
 # This file is part of the Xobjects Package.  #
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
+"""Types representing scalars.
 
-"""
-Scalars: Types olding numbers
-
-
-NB: scalars cannot be classes as classes() needs to return a numpy scalar, however in union isintance could be used (try to subclass numpy scalar?)
+The classes in this file are used to handle scalars, and introduce XoType
+classes for these types. The instances of scalars themselves though will be
+numpy types. See the comment in XoScalar.__new__ for more details.
 """
 from abc import ABC, abstractmethod
 
@@ -18,6 +17,11 @@ from xobjects.base_type import XoType, XoTypeMeta, XoInstanceInfo
 log = logging.getLogger(__name__)
 
 
+class Void(XoType, ABC):
+    """Void type to be used as a placeholder, e.g., in kernel signatures."""
+    _c_type = 'void'
+
+
 class XoScalarMeta(XoTypeMeta):
     """The type of XoScalar class.
 
@@ -25,7 +29,7 @@ class XoScalarMeta(XoTypeMeta):
     -----
     Currently this class does not do anything special, but is useful for
     `isinstance` checking of scalar types. See `is_scalar` below. We could
-    accomplish something similar with issubclass but then, we need another check
+    accomplish something similar with issubclass, but then we need another check
     for isinstance(cls, type), as issubclass expects the second parameter to
     be a class.
     """
@@ -55,7 +59,21 @@ class XoScalar(XoType, metaclass=XoScalarMeta):
         """This class cannot be instantiated: see __new__."""
 
     @classmethod
-    def make_new_type(cls, dtype, c_name) -> XoScalarMeta:
+    def make_new_type(cls, dtype: str, c_name: str) -> XoScalarMeta:
+        """Create a XoScalar class for a scalar type.
+
+        Arguments
+        ---------
+        dtype: str
+            Numpy dtype string for the scalar type.
+        c_name: str
+            The string representing the type in C.
+
+        Returns
+        -------
+        Type[XoScalar]:
+            The new XoScalar type.
+        """
         dtype_instance = np.dtype(dtype)
 
         class _NewType(cls):
@@ -113,7 +131,6 @@ class XoScalar(XoType, metaclass=XoScalarMeta):
         return [base + [cls]]
 
 
-
 Float64 = XoScalar.make_new_type("float64", "double")
 Float32 = XoScalar.make_new_type("float32", "float")
 Int64 = XoScalar.make_new_type("int64", "int64_t")
@@ -130,8 +147,3 @@ Complex128 = XoScalar.make_new_type("complex128", "double[2]")
 # Incompatible with M1 CPU
 # Complex256 = XoScalar.make_new_type("complex256", "double[4]")
 # Float128 = XoScalar.make_new_type("float128", "double[2]")
-
-
-class Void(XoType, ABC):
-    """Void type to be used as a placeholder, e.g., in kernel signatures."""
-    _c_type = 'void'

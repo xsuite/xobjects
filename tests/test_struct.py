@@ -146,31 +146,6 @@ def test_assign_full_struct(test_context):
     # assert f.h==-1
 
 
-def test_preinit():
-    import numpy as np
-
-    class Rotation(xo.Struct):
-        cx = xo.Float64
-        sx = xo.Float64
-
-        @classmethod
-        def _pre_init(cls, angle=0, **kwargs):
-            rad = np.deg2rad(angle)
-            kwargs["cx"] = np.cos(rad)
-            kwargs["sx"] = np.sin(rad)
-            return (), kwargs
-
-        def _post_init(self):
-            assert self.cx**2 + self.sx**2 == 1
-
-        def myprint(self):
-            return self.cx, self.sx
-
-    rot = Rotation(angle=90)
-
-    assert rot.sx == 1.0
-
-
 def test_init_from_xobj():
     class StructA(xo.Struct):
         a = xo.Float64

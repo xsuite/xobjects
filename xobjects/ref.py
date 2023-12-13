@@ -215,9 +215,6 @@ class MetaUnionRef(type):
     def __getitem__(cls, shape):
         return Array.mk_arrayclass(cls, shape)
 
-    def _pre_init(cls, *arg, **kwargs):
-        return kwargs
-
     def __repr__(cls):
         return f"<unionref {cls.__name__}>"
 
@@ -231,15 +228,11 @@ class UnionRef(metaclass=MetaUnionRef):
     ):
         cls = self.__class__
 
-        args, _ = self._pre_init(*args, **kwargs)
-
         self._buffer, self._offset = allocate_on_buffer(
             cls._size, _context, _buffer, _offset
         )
 
         cls._to_buffer(self._buffer, self._offset, args)
-
-        self._post_init()
 
     def get(self):
         reloffset, typeid = Int64._array_from_buffer(
@@ -252,13 +245,6 @@ class UnionRef(metaclass=MetaUnionRef):
             typ = cls._type_from_typeid(typeid)
             offset = self._offset + reloffset
             return typ._from_buffer(self._buffer, offset)
-
-    @classmethod
-    def _pre_init(cls, *args, **kwargs):
-        return args, kwargs
-
-    def _post_init(self):
-        pass
 
     @classmethod
     def _gen_data_paths(cls, base=None):

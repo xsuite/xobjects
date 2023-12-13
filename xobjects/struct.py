@@ -82,16 +82,16 @@ Field instance:
 """
 import logging
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Optional, List
 
 from xobjects.base_type import XoTypeMeta, XoInstanceInfo, XoType
 from xobjects.typeutils import (
     allocate_on_buffer,
     dispatch_arg,
-    Info,
     _to_slot_size,
     _is_dynamic,
-    default_conf, is_xo_type,
+    default_conf,
+    is_xo_type,
 )
 from xobjects.scalar import Int64
 from xobjects.array import Array
@@ -218,18 +218,19 @@ class Field:
         return self.get_default()
 
 
-# @dataclass
-# class StructInstanceInfo(XoInstanceInfo):
-#     """Metadata representing the allocation requirements of a Struct."""
-#     # data: object = None
-#     # items = None
-#     is_static_size: bool = False
-#     value = None
-#     extra = {}
-#     offsets = {}
+@dataclass
+class StructInstanceInfo(XoInstanceInfo):
+    """Metadata representing the allocation requirements of a Struct."""
+    # data: object = None
+    # items = None
+    is_static_size: bool = False
+    value = None
+    extra = {}
+    offsets = {}
 
 
 class MetaStruct(XoTypeMeta):
+    """The metaclass for the Xobjects structs."""
     def __new__(mcs, name, bases, data):
         MetaStruct._prepare_fields(bases, data)
 
@@ -278,7 +279,6 @@ class MetaStruct(XoTypeMeta):
             return Int64._from_buffer(self._buffer, self._offset)
 
         def _inspect_args(cls, xo_or_dict=None, **kwargs):
-            info = Info()
             extra = {}
             offsets = {}
 
@@ -296,8 +296,6 @@ class MetaStruct(XoTypeMeta):
                     f'{xo_or_dict}.'
                 )
 
-            info.value = xo_or_dict
-
             if isinstance(xo_or_dict, dict):
                 dict_ = xo_or_dict
 
@@ -313,14 +311,16 @@ class MetaStruct(XoTypeMeta):
 
                     field_offset += _to_slot_size(field_info.size)
 
-                info.size = field_offset
+                info = StructInstanceInfo(size=field_offset)
+                info.value = xo_or_dict
                 info.offsets = offsets
                 info.extra = extra
                 return info
 
             elif isinstance(xo_or_dict, cls):
                 instance = xo_or_dict
-                info.size = instance._get_size()
+                info = StructInstanceInfo(size=instance._get_size())
+                info.value = xo_or_dict
                 info.offsets = instance._offsets
                 return info
 
@@ -349,7 +349,7 @@ class MetaStruct(XoTypeMeta):
             return size
 
         def _inspect_args(_, *args, **kwargs):
-            info = Info(size=size, is_static_size=True)
+            info = StructInstanceInfo(size=size, is_static_size=True)
             if len(args) == 1:
                 info.value = args[0]
             else:
@@ -418,16 +418,11 @@ class MetaStruct(XoTypeMeta):
 
 
 class Struct(XoType, metaclass=MetaStruct):
-    _fields: list
-    _inspect_args: Callable
+    # Fields filled by the metaclass:
+    _fields: List[Field]
     _size: Optional[int]
-
-    @classmethod
-    def _pre_init(cls, *args, **kwargs):
-        return args, kwargs
-
-    def _post_init(self):
-        pass
+    _inspect_args: callable
+    _get_size: callable
 
     @classmethod
     def _from_buffer(cls, buffer, offset=0):
@@ -444,7 +439,6 @@ class Struct(XoType, metaclass=MetaStruct):
 
         self._offsets = offsets
         self._size = self._get_size()
-        self._post_init()
         return self
 
     @classmethod
@@ -494,7 +488,6 @@ class Struct(XoType, metaclass=MetaStruct):
         If offset not provide
         """
         cls = self.__class__
-        args, kwargs = cls._pre_init(*args, **kwargs)
         # compute resources
         info = cls._inspect_args(*args, **kwargs)
         self._size = info.size
@@ -506,7 +499,6 @@ class Struct(XoType, metaclass=MetaStruct):
         if hasattr(info, "offsets"):
             self._offsets = info.offsets  # struct offsets
         cls._to_buffer(self._buffer, self._offset, info.value, info)
-        self._post_init()
 
     @classmethod
     def _set_offsets(cls, buffer, offset, loffsets):

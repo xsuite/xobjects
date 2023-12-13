@@ -6,7 +6,7 @@ from xobjects.context import XBuffer, Kernel, SourceType
 
 from abc import ABCMeta, abstractmethod, ABC
 from dataclasses import dataclass
-from typing import Optional, Type, TypeVar, List, Any
+from typing import Optional, Type, TypeVar, List, Any, Dict
 
 XoType_ = TypeVar("XoType_", bound="XoType")
 
@@ -18,6 +18,7 @@ class XoInstanceInfo:
 
 
 class XoTypeMeta(ABCMeta):
+    """The metaclass for the base Xobjects type."""
     def __new__(mcs, name, bases, fields):
         # TODO: Consider if it is a good API choice to "add" to the c sources:
         #  for base in bases:
@@ -82,7 +83,7 @@ class XoType(metaclass=XoTypeMeta):
     _c_type: str
     _extra_c_sources: List[SourceType] = ()
     _depends_on: List[XoType_] = ()
-    _kernels: List[str, Kernel] = {}
+    _kernels: Dict[str, Kernel] = {}
 
     @abstractmethod
     def __init__(self):

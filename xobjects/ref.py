@@ -72,7 +72,7 @@ class Ref(metaclass=MetaRef):
         return Info(size=self._size)
 
     def __getitem__(self, shape):
-        return Array.mk_arrayclass(self, shape)
+        return Array.make_array_class(self, shape)
 
     def _gen_data_paths(self, base=None):
         paths = []
@@ -213,7 +213,7 @@ class MetaUnionRef(type):
                 Int64._array_to_buffer(buffer, offset, ref)
 
     def __getitem__(cls, shape):
-        return Array.mk_arrayclass(cls, shape)
+        return Array.make_array_class(cls, shape)
 
     def __repr__(cls):
         return f"<unionref {cls.__name__}>"

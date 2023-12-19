@@ -60,31 +60,13 @@ This reveals the following structure of `example`:
 [56] 24,  0,  0,  0,  0,  0,  0,  0  # f1 header (1/2): int64 size in bytes
 [64]  5,  0,  0,  0,  0,  0,  0,  0  # f1 header (2/2): int64 no. of elements
 [72]  6,  7,  8,  9, 10,  0,  0,  0  # f1 items: uint8[5]; 3 bytes of padding
-
-Struct class:
-- _size: class size, None if not static
-- _fields: list of fields
-- _d_fields: list of dynamic fields
-- _s_fields: list of static fields
-
-Struct instance:
-- _offsets: cached offsets of dynamic fields dict indexed by field.index
-- _size: cached size of the object
-
-Field instance:
-- ftype
-- index
-- name
-- offset
-- is_static_type
-- has_update
-- readonly
 """
 import logging
 from dataclasses import dataclass
-from typing import Callable, Optional, List
+from typing import Callable, Optional, List, Type, Tuple
 
 from xobjects.base_type import XoTypeMeta, XoInstanceInfo, XoType
+from xobjects.methods import Method, MethodTable
 from xobjects.typeutils import (
     allocate_on_buffer,
     dispatch_arg,
@@ -232,33 +214,40 @@ class StructInstanceInfo(XoInstanceInfo):
 class MetaStruct(XoTypeMeta):
     """The metaclass for the Xobjects structs."""
     def __new__(mcs, name, bases, data):
-        MetaStruct._prepare_fields(bases, data)
+        """Create a new struct class.
 
-        is_static = data['_is_static']
-        fields = data['_fields']
-        base_struct = data.get('_base_struct')
-
-        if is_static:
-            MetaStruct._prepare_methods_if_static(base_struct, data, fields)
-        else:
-            MetaStruct._prepare_methods_if_dynamic(base_struct, data, fields)
-
+        Determine the fields (variables and methods) of the new struct, and
+        its basic properties (static vs dynamic, has a method table, etc.) based
+        on the class definition. Generate the methods required by the Struct
+        interface (`_inspect_args`, `_get_size`).
+        """
         data["_c_type"] = data.get("_c_type", name)
 
-        # determine own data
-        _has_refs = False
-        for ff in data["_fields"]:
-            ftype = ff.ftype
-            if hasattr(ftype, "_has_refs") and ftype._has_refs:
-                _has_refs = True
-                break
+        base_struct = MetaStruct._get_base_struct(bases, data)
+        methods = MetaStruct._prepare_methods(base_struct, data)
+        fields, is_static = MetaStruct._prepare_fields(base_struct, data)
 
-        data["_has_refs"] = _has_refs
+        data["_base_struct"] = base_struct
+        data["_fields"] = fields
+        data["_is_static"] = is_static
+        data['_methods'] = methods
 
-        return XoTypeMeta.__new__(mcs, name, bases, data)
+        if is_static:
+            MetaStruct._make_static_struct_interface(base_struct, data, fields)
+        else:
+            MetaStruct._make_dynamic_struct_interface(base_struct, data, fields)
+
+        data["_has_refs"] = any(  # TODO: Remove getattr when types are XoType
+            getattr(field.ftype, "_has_refs", False) for field in fields
+        )
+
+        cls = XoTypeMeta.__new__(mcs, name, bases, data)
+        cls._kernels = cls._prepare_kernels()
+
+        return cls
 
     @staticmethod
-    def _prepare_methods_if_dynamic(base_struct, data, fields):
+    def _make_dynamic_struct_interface(base_struct, data, fields):
         """Create methods for a dynamic struct."""
         size = None
         offset = base_struct._size if base_struct else 8  # first slot is instance size
@@ -334,7 +323,7 @@ class MetaStruct(XoTypeMeta):
         data["_inspect_args"] = classmethod(_inspect_args)
 
     @staticmethod
-    def _prepare_methods_if_static(base_struct, data, fields):
+    def _make_static_struct_interface(base_struct, data, fields):
         """Create methods for a static struct."""
         offset = base_struct._size if base_struct else 0
 
@@ -361,22 +350,29 @@ class MetaStruct(XoTypeMeta):
         data["_inspect_args"] = classmethod(_inspect_args)
 
     @staticmethod
-    def _prepare_fields(bases, data):
-        base_struct = None
+    def _prepare_fields(base_struct: Optional[Type['Struct']], data: dict) -> Tuple[List[Field], bool]:
+        """Generate Field instances for all typed fields of the class.
+
+        Arguments
+        ---------
+        base_struct
+            The struct the currently processed struct is inheriting from;
+            otherwise None.
+        data
+            The class body.
+
+        Returns
+        -------
+        fields, is_static
+            A list of Fields of the struct, containing metadata about the fields,
+            and a boolean indicating whether the struct is static, given the
+            information about the fields.
+        """
         inherits = False
         is_static = True
         fields = []
 
-        base_structs = tuple(
-            base for base in bases if is_struct(base) and base != Struct
-        )
-
-        if base_structs:
-            try:
-                base_struct, = base_structs
-            except ValueError:
-                raise TypeError('Multiple inheritance of xobjects unsupported.')
-
+        if base_struct:
             inherits = True
             base_is_static = base_struct._size is not None
             is_static = base_is_static
@@ -406,20 +402,73 @@ class MetaStruct(XoTypeMeta):
                 'A dynamic struct can only inherit from another dynamic struct.'
             )
 
-        data["_base_struct"] = base_struct
-        data["_fields"] = fields
-        data["_is_static"] = is_static
+        return fields, is_static
 
     def __getitem__(cls, shape):
-        return Array.mk_arrayclass(cls, shape)
+        return Array.make_array_class(cls, shape)
 
     def __repr__(cls):
         return f"<struct {cls.__name__}>"
 
+    @staticmethod
+    def _prepare_methods(base_struct, data):
+        c_name = data['_c_type']
+
+        try:
+            methods = base_struct._methods.methods.copy()
+        except AttributeError:
+            methods = {}
+
+        for field_name, field in data.items():
+            if isinstance(field, Method):
+                field.set_method_name(field_name)
+                methods[field_name] = field
+
+        methods = MethodTable(class_name=c_name, methods=methods)
+        return methods
+
+    def _prepare_kernels(cls):
+        kernel_descriptions = cls._kernels
+        cls._methods.bind_to_class(cls)
+        for method_name, method in cls._methods.methods.items():
+            kernel_descriptions[method_name] = method.get_kernel_description()
+        return kernel_descriptions
+
+    def _generate_c_declaration(cls: Type['Struct']):
+        return cls._methods.get_c_declaration()
+
+    def _generate_c_implementation(cls: Type['Struct']):
+        return cls._methods.get_c_implementation()
+
+    @staticmethod
+    def _get_base_struct(bases, data) -> Optional[Type['Struct']]:
+        base_structs = tuple(
+            base for base in bases if is_struct(base) and base != Struct
+        )
+
+        if base_structs:
+            try:
+                base_struct, = base_structs
+                return base_struct
+            except ValueError:
+                raise TypeError('Multiple inheritance of xobjects unsupported.')
+
+        return None
+
 
 class Struct(XoType, metaclass=MetaStruct):
+    """Xobject struct type.
+
+    Attributes
+    ----------
+    _fields:
+        List of fields of the struct.
+    _size:
+        Cached size of the struct in bytes; None for a dynamic struct.
+    """
     # Fields filled by the metaclass:
-    _fields: List[Field]
+    _fields: List[Field] = []
+    _methods: MethodTable = []
     _size: Optional[int]
     _inspect_args: callable
     _get_size: callable
@@ -572,8 +621,13 @@ class Struct(XoType, metaclass=MetaStruct):
 
         paths = cls._gen_data_paths()
 
+        source = capi.gen_code(cls, paths, conf)
+        source += '\n\n'
+        source += cls._generate_c_declaration()
+        source += cls._generate_c_implementation()
+
         source = Source(
-            source=capi.gen_code(cls, paths, conf),
+            source=source,
             name=cls.__name__ + "_gen_c_api",
         )
         return source
@@ -646,3 +700,4 @@ class Struct(XoType, metaclass=MetaStruct):
             save_source_as=save_source_as,
             extra_classes=extra_classes,
         )
+        self._methods.bind_to_instance(self)

@@ -6,6 +6,7 @@ import cffi
 import pytest
 
 import xobjects as xo
+from xobjects.methods import method_from_source
 from xobjects.test_helpers import for_all_test_contexts, requires_context
 
 
@@ -216,6 +217,36 @@ def test_struct_inheritance():
     assert child.f1 == 12
     assert child.f2 == 43
     assert child.f3 == 67
+
+
+def test_struct_method():
+    class Base(xo.Struct):
+        f1 = xo.UInt32[:]
+        f2 = xo.UInt64
+
+        method_sum = method_from_source(
+            """
+            uint64_t Base_method_sum(Base this, uint64_t factor) {
+                uint64_t sum = Base_get_f2(this);
+                for (int64_t ii = 0; ii < Base_len_f1(this); ii++) {
+                    sum += Base_get_f1(this, ii);
+                }
+                return sum * factor;
+            }
+            """,
+            name='Base_method_sum',
+            return_type=xo.Arg(xo.UInt64),
+            args=[
+                xo.Arg(name='factor', atype=xo.UInt64),
+            ],
+        )
+
+    instance = Base(f1=[1, 2, 3], f2=4)
+
+    instance.compile_kernels()
+
+    result = instance.method_sum(factor=2)
+    assert result == 20
 
 
 @requires_context("ContextCpu")

@@ -39,7 +39,7 @@ class XoTypeMeta(ABCMeta):
         of the subclasses of XoType need to inherit XoTypeMeta.
         """
         from xobjects.array import Array  # avoid circular import
-        return Array.mk_arrayclass(cls, shape)
+        return Array.make_array_class(cls, shape)
 
     def __repr__(cls):
         """Pretty-print the class name based on its __name__.
@@ -78,12 +78,15 @@ class XoType(metaclass=XoTypeMeta):
     _kernels: dict
         Kernel descriptions of the publicly exposed kernels tied to this
         Xobject. A mapping between names and kernel descriptions.
+    _has_refs: bool
+        True if the xobject type contains references to other fields.
     """
     _size: Optional[int] = None
     _c_type: str
     _extra_c_sources: List[SourceType] = ()
     _depends_on: List[XoType_] = ()
     _kernels: Dict[str, Kernel] = {}
+    _has_refs: bool = False
 
     @abstractmethod
     def __init__(self):

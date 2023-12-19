@@ -250,7 +250,7 @@ class MetaArray(type):
         return type.__new__(cls, name, bases, data)
 
     def __getitem__(cls, shape):
-        return Array.mk_arrayclass(cls, shape)
+        return Array.make_array_class(cls, shape)
 
     def _get_offset(cls, index):
         return get_offset(index, cls._strides)
@@ -277,7 +277,7 @@ class Array(metaclass=MetaArray):
     _data_offset: int
 
     @classmethod
-    def mk_arrayclass(cls, itemtype, shape):
+    def make_array_class(cls, itemtype, shape):
         if type(shape) in (int, slice):
             shape = (shape,)
         order = list(range(len(shape)))

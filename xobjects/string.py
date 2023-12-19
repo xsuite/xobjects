@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 
 class MetaString(type):
     def __getitem__(self, shape):
-        return Array.mk_arrayclass(self, shape)
+        return Array.make_array_class(self, shape)
 
     def _inspect_args(cls, string_or_int):
         if cls._size is None:

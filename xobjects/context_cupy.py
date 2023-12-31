@@ -671,7 +671,7 @@ class KernelCupy(object):
     def num_args(self):
         return len(self.description.args)
 
-    def __call__(self, shared_mem_size_bytes=None, **kwargs):
+    def __call__(self, **kwargs):
         assert len(kwargs.keys()) == self.num_args
         arg_list = []
         for arg in self.description.args:
@@ -683,7 +683,9 @@ class KernelCupy(object):
         else:
             n_threads = self.description.n_threads
 
-        if shared_mem_size_bytes is None:
+        if "shared_mem_size_bytes" in kwargs.keys():
+            shared_mem_size_bytes = kwargs["shared_mem_size_bytes"]
+        else:
             shared_mem_size_bytes = self.shared_mem_size_bytes
 
         grid_size = int(np.ceil(n_threads / self.block_size))

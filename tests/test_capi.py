@@ -455,8 +455,6 @@ def test_get_two_indices():
 
 
 def test_dependencies():
-    import xobjects as xo
-
     class A(xo.Struct):
         a = xo.Float64[:]
         _extra_c_sources = ["//blah blah A"]

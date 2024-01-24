@@ -4,9 +4,11 @@
 # ########################################### #
 from xobjects.context import XBuffer, Kernel, SourceType
 
-from abc import ABCMeta, abstractmethod, ABC
+from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from typing import Optional, Type, TypeVar, List, Any, Dict
+
+from xobjects.typeutils import default_conf
 
 XoType_ = TypeVar("XoType_", bound="XoType")
 
@@ -19,17 +21,7 @@ class XoInstanceInfo:
 
 class XoTypeMeta(ABCMeta):
     """The metaclass for the base Xobjects type."""
-    def __new__(mcs, name, bases, fields):
-        # TODO: Consider if it is a good API choice to "add" to the c sources:
-        #  for base in bases:
-        #      if not is_xo_type(base):
-        #          continue
-        #      fields['_extra_c_sources'] += base._extra_c_sources
-        #      fields['_depends_on'] += base._depends_on
-        #      fields['_kernels'].update(base._kernels)
-        return ABCMeta.__new__(mcs, name, bases, fields)
-
-    def __getitem__(cls, shape) -> Type['Array']:
+    def __getitem__(cls, shape) -> Type['xobjects.array.Array']:
         """Create an array type of `shape`, holding elements of type `cls`.
 
         Notes
@@ -153,3 +145,18 @@ class XoType(metaclass=XoTypeMeta):
             to the field. Used to generate the helper functions (getters,
             setters, etc.) of the C API.
         """
+
+    @classmethod
+    def _gen_c_decl(cls, conf=default_conf) -> Optional[str]:
+        """Generate C source code for the API of the given type."""
+        return ""
+
+    @classmethod
+    def _gen_c_api(cls, conf=default_conf) -> Optional[str]:
+        """Generate C source code for the implementation of the type functions."""
+        return ""
+
+    @classmethod
+    def _gen_kernels(cls, conf=default_conf) -> Dict[str, Kernel]:
+        """Generate kernel descriptions for the kernels attached to this type."""
+        return {}

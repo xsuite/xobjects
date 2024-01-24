@@ -109,7 +109,7 @@ def get_c_type(typ):
         elif tt == "i":
             return f"int{nb*8}_t"
         elif tt == "u":
-            return f"int{nb*8}_t"
+            return f"uint{nb*8}_t"
         elif tt == "c":
             return f"{float2c[nb//2]}[2]"
         elif tt == "S":

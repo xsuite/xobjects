@@ -77,6 +77,7 @@ def for_all_test_contexts(*args, **kwargs):
 
 
 def requires_context(context_name: str):
+    """Ensure that a test only runs if a given context is available."""
     ctx_names = (type(ctx).__name__ for ctx in get_test_contexts())
 
     if {context_name} & set(ctx_names):  # proceed as normal

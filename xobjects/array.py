@@ -2,14 +2,85 @@
 # This file is part of the Xobjects Package.  #
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
+"""An array type for Xobjects.
+
+There are fundamentally 2 types of arrays w.r.t. the shape: static (where the
+dimensions of the array are predetermined at class creation), and dynamic
+(where some/all the dimensions of the array are not determined at class
+creation, and instead only on the instantiation of the type).
+
+In the case of a dynamically shaped array the actual sizes of the dimensions
+are stored in the metadata of the array. For a static shaped array this is not
+needed as the information is derived from the type.
+
+An array stores elements of the same Xobject type (note that compound types are
+also allowed). Based on the element there are further two classifications of
+the arrays based on the item type: static or dynamic.
+
+An array which holds static elements will store the data directly within the
+data slots (as their sizes are known and uniform). An array storing
+dynamic-typed elements will instead store references (in the form of offsets)
+to a further point in the buffer allocated for the array where the items reside,
+similarly to the implementation of an Xobjects struct type.
+
+The memory layout of an Xobjects array is as follows:
+
+(1) At offset 0: int64 size of the struct if the array has dynamic fields or
+    has a dynamic shape (i.e. its size is variable); otherwise size is omitted
+    and (2) is here.
+(2) If the array has a dynamic shape, N * int64 values corresponding to the
+    sizes of the N dynamic dimensions.
+(3) If the array has a dynamic shape with more than one dimension, M * int64
+    values corresponding to the strides, where M is the number of dimensions.
+(4) If item type is static, a contiguous list of elements in the order according
+    to the strides. If item type is dynamic, a contiguous list of references
+    (offsets) to the elements located further in the buffer.
+
+Refer to the documentation of `Array.__init__` for valid ways of instantiating
+an Xobjects array, and of `Array.make_array_class` for information on how to
+create Xobjects array types (with custom shapes, ordering/strides, etc.).
+
+Examples of memory layouts:
+
+    >>> Arr2xNx2xMUint8 = xo.UInt8[2, :, 2, :]
+    >>> mix = Arr2xNx2xMUint8(np.arange(48).reshape(2, 3, 2, 4))
+    >>> mix._buffer.buffer
+
+    array([104,   0,   0,   0,   0,   0,   0,   0,  # size in bytes (int64)
+             3,   0,   0,   0,   0,   0,   0,   0,  # 1st dyn. dim. size (int64)
+             4,   0,   0,   0,   0,   0,   0,   0,  # 2nd dyn. dim. size (int64)
+            24,   0,   0,   0,   0,   0,   0,   0,  # 1st strides (int64)
+             8,   0,   0,   0,   0,   0,   0,   0,  # 2nd ditto
+             4,   0,   0,   0,   0,   0,   0,   0,  # 3rd ditto
+             1,   0,   0,   0,   0,   0,   0,   0,  # 4th ditto
+             0,   1,   2,   3,   4,   5,   6,   7,  # contents of the array
+             8,   9,  10,  11,  12,  13,  14,  15,  #  ordered according to the
+            16,  17,  18,  19,  20,  21,  22,  23,  #  strides (in this case
+            24,  25,  26,  27,  28,  29,  30,  31,  #  usual C ordering is
+            32,  33,  34,  35,  36,  37,  38,  39,  #  applied;
+            40,  41,  42,  43,  44,  45,  46,  47], #  48 uint8 values)
+          dtype=int8)
+
+    >>> SimpleF = xo.UInt8[3:2, 3:1, 3:0]
+    >>> simple_f = SimpleF(np.arange(27).reshape(3, 3, 3).tolist())
+    >>> simple_f._buffer.buffer
+
+    array([ 0,  9, 18,  3, 12, 21,  6, 15,  # values arranges according to
+           24,  1, 10, 19,  4, 13, 22,  7,  # the Fortran ordering, i.e.
+           16, 25,  2, 11, 20,  5, 14, 23,  # _order=(2, 1, 0), and so _strides=
+            8, 17, 26,  0,  0,  0,  0,  0], # (1, 3, 9); 5 bytes padding
+          dtype=int8)
+"""
 
 import logging
+from dataclasses import dataclass
+from typing import Tuple, Union, Literal
 
 import numpy as np
 
+from .base_type import XoTypeMeta, XoType, XoInstanceInfo
 from .typeutils import (
     allocate_on_buffer,
-    Info,
     is_integer,
     _to_slot_size,
     default_conf,
@@ -17,46 +88,6 @@ from .typeutils import (
 from .scalar import Int64, is_scalar
 
 log = logging.getLogger(__name__)
-
-
-"""
-array itemtype d1 d2 ...
-array itemtype d1 : ...
-array itemtype (d1,1) (d1,0) ...  F contiguos
-
-There ara 4 kind of arrays from the combination of
-    shape: static, dynamic
-    item: static, dynamic
-
-
-Data layout:
-    - [size]: if not (static,static)
-    - [d0 d1 ...]: dynamic dimensions (dynamic,*)
-    - [stride1 stride2 ...] if nd>1
-    - [offsets]: if itemtype is not static (*|dynamic)
-    - data: array data
-
-Array class:
-    - _size
-    - _shape: the shape in the index space
-    - _dshape_idx: index of dynamic shapes
-    - _order: the hierarchical order of the indexes
-    - _itemtype
-    - _is_static_shape
-    - _strides
-    - _is_static_type
-
-Array instance:
-    - _dshape: value of dynamic dimensions
-    - _shape: present if dynamic
-    - _strides: shape if dynamic
-
-Initialization:
-
-Arr(): if _size is not None
-Arr(d1,d2,...): using dimensions if _itemtype._size is not None
-Arr(arr): if arr is a list, tuple or np-like
-"""
 
 
 def get_suffix(shape):
@@ -73,76 +104,70 @@ def get_suffix(shape):
     return "x".join(sshape)
 
 
-# def get_shape_from_array(value, num_dimensions):
-#     if hasattr(value, "shape"):
-#         return value.shape
-#     if hasattr(value, "_shape"):
-#         return value._shape
-#     if isinstance(value, str):  # test for string
-#         return ()
-#     if hasattr(value, "__len__"):
-#         return np.array(value, dtype=object).shape[:num_dimensions]
-#     return ()
+def get_shape_from_array(value, num_dimensions: int):
+    """Deduce the shape of the `value`, considering at most `num_dimensions`.
 
-
-def get_shape_from_array(value, nd):
+    Arguments
+    ---------
+    value
+        Array-type argument, whose shape is to be determined.
+    num_dimensions
+        The depth, or the maximum number of dimensions to be considered when
+        determining the shape of `value`.
+    """
     if hasattr(value, "shape"):
         return value.shape
-    elif hasattr(value, "_shape"):
+    if hasattr(value, "_shape"):
         return value._shape
-    if hasattr(value, "lower"):  # test for string
+    if hasattr(value, "lower"):  # test for string, bytes, bytearray, ...
         return ()
-    elif hasattr(value, "__len__"):
+    if hasattr(value, "__len__"):
         shape = (len(value),)
-        if len(value) > 0 and nd > 1:
-            shape0 = get_shape_from_array(value[0], nd - 1)
+        if len(value) > 0 and num_dimensions > 1:
+            shape0 = get_shape_from_array(value[0], num_dimensions - 1)
             if shape0 == ():
                 return shape
+
             for i in value[1:]:
-                shapei = get_shape_from_array(i, nd - 1)
-                if shapei != shape0:
+                shape_i = get_shape_from_array(i, num_dimensions - 1)
+                if shape_i != shape0:
                     raise ValueError(
-                        f"{value} does not have a "
-                        f"consistent shape in dimension {nd}"
+                        f"{value} does not have a consistent shape in "
+                        f"dimension {num_dimensions}"
                     )
             return shape + shape0
-        else:
-            return shape
-    else:
-        return ()
+        return shape
+    return ()
 
 
 def get_strides(shape, order, itemsize):
-    """
-    shape dimension for each index
-    order of the dimensions in the memory layout
-    - 0 is slowest variation
-    return strides for each index
+    """Compute the byte distance between consecutive elements in each dimension.
 
-    off=strides[0]*idx[0]+strides[1]*idx[1]+...+strides[n]*idx[n]
+    The offset of the element with index `idx` can be calculated as:
 
+        offset = strides[0] * idx[0] + strides[1] * idx[1] + ... + strides[n] * idx[n]
+
+    Arguments
+    ---------
+    shape
+        Dimension for each index.
+    order
+        Order of the dimensions in the memory layout. 0 is the slowest variation.
+    itemsize
+        Size of a single element of the array in bytes.
+
+    Return
+    ------
+    Tuple[int]
+        Strides for each index.
     """
     cshape = [shape[io] for io in order]
     cstrides = get_c_strides(cshape, itemsize)
     return tuple(cstrides[order.index(ii)] for ii in range(len(order)))
 
 
-def get_f_strides(shape, itemsize):
-    """
-    calculate strides assuming F ordering
-    """
-    ss = itemsize
-    strides = []
-    for sh in shape:
-        strides.append(ss)
-        ss *= sh
-    return tuple(strides)
-
-
 def get_c_strides(shape, itemsize):
-    """
-    calculate strides assuming C ordering
-    """
+    """Calculate strides assuming C ordering."""
     ss = itemsize
     strides = []
     for sh in reversed(shape):
@@ -152,33 +177,38 @@ def get_c_strides(shape, itemsize):
 
 
 def iter_index(shape, order):
-    """return index in order of data layout"""
+    """Return index in order of data layout"""
     if len(shape) == 1:
-        for ii in range(shape[0]):
-            yield ii
+        yield from range(shape[0])
     else:
-        aorder = [order.index(ii) for ii in range(len(order))]
+        flipped_order = [order.index(ii) for ii in range(len(order))]
         for ii in np.ndindex(*[shape[io] for io in order]):
-            yield tuple(ii[io] for io in aorder)
+            yield tuple(ii[io] for io in flipped_order)
 
 
-def mk_order(order, shape):
+def mk_order(order: Union[Literal['C', 'F'], Tuple[int]], shape: Tuple[int]) -> Tuple[int]:
+    """Make the order (list) of dimensions.
+
+    If order is 'C' or 'F', return a C-ordering or a Fortran-ordering,
+    respectively, based on `shape`. Otherwise, just return the input `order`.
+    """
     if order == "C":
-        return list(range(len(shape)))
+        return tuple(range(len(shape)))
     elif order == "F":
-        return list(range(len(shape) - 1, -1, -1))
+        return tuple(range(len(shape) - 1, -1, -1))
     else:
         return order
 
 
 def get_offset(idx, strides):
+    """Calculate the offset of element `idx` given `strides`."""
     return sum(ii * ss for ii, ss in zip(idx, strides))
 
 
 def bound_check(index, shape):
-    for ii, ss in zip(index, shape):
-        if ii < 0 or ii >= ss:
-            raise IndexError(f"index {index} outside shape {shape}")
+    """Check that `index` is a valid index in an array with `shape`."""
+    if not all((0 <= ii < max_ii) for ii, max_ii in zip(index, shape)):
+        raise IndexError(f"Index {index} outside shape {shape}")
 
 
 class Index:
@@ -186,71 +216,92 @@ class Index:
         self.cls = cls
 
 
-class MetaArray(type):
-    def __new__(cls, name, bases, data):
-        if "_itemtype" in data:  # specialized class
-            _data_offset = 0
-            _itemtype = data["_itemtype"]
-            if _itemtype._size is None:
-                static_size = 8
-                data["_is_static_type"] = False
-            else:
-                data["_is_static_type"] = True
-                static_size = _itemtype._size
-            if "_shape" not in data:
-                raise ValueError(f"No shape defined for {cls}")
-            if "_order" not in data:
-                data["_order"] = "C"
-            _shape = data["_shape"]
-            dshape = []  # find dynamic shapes
-            for ii, d in enumerate(_shape):
-                if d is None:
-                    data["_is_static_shape"] = False
-                    dshape.append(ii)
-            if len(dshape) > 0:
-                data["_is_static_shape"] = False
-                data["_dshape_idx"] = dshape
-                _data_offset += len(dshape) * 8  # space for dynamic shapes
-                if len(_shape) > 1:
-                    _data_offset += len(_shape) * 8  # space for strides
-                else:
-                    data["_strides"] = (static_size,)
-            else:
-                data["_is_static_shape"] = True
-                data["_order"] = mk_order(data["_order"], _shape)
-                data["_strides"] = get_strides(
-                    _shape, data["_order"], static_size
-                )
+@dataclass
+class ArrayInstanceInfo(XoInstanceInfo):
+    """Metadata representing the allocation requirements of an Array."""
+    items = None
+    value = None
+    extra = {}
+    offsets = {}
+    shape = None
+    strides = None
+    order = None
 
-            if data["_is_static_shape"] and data["_is_static_type"]:
-                _size = _itemtype._size
-                for d in _shape:
-                    _size *= d
-                _size = _to_slot_size(_size)
-            else:
-                _size = None
-                _data_offset += 8  # space for dynamic size
 
-            data["_size"] = _size
-            data["_data_offset"] = _data_offset
-        # need to applied to derived classes as well
+class MetaArray(XoTypeMeta):
+    """The metaclass for an Xobjects array type."""
+    def __new__(mcs, name, bases, data):
+        """Create a new array class.
+
+        Determine the fields (variables and methods) of the new array, and
+        its basic properties (static vs dynamic, if dynamic, the shape and
+        strides, etc.) based on the class definition. Generate the methods
+        required by the Array interface (`_inspect_args`, `_get_size`).
+        """
         if "_c_type" not in data:
             data["_c_type"] = name
 
-        # determine has_refs
-        if "_itemtype" in data.keys():
-            if (
-                hasattr(data["_itemtype"], "_has_refs")
-                and data["_itemtype"]._has_refs
-            ):
-                data["_has_refs"] = True
+        if "_itemtype" not in data:
+            # This branch is only expected to be taken for the 'Array' class
+            # below (or any other custom array class implementing this metaclass
+            # directly in the future). For all other cases we go through
+            # 'Array.make_array_class', which specifies '_itemtype' in the body.
+            return XoTypeMeta.__new__(mcs, name, bases, data)
+
+        return mcs.new_with_itemtype(name, bases, data)
+
+    @classmethod
+    def new_with_itemtype(mcs, name, bases, data):
+        """Create a new array class when item type is provided in the body."""
+        data_offset = 0
+        itemtype = data["_itemtype"]
+
+        if itemtype._size is None:
+            static_size = 8
+            data["_is_static_type"] = False
+        else:
+            static_size = itemtype._size
+            data["_is_static_type"] = True
+
+        if "_shape" not in data:
+            raise ValueError(f"No shape defined for {mcs}")
+        shape = data["_shape"]
+
+        dshape = []  # find dynamic shapes
+        for ii, d in enumerate(shape):
+            if d is None:
+                data["_is_static_shape"] = False
+                dshape.append(ii)
+
+        if len(dshape) > 0:
+            data["_dshape_idx"] = dshape
+            data_offset += len(dshape) * 8  # space for dynamic shapes
+            if len(shape) > 1:
+                data_offset += len(shape) * 8  # space for strides
             else:
-                data["_has_refs"] = False
+                data["_strides"] = (static_size,)
+        else:
+            data["_is_static_shape"] = True
+            data["_order"] = mk_order(data["_order"], shape)
+            data["_strides"] = get_strides(
+                shape, data["_order"], static_size
+            )
 
-        return type.__new__(cls, name, bases, data)
+        if data["_is_static_shape"] and data["_is_static_type"]:
+            _size = itemtype._size
+            for d in shape:
+                _size *= d
+            _size = _to_slot_size(_size)
+        else:
+            _size = None
+            data_offset += 8  # space for dynamic size
+        data["_size"] = _size
+        data["_data_offset"] = data_offset
 
-    def __getitem__(cls, shape):
-        return Array.make_array_class(cls, shape)
+        # TODO: Remove getattr once all xo types inherit XoType:
+        data["_has_refs"] = getattr(data["_itemtype"], '_has_refs', False)
+
+        return XoTypeMeta.__new__(mcs, name, bases, data)
 
     def _get_offset(cls, index):
         return get_offset(index, cls._strides)
@@ -265,19 +316,83 @@ class MetaArray(type):
         return f"<array {cls.__name__}>"
 
 
-class Array(metaclass=MetaArray):
-    _shape: tuple
-    _order: tuple
-    _strides: tuple
-    _itemtype: type
-    _size: int
-    _dshape: tuple
+ShapeWithStrides = Union[int, slice, Tuple[Union[int, slice, None], ...]]
+
+
+class Array(XoType, metaclass=MetaArray):
+    """Xobjects array type.
+
+    Attributes
+    ----------
+    _shape
+        The shape of the array (as accessed, but not necessarily in memory, see
+        `_order` and `_strides`). A tuple of ints representing the size of the
+        corresponding dimension, or None if the dimension is dynamically sized.
+        In an instance `_shape` contains no `None`s and has the actual shape
+        of the allocated array.
+    _order
+        A tuple of ints in `range(len(_shape))` representing the order of
+        dimensions in memory. If "C", it defaults to the C ordering (0, ..., N),
+        and if "F" it defaults to the Fortran ordering (N, ..., 0), where N is
+        the number of dimensions.
+    _strides
+        A tuple of ints. The i-th entry in the tuple is the distance in bytes
+        between two elements whose indices only differ by one in the i-th
+        dimension. Available in a class if the shape is static, otherwise
+        only a property of an instance.
+    _itemtype
+        The Xobject type contained by the array.
+    _is_static_shape
+        True iff the shape has no dynamic dimensions.
+    _is_static_type
+        True iff `_itemtype` has a static size.
+    _data_offset
+        The offset in bytes to the first data entry (or a pointer).
+    _dshape_idx
+        Indices of dynamic shapes.
+    _dshape
+        In an instance, the sizes of the dynamic dimensions.
+    """
+    _shape: Tuple[Union[int, None]]
+    _order: Union[Literal["C", "F"], Tuple[int]] = "C"
+    _strides: Tuple[int]
+    _itemtype: XoTypeMeta
     _is_static_shape: bool
     _is_static_type: bool
     _data_offset: int
+    _dshape_idx: Tuple[int]
+
+    _dshape: Tuple[int]
 
     @classmethod
-    def make_array_class(cls, itemtype, shape):
+    def make_array_class(cls, itemtype: XoTypeMeta, shape: ShapeWithStrides) -> MetaArray:
+        """Create an Xobjects array class for `itemtype` with `shape`.
+
+        Arguments
+        ---------
+        itemtype
+            The Xobjects type of the elements contained by the array.
+        shape
+            The desired shape of the array given as a tuple of elements each
+            specifying the size of the respective dimension. A non-tuple shape
+            is presumed to be a single size of the only dimension of the array.
+            If the n-th element of the tuple is an integer, this simply
+            describes the size of the n-th dimension, if it is a slice, `start`
+            of the slice is the size of the n-th dimension, whereas `stop` is
+            the value used to compute custom strides, and which represents the
+            actual dimension in the memory layout of the given (n-th) dimension.
+            If the value representing the size is None, then the corresponding
+            dimension is taken to be variable-size (dynamic).
+
+            In other words, an array with shape=(2, 2, 2) is a simple 2x2x2
+            C-style array (equivalent to one with shape=(2:0, 2:1, 2:2)),
+            whereas an array with shape=(2:2, 2:1, 2:0) would be an array with
+            a Fortran-style memory layout. Note that addressing the elements in
+            either case is the same, and only the underlying memory order is
+            different. Nevertheless, specifying custom strides can be useful for
+            interfacing with Fortran code, or for performance reasons to ensure
+            certain spacial locality.
+        """
         if type(shape) in (int, slice):
             shape = (shape,)
         order = list(range(len(shape)))
@@ -302,7 +417,7 @@ class Array(metaclass=MetaArray):
         return MetaArray(name, (cls,), data)
 
     @classmethod
-    def _inspect_args(cls, *args):
+    def _inspect_args(cls, *args) -> ArrayInstanceInfo:
         """
         Determine:
         - size:
@@ -311,29 +426,26 @@ class Array(metaclass=MetaArray):
         - value: None if args contains dimensions else args[0]
         """
         # log.debug(f"get size for {cls} from {args}")
-        info = Info()
         extra = {}
+        offsets = None
+        dshape = None
+
         if cls._size is not None:
-            # static,static array
+            # Array of predetermined shape with static items: not much to do
+            # but check the passed input is compatible.
             if len(args) == 0:
                 value = None
             elif len(args) == 1:
                 shape = get_shape_from_array(args[0], len(cls._shape))
                 if shape != cls._shape:
-                    raise ValueError(f"shape not valid for {args[0]} ")
+                    raise ValueError(
+                        f"Cannot initialise {cls.__name__} with {args[0]}, as "
+                        f"its shape is not compatible."
+                    )
                 value = args[0]
             elif len(args) > 1:
                 raise ValueError("too many arguments")
-            size = cls._size
-            shape = cls._shape
-            order = cls._order
-            strides = cls._strides
-            offsets = np.empty(shape, dtype="int64")
-            offset = 0
-            for idx in iter_index(shape, order):
-                offsets[idx] = offset
-                offset += cls._itemtype._size
-            assert size == _to_slot_size(offset)
+            return cls._inspect_args_static(value)
         else:  # handling other cases
             offset = 8  # space for size data
             # determine shape and order
@@ -379,7 +491,6 @@ class Array(metaclass=MetaArray):
                             shape.append(ndim)
                 # now we have shape, dshape
                 shape = shape
-                info.dshape = dshape
                 offset += len(dshape) * 8  # space for dynamic shapes
                 if len(shape) > 1:
                     offset += len(shape) * 8  # space for strides
@@ -408,15 +519,35 @@ class Array(metaclass=MetaArray):
                     offsets[idx] = offset
                     offset += extra[idx].size
                 size = _to_slot_size(offset)
-                info.offsets = offsets
-                info.extra = extra
 
-        info.shape = shape
-        info.strides = strides
-        info.size = size
-        info.order = order
+            info = ArrayInstanceInfo(size=size)
+            info.shape = shape
+            info.strides = strides
+            info.order = order
+            info.value = value
+            info.offsets = offsets
+            info.extra = extra
+            info.dshape = dshape
+            info.items = np.prod(shape)
+            return info
+
+    @classmethod
+    def _inspect_args_static(cls, value):
+        offsets = np.empty(cls._shape, dtype="int64")
+        offset = 0
+        for idx in iter_index(cls._shape, cls._order):
+            offsets[idx] = offset
+            offset += cls._itemtype._size
+
+        assert cls._size == _to_slot_size(offset)
+
+        info = ArrayInstanceInfo(size=cls._size)
+        info.shape = cls._shape
+        info.strides = cls._strides
+        info.order = cls._order
         info.value = value
-        info.items = np.prod(shape)
+        info.offsets = offsets
+        info.items = np.prod(cls._shape)
         return info
 
     @classmethod
@@ -428,7 +559,10 @@ class Array(metaclass=MetaArray):
         if cls._size is None:
             self._size = Int64._from_buffer(self._buffer, coffset)
             coffset += 8
-        if not cls._is_static_shape:
+
+        if cls._is_static_shape:
+            shape = cls._shape
+        else:
             shape = []
             for dd in cls._shape:
                 if dd is None:
@@ -449,11 +583,11 @@ class Array(metaclass=MetaArray):
                 else:
                     strides = (8,)
             self._strides = tuple(strides)
-        else:
-            shape = cls._shape
+
         if not cls._is_static_type:
             items = np.prod(shape)
             self._offsets = Int64._array_from_buffer(buffer, coffset, items)
+
         return self
 
     @classmethod
@@ -463,8 +597,10 @@ class Array(metaclass=MetaArray):
         value = info.value  # can be None if value contained shape info
         header = []
         coffset = offset
+
         if cls._size is None:
             header.append(info.size)
+
         if not cls._is_static_shape:
             for ii, nd in enumerate(cls._shape):
                 if nd is None:
@@ -479,9 +615,12 @@ class Array(metaclass=MetaArray):
         if not cls._is_static_type:
             Int64._array_to_buffer(buffer, coffset, info.offsets)
             coffset += 8 * len(info.offsets)
-        if hasattr(cls._itemtype, "_dtype") and hasattr(
-            value, "dtype"
-        ):  # is a scalar type:
+
+        if (
+                hasattr(cls._itemtype, "_dtype") and
+                hasattr(value, "dtype") and
+                value.strides == getattr(cls, '_strides', None)
+        ):  # is a numpy array of the same layout
             if not isinstance(value, buffer.context.nplike_array_type):
                 value = buffer.context.nparray_to_context_array(value)
             buffer.update_from_nplike(coffset, cls._itemtype._dtype, value)
@@ -530,8 +669,29 @@ class Array(metaclass=MetaArray):
                     )
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
-        # determin resources
-        print(args)
+        """Instantiate an Xobjects array.
+
+        Arguments
+        ---------
+        *args
+            Values of *args determine the contents to initialise the array with:
+            - If `_size` is not None (the array is not dynamic), then calling
+              with `args=()` will instantiate a zero filled array.
+            - If the array is dynamically shaped, calling with `args=(n_0, n_1,
+              ..., n_N)`, where N is the number of dynamic dimensions, will
+              instantiate a zero filled array where the shape is as determined
+              by _shape (for the static dimensions) and n_0, n_1, ..., n_N for
+              the dynamic dimensions.
+            - Calling with `args=array`, where `array` is a list or numpy array,
+              will instantiate an Xobjects array of an appropriate size
+              containing the elements of array.
+        _context
+            The target Xobjects context to allocate the array.
+        _buffer
+            The target Xobjects buffer to allocate the array.
+        _offset
+            The offset in the `buffer` at which the array will be allocated.
+        """
         cls = self.__class__
         info = cls._inspect_args(*args)
 
@@ -550,11 +710,12 @@ class Array(metaclass=MetaArray):
         if not cls._is_static_type:
             self._offsets = info.offsets
 
-    def _get_size(self):
-        if self.__class__._size is None:
-            return Int64._from_buffer(self._buffer, self._offset)
+    @classmethod
+    def _get_size(cls, instance):
+        if cls._size is None:
+            return Int64._from_buffer(instance._buffer, instance._offset)
         else:
-            return self.__class__._size
+            return cls._size
 
     @classmethod
     def _get_position(cls, index):

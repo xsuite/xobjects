@@ -203,8 +203,6 @@ class Field:
 @dataclass
 class StructInstanceInfo(XoInstanceInfo):
     """Metadata representing the allocation requirements of a Struct."""
-    # data: object = None
-    # items = None
     is_static_size: bool = False
     value = None
     extra = {}
@@ -404,9 +402,6 @@ class MetaStruct(XoTypeMeta):
 
         return fields, is_static
 
-    def __getitem__(cls, shape):
-        return Array.make_array_class(cls, shape)
-
     def __repr__(cls):
         return f"<struct {cls.__name__}>"
 
@@ -463,15 +458,10 @@ class Struct(XoType, metaclass=MetaStruct):
     ----------
     _fields:
         List of fields of the struct.
-    _size:
-        Cached size of the struct in bytes; None for a dynamic struct.
     """
     # Fields filled by the metaclass:
     _fields: List[Field] = []
     _methods: MethodTable = []
-    _size: Optional[int]
-    _inspect_args: callable
-    _get_size: callable
 
     @classmethod
     def _from_buffer(cls, buffer, offset=0):

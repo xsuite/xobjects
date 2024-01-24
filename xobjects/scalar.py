@@ -51,7 +51,7 @@ class XoScalar(XoType, metaclass=XoScalarMeta):
         """
         # Returning np.dtype instance here lets us avoid the hassle of
         # subclassing np.number. However, it could be beneficial to explore
-        # whether this alternative is less hacky.
+        # whether that alternative would be less hacky.
         return cls._dtype.type(value)
 
     @abstractmethod

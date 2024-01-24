@@ -318,3 +318,19 @@ def test_array_custom_strides(test_context):
     for i0, i1, i2 in np.ndindex(2, 3, 4):
         assert a_xo[i0, i1, i2] == j
         j += 1
+
+
+def test_array_strides_from_np():
+    SimpleF = xo.UInt8[3:2, 3:1, 3:0]
+    simple_f = SimpleF(np.arange(27).reshape((3, 3, 3)))
+
+    buffer = simple_f._buffer.buffer
+
+    expected_buffer = [
+        0,  9,  18, 3,  12, 21, 6,  15,  # values arranges according to
+        24, 1,  10, 19, 4,  13, 22, 7,   # the Fortran ordering, i.e.
+        16, 25, 2,  11, 20, 5,  14, 23,  # _order=(2, 1, 0), and so _strides=
+        8,  17, 26, 0,  0,  0,  0,  0,   # (1, 3, 9); 5 bytes padding
+    ]
+
+    assert np.all(buffer == expected_buffer)

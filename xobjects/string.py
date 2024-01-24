@@ -30,7 +30,7 @@ TODO:
 - consider using __slots__
 - consider adding size in the class
 """
-
+from .base_type import XoTypeMeta, XoType
 from .typeutils import allocate_on_buffer, Info, _to_slot_size, is_integer
 
 from .scalar import Int64

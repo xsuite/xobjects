@@ -83,7 +83,7 @@ from .typeutils import (
     allocate_on_buffer,
     is_integer,
     _to_slot_size,
-    default_conf,
+    default_conf, _is_dynamic,
 )
 from .scalar import Int64, is_scalar
 
@@ -260,7 +260,7 @@ class MetaArray(XoTypeMeta):
         data_offset = 0
         itemtype = data["_itemtype"]
 
-        if itemtype._size is None:
+        if _is_dynamic(itemtype):
             static_size = 8
             data["_is_static_type"] = False
         else:
@@ -475,7 +475,7 @@ class Array(XoType, metaclass=MetaArray):
                                 )
                     value = value
                 else:  # init with shapes
-                    if cls._itemtype._size is None:
+                    if _is_dynamic(cls._itemtype):
                         raise (
                             ValueError(
                                 "Cannot initialize a dynamic array with a dynamic type using length"
@@ -558,7 +558,7 @@ class Array(XoType, metaclass=MetaArray):
         self._buffer = buffer
         self._offset = offset
         coffset = offset
-        if cls._size is None:
+        if _is_dynamic(cls):
             self._size = Int64._from_buffer(self._buffer, coffset)
             coffset += 8
 
@@ -600,7 +600,7 @@ class Array(XoType, metaclass=MetaArray):
         header = []
         coffset = offset
 
-        if cls._size is None:
+        if _is_dynamic(cls):
             header.append(info.size)
 
         if not cls._is_static_shape:
@@ -703,7 +703,7 @@ class Array(XoType, metaclass=MetaArray):
 
         cls._to_buffer(self._buffer, self._offset, info.value, info)
 
-        if cls._size is None:
+        if _is_dynamic(cls):
             self._size = info.size
         if not cls._is_static_shape:
             self._shape = info.shape
@@ -714,7 +714,7 @@ class Array(XoType, metaclass=MetaArray):
 
     @classmethod
     def _get_size(cls, instance):
-        if cls._size is None:
+        if _is_dynamic(cls):
             return Int64._from_buffer(instance._buffer, instance._offset)
         else:
             return cls._size

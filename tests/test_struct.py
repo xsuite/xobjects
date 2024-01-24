@@ -98,7 +98,7 @@ def test_dynamic_nested_struct(test_context):
 
     info = StructE._inspect_args(b="this is a test")
     assert info.size == 56
-    assert info.offsets == {1: 32}
+    assert info.field_offsets == {1: 32}
 
     class StructF(xo.Struct):
         e = xo.Field(xo.Float64, default=3.5)
@@ -111,7 +111,7 @@ def test_dynamic_nested_struct(test_context):
 
     info = StructF._inspect_args(g={"b": "this is a test"})
     assert info.size == 96
-    assert info.offsets == {2: 40}
+    assert info.field_offsets == {2: 40}
 
     s = StructF(g={"b": "this is a test"}, _context=test_context)
     assert s._size is not None

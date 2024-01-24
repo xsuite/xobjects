@@ -63,7 +63,7 @@ This reveals the following structure of `example`:
 """
 import logging
 from dataclasses import dataclass
-from typing import Callable, Optional, List, Type, Tuple
+from typing import Optional, List, Type, Tuple
 
 from xobjects.base_type import XoTypeMeta, XoInstanceInfo, XoType
 from xobjects.methods import Method, MethodTable
@@ -205,8 +205,8 @@ class StructInstanceInfo(XoInstanceInfo):
     """Metadata representing the allocation requirements of a Struct."""
     is_static_size: bool = False
     value = None
-    extra = {}
-    offsets = {}
+    field_infos = {}
+    field_offsets = {}
 
 
 class MetaStruct(XoTypeMeta):
@@ -300,15 +300,15 @@ class MetaStruct(XoTypeMeta):
 
                 info = StructInstanceInfo(size=field_offset)
                 info.value = xo_or_dict
-                info.offsets = offsets
-                info.extra = extra
+                info.field_offsets = offsets
+                info.field_infos = extra
                 return info
 
             elif isinstance(xo_or_dict, cls):
                 instance = xo_or_dict
                 info = StructInstanceInfo(size=instance._get_size())
                 info.value = xo_or_dict
-                info.offsets = instance._offsets
+                info.field_offsets = instance._offsets
                 return info
 
             raise TypeError(
@@ -481,7 +481,7 @@ class Struct(XoType, metaclass=MetaStruct):
         return self
 
     @classmethod
-    def _to_buffer(cls, buffer, offset, value, info=None):
+    def _to_buffer(cls, buffer, offset, value, info: StructInstanceInfo = None):
         if isinstance(value, cls) and not cls._has_refs:  # binary copy
             buffer.update_from_xbuffer(
                 offset, value._buffer, value._offset, value._size
@@ -495,14 +495,14 @@ class Struct(XoType, metaclass=MetaStruct):
         if _is_dynamic(cls):
             Int64._to_buffer(buffer, offset, info.size)
 
-        if hasattr(info, "offsets"):
-            cls._set_offsets(buffer, offset, info.offsets)
+        if hasattr(info, "field_offsets"):
+            cls._set_offsets(buffer, offset, info.field_offsets)
 
-        extra = getattr(info, "extra", {})
+        extra = getattr(info, "field_infos", {})
         for field in cls._fields:
             fvalue = field.value_from_args(value)
             if field.is_reference:
-                foffset = offset + info.offsets[field.index]
+                foffset = offset + info.field_offsets[field.index]
             else:
                 foffset = offset + field.offset
             finfo = extra.get(field.index)
@@ -535,8 +535,8 @@ class Struct(XoType, metaclass=MetaStruct):
             info.size, _context, _buffer, _offset
         )
         # if dynamic struct store dynamic offsets
-        if hasattr(info, "offsets"):
-            self._offsets = info.offsets  # struct offsets
+        if hasattr(info, "field_offsets"):
+            self._offsets = info.field_offsets  # struct offsets
         cls._to_buffer(self._buffer, self._offset, info.value, info)
 
     @classmethod
@@ -591,6 +591,20 @@ class Struct(XoType, metaclass=MetaStruct):
 
     def __setstate__(self, state):
         self._buffer, self._offset = state
+
+    @classmethod
+    def _inspect_args(cls, *args, **kwargs) -> StructInstanceInfo:
+        """Determine the allocation requirements of a struct, based on input.
+
+        Implementation of this method is done in the metaclass.
+
+        Arguments
+        ---------
+        args
+            See __init__.
+        kwargs
+            See __init__.
+        """
 
     @classmethod
     def _gen_data_paths(cls, base=None):

@@ -74,7 +74,7 @@ Examples of memory layouts:
 
 import logging
 from dataclasses import dataclass
-from typing import Tuple, Union, Literal
+from typing import Tuple, Union, Literal, Dict
 
 import numpy as np
 
@@ -219,13 +219,17 @@ class Index:
 @dataclass
 class ArrayInstanceInfo(XoInstanceInfo):
     """Metadata representing the allocation requirements of an Array."""
-    items = None
+    num_items = None
     value = None
-    extra = {}
-    offsets = {}
     shape = None
     strides = None
     order = None
+    item_offsets = None
+    item_infos: Dict[Union[int, Tuple[int]], XoInstanceInfo] = None
+
+    @property
+    def num_items(self):
+        return np.prod(self.shape)
 
 
 class MetaArray(XoTypeMeta):
@@ -425,9 +429,6 @@ class Array(XoType, metaclass=MetaArray):
         - offsets
         - value: None if args contains dimensions else args[0]
         """
-        # log.debug(f"get size for {cls} from {args}")
-        extra = {}
-        offsets = None
         dshape = None
 
         if cls._size is not None:
@@ -501,6 +502,9 @@ class Array(XoType, metaclass=MetaArray):
                     strides = get_strides(shape, order, 8)
                 items = np.prod(shape)
 
+            item_infos = {}
+            item_offsets = {}
+
             # needs items, order, shape, value
             if cls._is_static_type:
                 # offsets = np.empty(shape, dtype="int64")
@@ -509,15 +513,15 @@ class Array(XoType, metaclass=MetaArray):
                 #    offset += cls._itemtype._size
                 offset += cls._itemtype._size * items
                 size = _to_slot_size(offset)
-
             else:
                 # args must be an array of correct dimensions
-                offsets = np.empty(shape, dtype="int64")
+                item_offsets = np.empty(shape, dtype="int64")
                 offset += items * 8
                 for idx in iter_index(shape, order):
-                    extra[idx] = cls._itemtype._inspect_args(value[idx])
-                    offsets[idx] = offset
-                    offset += extra[idx].size
+                    item_info = cls._itemtype._inspect_args(value[idx])
+                    item_infos[idx] = item_info
+                    item_offsets[idx] = offset
+                    offset += item_info.size
                 size = _to_slot_size(offset)
 
             info = ArrayInstanceInfo(size=size)
@@ -525,10 +529,9 @@ class Array(XoType, metaclass=MetaArray):
             info.strides = strides
             info.order = order
             info.value = value
-            info.offsets = offsets
-            info.extra = extra
+            info.item_offsets = item_offsets
+            info.item_infos = item_infos
             info.dshape = dshape
-            info.items = np.prod(shape)
             return info
 
     @classmethod
@@ -546,8 +549,7 @@ class Array(XoType, metaclass=MetaArray):
         info.strides = cls._strides
         info.order = cls._order
         info.value = value
-        info.offsets = offsets
-        info.items = np.prod(cls._shape)
+        info.item_offsets = offsets
         return info
 
     @classmethod
@@ -613,8 +615,8 @@ class Array(XoType, metaclass=MetaArray):
             )
             coffset += 8 * len(header)
         if not cls._is_static_type:
-            Int64._array_to_buffer(buffer, coffset, info.offsets)
-            coffset += 8 * len(info.offsets)
+            Int64._array_to_buffer(buffer, coffset, info.item_offsets)
+            coffset += 8 * len(info.item_offsets)
 
         if (
                 hasattr(cls._itemtype, "_dtype") and
@@ -638,16 +640,16 @@ class Array(XoType, metaclass=MetaArray):
                 value = cls._itemtype()  # use default type
                 if cls._is_static_type:
                     ioffset = offset + cls._data_offset
-                    for idx in range(info.items):
+                    for idx in range(info.num_items):
                         cls._itemtype._to_buffer(buffer, ioffset, value, None)
                         ioffset += cls._itemtype._size
                 else:
                     for idx in iter_index(info.shape, cls._order):
                         cls._itemtype._to_buffer(
                             buffer,
-                            offset + info.offsets[idx],
+                            offset + info.item_offsets[idx],
                             value[idx],
-                            info.extra.get(idx),
+                            info.item_infos.get(idx),
                         )
         else:  # there is a value for initialization
             if not hasattr(value, "shape"):  # not nplike
@@ -663,9 +665,9 @@ class Array(XoType, metaclass=MetaArray):
                 for idx in iter_index(info.shape, cls._order):
                     cls._itemtype._to_buffer(
                         buffer,
-                        offset + info.offsets[idx],
+                        offset + info.item_offsets[idx],
                         value[idx],
-                        info.extra.get(idx),
+                        info.item_infos.get(idx),
                     )
 
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
@@ -708,7 +710,7 @@ class Array(XoType, metaclass=MetaArray):
             self._dshape = info.dshape
             self._strides = info.strides
         if not cls._is_static_type:
-            self._offsets = info.offsets
+            self._offsets = info.item_offsets
 
     @classmethod
     def _get_size(cls, instance):

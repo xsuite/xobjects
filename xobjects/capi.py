@@ -25,20 +25,6 @@ def is_type(atype):
     return is_compound(atype) or is_scalar_type(atype) or is_string_type(atype)
 
 
-def get_inner_type(part):
-    """type contained in a field, array or ref, else None"""
-    if is_field(part):  # is a field
-        return part.ftype
-    elif is_array_type(part):  # is an array
-        return part._itemtype
-    elif is_ref(part):
-        return part._reftype
-    elif is_unionref_type(part):
-        return None
-    else:
-        raise ValueError(f"Cannot get inner type of {part}")
-
-
 def gen_pointer(ctype, conf):
     gpumem = conf.get("gpumem", "")
     return f"{gpumem}{ctype}"
@@ -337,59 +323,6 @@ def gen_method_len(cls, path, conf):
     return "\n".join(lst), kernel
 
 
-def gen_method_size(cls, path, conf):
-    innertype = get_inner_type(path[-1])
-    if innertype is None:  # cannot determine size
-        return (None, None)
-    retarg = Arg(Int64)
-
-    action = "size"
-    layers = get_layers(path)
-    if layers > 0 and not is_scalar_type(innertype):
-        action += str(layers)
-
-    kernel = gen_fun_kernel(
-        cls,
-        path,
-        const=False,
-        action=action,
-        extra=[],
-        ret=retarg,
-    )
-    decl = gen_c_decl_from_kernel(kernel, conf)
-
-    lst = [decl + "{"]
-
-    if innertype._size is None:
-        lst.append(gen_method_offset(path, conf))
-        pointed = gen_c_pointed(retarg, conf)
-        lst.append(f"  return {pointed};")
-    else:
-        lst.append(f"  return {innertype._size};")
-    lst.append("}")
-    return "\n".join(lst), kernel
-
-
-def gen_method_shape(cls, path, conf):
-    "return shape in an array"
-    return None, None
-
-
-def gen_method_nd(cls, path, conf):
-    "return length of shape"
-    return None, None
-
-
-def gen_method_strides(cls, path, conf):
-    "return strides"
-    return None, None
-
-
-def gen_method_getpos(cls, path, conf):
-    "return slot position from index and strides"
-    return None, None
-
-
 def gen_method_typeid(cls, path, conf):
     "return typeid of a unionref"
     retarg = Arg(Int64)
@@ -514,10 +447,6 @@ def methods_from_path(cls, path, conf):
 
     if is_array_type(lasttype):
         out.append(gen_method_len(cls, path, conf))
-    #    out.append(gen_method_shape(cls, path, conf))
-    #    out.append(gen_method_nd(cls, path, conf))
-    #    out.append(gen_method_strides(cls, path, conf))
-    #    out.append(gen_method_getpos(cls, path, conf))
 
     if is_unionref_type(lasttype):
         out.append(gen_method_typeid(cls, path, conf))

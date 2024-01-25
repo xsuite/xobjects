@@ -47,8 +47,7 @@ def topological_sort(source):
             num_parents[child] += 1
 
     # Begin with the parent-less items.
-    result = [child for child, parents in source.items() if len(parents) == 0]
-    result.extend([item for item in graph if num_parents[item] == 0])
+    result = [item for item in graph if num_parents[item] == 0]
 
     # Descend through graph, removing parents as we go.
     for parent in result:

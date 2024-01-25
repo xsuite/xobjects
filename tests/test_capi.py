@@ -455,21 +455,23 @@ def test_get_two_indices():
 
 
 def test_dependencies():
+    Float64Array = xo.Float64[:]
+
     class A(xo.Struct):
-        a = xo.Float64[:]
+        a = Float64Array
         _extra_c_sources = ["//blah blah A"]
 
     class C(xo.Struct):
-        c = xo.Float64[:]
+        c = Float64Array
         _extra_c_sources = [" //blah blah C"]
 
     class B(xo.Struct):
         b = A
-        c = xo.Float64[:]
+        c = Float64Array
         _extra_c_sources = [" //blah blah B"]
         _depends_on = [C]
 
-    assert xo.context.sort_classes([B])[1:] == [A, C, B]
+    assert xo.context.sort_classes([B]) == [xo.Float64, Float64Array, A, C, B]
 
 
 def test_getp1_dyn_length_static_type_array():

@@ -36,11 +36,14 @@ from .base_type import XoTypeMeta, XoType, XoInstanceInfo
 from .typeutils import allocate_on_buffer, _to_slot_size, is_integer, _is_dynamic
 
 from .scalar import Int64
-from .array import Array
 
 import logging
 
 log = logging.getLogger(__name__)
+
+
+def is_string_type(atype):
+    return isinstance(atype, MetaString)
 
 
 @dataclass
@@ -161,7 +164,3 @@ class String(XoType, metaclass=MetaString):
             base = []
         paths.append(base + [cls])
         return paths
-
-
-def is_string(atype):
-    return isinstance(atype, MetaString)

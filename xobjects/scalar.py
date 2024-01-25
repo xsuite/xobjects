@@ -17,6 +17,10 @@ from xobjects.base_type import XoType, XoTypeMeta, XoInstanceInfo
 log = logging.getLogger(__name__)
 
 
+def is_scalar_type(cls):
+    return isinstance(cls, XoScalarMeta)
+
+
 class Void(XoType, ABC):
     """Void type to be used as a placeholder, e.g., in kernel signatures."""
     _c_type = 'void'
@@ -33,10 +37,6 @@ class XoScalarMeta(XoTypeMeta):
     for isinstance(cls, type), as issubclass expects the second parameter to
     be a class.
     """
-
-
-def is_scalar(cls):
-    return isinstance(cls, XoScalarMeta)
 
 
 class XoScalar(XoType, metaclass=XoScalarMeta):

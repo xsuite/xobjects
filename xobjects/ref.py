@@ -7,7 +7,8 @@ import logging
 
 import numpy as np
 
-from .typeutils import Info, dispatch_arg, allocate_on_buffer, default_conf
+from .base_type import XoTypeMeta, XoType
+from .typeutils import Info, allocate_on_buffer, default_conf
 from .scalar import Int64
 from .array import Array
 
@@ -18,14 +19,24 @@ NULLTYPE = -1
 NULLREF = np.array([NULLVALUE, NULLTYPE], dtype="int64")
 
 
-# Ref is a like a scalar
-class MetaRef(type):
+def is_ref(atype):
+    return isinstance(atype, Ref)
+
+
+def is_unionref_type(atype):
+    return isinstance(atype, MetaUnionRef)
+
+
+class MetaRef(XoTypeMeta):
+    """The metaclass for the Xobjects reference type."""
     def __getitem__(cls, reftype):
         return cls(reftype)
 
 
-class Ref(metaclass=MetaRef):
+class Ref(XoType, metaclass=MetaRef):
+    """The Xobjects reference type."""
     _has_refs = True
+    _size = 8
 
     def __init__(self, reftype):
         if hasattr(reftype, "_XoStruct"):
@@ -35,8 +46,6 @@ class Ref(metaclass=MetaRef):
 
         self.__name__ = "Ref" + self._reftype.__name__
         self._c_type = self.__name__
-
-        self._size = 8
 
     def _from_buffer(self, buffer, offset=0):
         refoffset = Int64._from_buffer(buffer, offset)
@@ -99,15 +108,19 @@ class Ref(metaclass=MetaRef):
     def _get_inner_types(self):
         return [self._reftype]
 
+    def _get_size(cls, instance: 'Ref'):
+        return instance._size
+
 
 # UnionRef is a proper class because
 #  - name generation is particularly inconvenient
 #  - can be useful to instantiate for debugging
-class MetaUnionRef(type):
+class MetaUnionRef(XoTypeMeta):
+    """The metaclass for the Xobjects UnionRef type."""
     _reftypes: list
     _methods: list
 
-    def __new__(cls, name, bases, data):
+    def __new__(mcs, name, bases, data):
         if "_c_type" not in data:
             data["_c_type"] = name
         if "_methods" not in data:
@@ -115,7 +128,7 @@ class MetaUnionRef(type):
 
         data["_has_refs"] = True
 
-        return type.__new__(cls, name, bases, data)
+        return type.__new__(mcs, name, bases, data)
 
     def _is_member(cls, value):
         typ = value.__class__
@@ -152,74 +165,9 @@ class MetaUnionRef(type):
         # If no match found:
         raise TypeError(f"Invalid id: {typeid}!")
 
-    def _from_buffer(cls, buffer, offset=0):
-        refoffset, typeid = Int64._array_from_buffer(buffer, offset, 2)
-        if refoffset == NULLVALUE:
-            return None
-        else:
-            reftype = cls._type_from_typeid(typeid)
-            return reftype._from_buffer(buffer, offset + refoffset)
 
-    def _inspect_args(cls, *args):
-        """
-        A unionref can be initialized with an instance of the classes in reftypes or
-        a tuple (typename, dictionary)
-
-        Input:
-        - None
-        - XObject
-        - typename, dict
-        """
-        # log.debug(f"get info for {cls} from {args}")
-        info = Info(size=cls._size)
-        return info
-
-    def _to_buffer(cls, buffer, offset, value, info=None):
-        if isinstance(value, cls):  # binary copy
-            buffer.update_from_xbuffer(
-                offset, value._buffer, value._offset, value._size
-            )
-        else:
-            if value is None:
-                xobj = None
-            elif isinstance(value, tuple):
-                if len(value) == 0:
-                    xobj = None
-                    typeid = None
-                elif len(value) == 1:  # must be XObject or None
-                    xobj = value[0]
-                    if xobj is not None:
-                        typ = xobj.__class__
-                        typeid = cls._typeid_from_type(typ)
-                        if xobj._buffer != buffer:
-                            xobj = typ(xobj, _buffer=buffer)
-                elif len(value) == 2:  # must be (str,dict)
-                    tname, data = value
-                    typ = cls._type_from_name(tname)
-                    typeid = cls._typeid_from_name(tname)
-                    xobj = typ(data, _buffer=buffer)
-            elif cls._is_member(value):
-                xobj = value
-                typ = xobj.__class__
-                typeid = cls._typeid_from_type(typ)
-                if xobj._buffer != buffer:
-                    xobj = typ(xobj, _buffer=buffer)
-            else:
-                raise ValueError(f"{value} not handled")
-            if xobj is None:
-                Int64._array_to_buffer(buffer, offset, NULLREF)
-            else:
-                ref = np.array([xobj._offset - offset, typeid])
-                Int64._array_to_buffer(buffer, offset, ref)
-
-    def __getitem__(cls, shape):
-        return Array.make_array_class(cls, shape)
-
-    def __repr__(cls):
-        return f"<unionref {cls.__name__}>"
-
-
-class UnionRef(metaclass=MetaUnionRef):
+class UnionRef(XoType, metaclass=MetaUnionRef):
+    """The Xobjects type for a reference to a multiple possible types."""
     _size = 16
     _reftypes: list
 
@@ -279,17 +227,84 @@ class UnionRef(metaclass=MetaUnionRef):
     def _get_inner_types(cls):
         return cls._reftypes
 
+    @classmethod
+    def _from_buffer(cls, buffer, offset=0):
+        refoffset, typeid = Int64._array_from_buffer(buffer, offset, 2)
+        if refoffset == NULLVALUE:
+            return None
+        else:
+            reftype = cls._type_from_typeid(typeid)
+            return reftype._from_buffer(buffer, offset + refoffset)
+
+    @classmethod
+    def _inspect_args(cls, *args):
+        """
+        A unionref can be initialized with an instance of the classes in reftypes or
+        a tuple (typename, dictionary)
+
+        Input:
+        - None
+        - XObject
+        - typename, dict
+        """
+        # log.debug(f"get info for {cls} from {args}")
+        info = Info(size=cls._size)
+        return info
+
+    @classmethod
+    def _to_buffer(cls, buffer, offset, value, info=None):
+        if isinstance(value, cls):  # binary copy
+            buffer.update_from_xbuffer(
+                offset, value._buffer, value._offset, value._size
+            )
+        else:
+            if value is None:
+                xobj = None
+            elif isinstance(value, tuple):
+                if len(value) == 0:
+                    xobj = None
+                    typeid = None
+                elif len(value) == 1:  # must be XObject or None
+                    xobj = value[0]
+                    if xobj is not None:
+                        typ = xobj.__class__
+                        typeid = cls._typeid_from_type(typ)
+                        if xobj._buffer != buffer:
+                            xobj = typ(xobj, _buffer=buffer)
+                elif len(value) == 2:  # must be (str,dict)
+                    tname, data = value
+                    typ = cls._type_from_name(tname)
+                    typeid = cls._typeid_from_name(tname)
+                    xobj = typ(data, _buffer=buffer)
+            elif cls._is_member(value):
+                xobj = value
+                typ = xobj.__class__
+                typeid = cls._typeid_from_type(typ)
+                if xobj._buffer != buffer:
+                    xobj = typ(xobj, _buffer=buffer)
+            else:
+                raise ValueError(f"{value} not handled")
+            if xobj is None:
+                Int64._array_to_buffer(buffer, offset, NULLREF)
+            else:
+                ref = np.array([xobj._offset - offset, typeid])
+                Int64._array_to_buffer(buffer, offset, ref)
+
+    @classmethod
+    def __getitem__(cls, shape):
+        return Array.make_array_class(cls, shape)
+
+    @classmethod
+    def __repr__(cls):
+        return f"<unionref {cls.__name__}>"
+
+    @classmethod
+    def _get_size(cls, instance: 'UnionRef'):
+        return cls._size
+
     def _to_json(self):
         v = self.get()
         classname = v.__class__.__name__
         if hasattr(v, "_to_json"):
             v = v._to_json()
         return (classname, v)
-
-
-def is_ref(atype):
-    return isinstance(atype, Ref)
-
-
-def is_unionref(atype):
-    return isinstance(atype, MetaUnionRef)

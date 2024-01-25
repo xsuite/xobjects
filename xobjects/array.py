@@ -74,7 +74,7 @@ Examples of memory layouts:
 
 import logging
 from dataclasses import dataclass
-from typing import Tuple, Union, Literal, Dict
+from typing import Tuple, Union, Literal, Dict, Type
 
 import numpy as np
 
@@ -85,7 +85,7 @@ from .typeutils import (
     _to_slot_size,
     default_conf, _is_dynamic,
 )
-from .scalar import Int64, is_scalar
+from .scalar import Int64, is_scalar_type
 
 log = logging.getLogger(__name__)
 
@@ -360,7 +360,7 @@ class Array(XoType, metaclass=MetaArray):
     _shape: Tuple[Union[int, None]]
     _order: Union[Literal["C", "F"], Tuple[int]] = "C"
     _strides: Tuple[int]
-    _itemtype: XoTypeMeta
+    _itemtype: Type[XoType]
     _is_static_shape: bool
     _is_static_type: bool
     _data_offset: int
@@ -634,7 +634,7 @@ class Array(XoType, metaclass=MetaArray):
             else:
                 raise ValueError("Value {value} not compatible size")
         elif value is None:  # no value to initialize
-            if is_scalar(cls._itemtype):
+            if is_scalar_type(cls._itemtype):
                 pass  # leave uninitialized
             else:
                 value = cls._itemtype()  # use default type
@@ -877,5 +877,5 @@ def is_index(atype):
     return isinstance(atype, Index)
 
 
-def is_array(atype):
+def is_array_type(atype):
     return isinstance(atype, MetaArray)

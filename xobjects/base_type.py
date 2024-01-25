@@ -13,6 +13,11 @@ from xobjects.typeutils import default_conf
 XoType_ = TypeVar("XoType_", bound="XoType")
 
 
+def is_xo_type(type_var) -> bool:
+    """Check that `type_var` is an Xobjects type."""
+    return isinstance(type_var, XoTypeMeta)
+
+
 @dataclass
 class XoInstanceInfo:
     """Metadata representing the allocation requirements of an XoType."""
@@ -41,11 +46,6 @@ class XoTypeMeta(ABCMeta):
         See the remarks on __getitem__.
         """
         return cls.__name__
-
-
-def is_xo_type(type_var) -> bool:
-    """Check that `type_var` is an Xobjects type."""
-    return isinstance(type_var, XoTypeMeta)
 
 
 class XoType(metaclass=XoTypeMeta):

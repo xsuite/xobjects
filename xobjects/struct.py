@@ -76,13 +76,12 @@ from xobjects.typeutils import (
     is_xo_type,
 )
 from xobjects.scalar import Int64
-from xobjects.array import Array
 from xobjects.context import Source
 
 log = logging.getLogger(__name__)
 
 
-def is_struct(atype):
+def is_struct_type(atype):
     return isinstance(atype, MetaStruct)
 
 
@@ -438,7 +437,7 @@ class MetaStruct(XoTypeMeta):
     @staticmethod
     def _get_base_struct(bases, data) -> Optional[Type['Struct']]:
         base_structs = tuple(
-            base for base in bases if is_struct(base) and base != Struct
+            base for base in bases if is_struct_type(base) and base != Struct
         )
 
         if base_structs:

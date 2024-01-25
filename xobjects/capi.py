@@ -5,31 +5,35 @@
 
 from .context import Kernel, Arg
 
-from .scalar import Int64, Void, Int8, is_scalar
-from .struct import is_field, is_struct
-from .array import is_index, is_array
-from .ref import is_unionref, is_ref
-from .string import is_string
+from .scalar import Int64, Void, Int8, is_scalar_type
+from .struct import is_field, is_struct_type
+from .array import is_index, is_array_type
+from .ref import is_unionref_type, is_ref
+from .string import is_string_type
 
 
 def is_compound(atype):
     """Types that are referenced in C with an opaque pointer"""
-    return is_struct(atype) or is_array(atype) or is_unionref(atype)
+    return (
+        is_struct_type(atype) or
+        is_array_type(atype) or
+        is_unionref_type(atype)
+    )
 
 
 def is_type(atype):
-    return is_compound(atype) or is_scalar(atype) or is_string(atype)
+    return is_compound(atype) or is_scalar_type(atype) or is_string_type(atype)
 
 
 def get_inner_type(part):
     """type contained in a field, array or ref, else None"""
     if is_field(part):  # is a field
         return part.ftype
-    elif is_array(part):  # is an array
+    elif is_array_type(part):  # is an array
         return part._itemtype
     elif is_ref(part):
         return part._reftype
-    elif is_unionref(part):
+    elif is_unionref_type(part):
         return None
     else:
         raise ValueError(f"Cannot get inner type of {part}")
@@ -206,7 +210,10 @@ def gen_fun_kernel(cls, path, action, const, extra, ret, add_nindex=False):
 def gen_c_pointed(target: Arg, conf):
     size = gen_c_size_from_arg(target, conf)
     ret = gen_c_type_from_arg(target, conf)
-    if target.pointer or is_compound(target.atype) or is_string(target.atype):
+    if (
+        target.pointer or
+        is_compound(target.atype) or is_string_type(target.atype)
+    ):
         chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
         return f"({ret})(({chartype}) obj+offset)"
     else:
@@ -267,7 +274,7 @@ def gen_method_getp(cls, path, conf):
     else:
         retarg = Arg(lasttype)
     #    if is_scalar(lasttype) or is_string(lasttype):
-    if is_scalar(lasttype):
+    if is_scalar_type(lasttype):
         retarg.pointer = True
 
     kernel = gen_fun_kernel(
@@ -338,7 +345,7 @@ def gen_method_size(cls, path, conf):
 
     action = "size"
     layers = get_layers(path)
-    if layers > 0 and not is_scalar(innertype):
+    if layers > 0 and not is_scalar_type(innertype):
         action += str(layers)
 
     kernel = gen_fun_kernel(
@@ -498,21 +505,21 @@ def methods_from_path(cls, path, conf):
     out = []
     lasttype = path[-1]
 
-    if is_scalar(lasttype):
+    if is_scalar_type(lasttype):
         out.append(gen_method_get(cls, path, conf))
         out.append(gen_method_set(cls, path, conf))
 
     if is_type(lasttype):
         out.append(gen_method_getp(cls, path, conf))
 
-    if is_array(lasttype):
+    if is_array_type(lasttype):
         out.append(gen_method_len(cls, path, conf))
     #    out.append(gen_method_shape(cls, path, conf))
     #    out.append(gen_method_nd(cls, path, conf))
     #    out.append(gen_method_strides(cls, path, conf))
     #    out.append(gen_method_getpos(cls, path, conf))
 
-    if is_unionref(lasttype):
+    if is_unionref_type(lasttype):
         out.append(gen_method_typeid(cls, path, conf))
         out.append(gen_method_member(cls, path, conf))
         if cls == lasttype:
@@ -524,7 +531,7 @@ def methods_from_path(cls, path, conf):
 def gen_cdef(cls, conf):
     out = []
     out.append(gen_typedef(cls, conf))
-    if is_unionref(cls):
+    if is_unionref_type(cls):
         out.append(gen_enum(cls, conf))
     return "\n".join(out)
 

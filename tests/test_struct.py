@@ -3,6 +3,7 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 import cffi
+import numpy as np
 import pytest
 
 import xobjects as xo
@@ -204,7 +205,7 @@ def test_struct_allow_single_xo_inheritance():
     assert 'multiple' in str(e.value).lower()
 
 
-def test_struct_inheritance():
+def test_struct_inheritance_static():
     class Base(xo.Struct):
         f1 = xo.UInt32
         f2 = xo.UInt64
@@ -212,9 +213,32 @@ def test_struct_inheritance():
     class Child(Base):
         f3 = xo.UInt16
 
+    base = Base(f1=3, f2=6)
     child = Child(f1=12, f2=43, f3=67)
 
+    assert base.f1 == 3
+    assert base.f2 == 6
+
     assert child.f1 == 12
+    assert child.f2 == 43
+    assert child.f3 == 67
+
+
+def test_struct_inheritance_dynamic():
+    class Base(xo.Struct):
+        f1 = xo.UInt32[:]
+        f2 = xo.UInt64
+
+    class Child(Base):
+        f3 = xo.UInt16
+
+    base = Base(f1=[1, 2, 3], f2=6)
+    child = Child(f1=[4, 5, 6], f2=43, f3=67)
+
+    assert np.all(base.f1.to_nparray() == [1, 2, 3])
+    assert base.f2 == 6
+
+    assert np.all(child.f1.to_nparray() == [4, 5, 6])
     assert child.f2 == 43
     assert child.f3 == 67
 

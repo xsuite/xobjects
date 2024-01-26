@@ -198,6 +198,12 @@ class Field:
 
         return self.get_default()
 
+    def get_entry_size(self):
+        """Return the size a field takes in the header of a struct."""
+        if _is_dynamic(self.ftype):
+            return 8
+        return self.ftype._size
+
 
 @dataclass
 class StructInstanceInfo(XoInstanceInfo):
@@ -247,8 +253,16 @@ class MetaStruct(XoTypeMeta):
     def _make_dynamic_struct_interface(base_struct, data, fields):
         """Create methods for a dynamic struct."""
         size = None
-        offset = base_struct._size if base_struct else 8  # first slot is instance size
-        for field in fields:
+
+        if base_struct is not None:
+            last_field = base_struct._fields[-1]
+            offset = last_field.offset + last_field.get_entry_size()
+            new_fields = fields[len(base_struct._fields):]
+        else:
+            offset = 8
+            new_fields = fields
+
+        for field in new_fields:
             field.offset = offset
             if _is_dynamic(field.ftype):
                 field.is_reference = True
@@ -322,9 +336,14 @@ class MetaStruct(XoTypeMeta):
     @staticmethod
     def _make_static_struct_interface(base_struct, data, fields):
         """Create methods for a static struct."""
-        offset = base_struct._size if base_struct else 0
+        if base_struct is not None:
+            offset = base_struct._size
+            new_fields = fields[len(base_struct._fields):]
+        else:
+            offset = 0
+            new_fields = fields
 
-        for field in fields:
+        for field in new_fields:
             field.offset = offset
             field.is_reference = False
             offset += _to_slot_size(field.ftype._size)

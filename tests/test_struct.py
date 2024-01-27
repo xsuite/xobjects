@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 import xobjects as xo
-from xobjects.methods import method_from_source
+from xobjects.methods import Method
 from xobjects.test_helpers import for_all_test_contexts, requires_context
 
 
@@ -243,12 +243,103 @@ def test_struct_inheritance_dynamic():
     assert child.f3 == 67
 
 
-def test_struct_method():
-    class Base(xo.Struct):
+def test_struct_derived_class_list():
+    class Base1(xo.XoClass):
+        f1 = xo.UInt16[:]
+
+    class Child11(Base1):
+        f2 = xo.UInt64
+
+    class Child11Child(Child11):
+        f3 = xo.UInt32
+
+    class Child12(Base1):
+        f4 = xo.Float64
+
+    class Base2(xo.XoClass):
+        f5 = xo.UInt8
+
+    class Child21(Base2):
+        f6 = xo.UInt8
+
+    expected_derived_classes_1 = [Base1, Child11, Child11Child, Child12]
+    assert Base1._derived_classes == expected_derived_classes_1
+    assert Child11._derived_classes == expected_derived_classes_1
+    assert Child11Child._derived_classes == expected_derived_classes_1
+    assert Child12._derived_classes == expected_derived_classes_1
+
+    expected_derived_classes_2 = [Base2, Child21]
+    assert Base2._derived_classes == expected_derived_classes_2
+    assert Child21._derived_classes == expected_derived_classes_2
+
+    assert Base1._class_type_id == 1
+    assert Child11._class_type_id == 2
+    assert Child11Child._class_type_id == 3
+    assert Child12._class_type_id == 4
+
+    assert Base2._class_type_id == 1
+    assert Child21._class_type_id == 2
+
+
+def test_xo_class_method_overriding():
+    class Base(xo.XoClass):
+        res = xo.UInt64
+        a = xo.UInt32
+        b = xo.UInt32
+
+        method_sum = Method(
+            """
+            uint64_t Base_method_sum(Base this) {
+                uint64_t sum = Base_get_a(this) + Base_get_b(this);
+                Base_set_res(this, sum);
+                return sum;
+            }
+            """,
+            name='Base_method_sum',
+            return_type=xo.Arg(xo.UInt64),
+            args=[],
+        )
+
+    class Child(Base):
+        c = xo.UInt32
+
+        method_sum = Method(
+            """
+            uint64_t Child_method_sum(Child this) {
+                uint64_t sum = Base_method_sum((Base)this) + Child_get_c(this);
+                Child_set_res(this, sum);
+                return sum;
+            }
+            """,
+            name='Child_method_sum',
+            return_type=xo.Arg(xo.UInt64),
+            args=[],
+        )
+
+    instance_base = Base(a=3, b=5)
+    instance_child = Child(a=7, b=11, c=13)
+
+    instance_base.compile_kernels()
+    instance_child.compile_kernels()
+
+    result_base = instance_base.method_sum()
+    assert result_base == instance_base.res
+    assert result_base == 8
+
+    result_child = instance_child.method_sum()
+    assert result_child == instance_child.res
+    assert result_child == 31
+
+    assert instance_base._type_id == 1
+    assert instance_child._type_id == 2
+
+
+def test_xo_class_method():
+    class Base(xo.XoClass):
         f1 = xo.UInt32[:]
         f2 = xo.UInt64
 
-        method_sum = method_from_source(
+        method_sum = Method(
             """
             uint64_t Base_method_sum(Base this, uint64_t factor) {
                 uint64_t sum = Base_get_f2(this);
@@ -271,6 +362,93 @@ def test_struct_method():
 
     result = instance.method_sum(factor=2)
     assert result == 20
+
+
+@pytest.mark.parametrize('is_static', [True, False])
+def test_xo_class_methods_complex_method_inheritance(is_static):
+    class A(xo.XoClass):
+        dummy = xo.UInt8
+
+        _is_static = is_static
+
+        action = Method(
+            "uint8_t A_action(A this) { return 'A'; }",
+            name="A_action",
+            args=[],
+            return_type=xo.Arg(xo.UInt8),
+        )
+
+    class B(A):
+        _depends_on = [A]
+
+    class C(B):
+        _depends_on = [B]
+        action = Method(
+            "uint8_t C_action(C this) { return 'C'; }",
+            name="C_action",
+            args=[],
+            return_type=xo.Arg(xo.UInt8),
+        )
+
+    class D(A):
+        _depends_on = [A]
+        action = Method(
+            "uint8_t D_action(D this) { return 'D'; }",
+            name="D_action",
+            args=[],
+            return_type=xo.Arg(xo.UInt8),
+        )
+
+    assert A._methods.methods['action'].implementors == [A, B, C, D]
+    assert B._methods.methods['action'].implementors == [A, B, C, D]
+    assert C._methods.methods['action'].implementors == [A, B, C, D]
+    assert D._methods.methods['action'].implementors == [A, B, C, D]
+
+    class Tester(xo.Struct):
+        a = A
+        b = B
+        c = C
+        d = D
+
+        _extra_c_sources = [
+            """
+            uint8_t Tester_do_test(Tester this) {
+                #define ASSERT(test_id, x) if (!(x)) return test_id;
+                
+                A a = Tester_getp_a(this);
+                B b = Tester_getp_b(this);
+                C c = Tester_getp_c(this);
+                D d = Tester_getp_d(this);
+                
+                // Using direct 'methods'
+                ASSERT(1, A_action(a) == 'A');
+                ASSERT(2, A_action((A) b) == 'A');
+                ASSERT(3, C_action((C) c) == 'C');
+                ASSERT(4, D_action((D) d) == 'D');
+                
+                // Using the 'true' method
+                ASSERT(6, call_A_action(a) == 'A')
+                ASSERT(7, call_A_action((A) b) == 'A')
+                ASSERT(8, call_A_action((A) c) == 'C')
+                ASSERT(9, call_A_action((A) d) == 'D')
+                
+                return 0;
+                #undef ASSERT
+            }
+            """
+        ]
+
+    Tester._kernels = {
+        'do_test': xo.Kernel(
+            c_name="Tester_do_test",
+            ret=xo.Arg(xo.UInt8),
+            args=[xo.Arg(atype=Tester, name='this')]
+        )
+    }
+
+    tester = Tester(a=A(), b=B(), c=C(), d=D())
+    tester.compile_kernels()
+    assert tester._context.kernels['do_test'](this=tester) == 0
 
 
 @requires_context("ContextCpu")

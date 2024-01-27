@@ -2,11 +2,11 @@
 # This file is part of the Xobjects Package.  #
 # Copyright (c) CERN, 2023.                   #
 # ########################################### #
-from xobjects.context import XBuffer, Kernel, SourceType
+from xobjects.context import XBuffer, Kernel, SourceType, Source
 
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, Type, TypeVar, List, Any, Dict
+from typing import Optional, Type, TypeVar, List, Any, Dict, Union
 
 from xobjects.typeutils import default_conf
 
@@ -26,6 +26,15 @@ class XoInstanceInfo:
 
 class XoTypeMeta(ABCMeta):
     """The metaclass for the base Xobjects type."""
+    def __new__(mcs, name, bases, data):
+        new_class = ABCMeta.__new__(mcs, name, bases, data)
+
+        # Make sure that kernels are refreshed in every subclass.
+        new_class._kernels = new_class._kernels or {}
+        new_class._kernels = new_class._kernels.copy()
+
+        return new_class
+
     def __getitem__(cls, shape) -> Type['xobjects.array.Array']:
         """Create an array type of `shape`, holding elements of type `cls`.
 
@@ -77,7 +86,7 @@ class XoType(metaclass=XoTypeMeta):
     _c_type: str
     _extra_c_sources: List[SourceType] = ()
     _depends_on: List[XoType_] = ()
-    _kernels: Dict[str, Kernel] = {}
+    _kernels: Dict[str, Kernel] = None
     _has_refs: bool = False
 
     @abstractmethod
@@ -152,7 +161,7 @@ class XoType(metaclass=XoTypeMeta):
         return ""
 
     @classmethod
-    def _gen_c_api(cls, conf=default_conf) -> Optional[str]:
+    def _gen_c_api(cls, conf=default_conf) -> Optional[Union[str, Source]]:
         """Generate C source code for the implementation of the type functions."""
         return ""
 

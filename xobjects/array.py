@@ -303,6 +303,11 @@ class MetaArray(XoTypeMeta):
         data["_data_offset"] = data_offset
         data["_has_refs"] = data["_itemtype"]._has_refs
 
+        if _size is not None:
+            mcs._make_static_array_interface(data)
+        else:
+            mcs._make_dynamic_array_interface(data)
+
         return XoTypeMeta.__new__(mcs, name, bases, data)
 
     def _get_offset(cls, index):
@@ -313,6 +318,156 @@ class MetaArray(XoTypeMeta):
             return np.prod(cls._shape)
         else:
             raise ValueError("Cannot get n items from dynamic shapes")
+
+    @staticmethod
+    def _make_static_array_interface(data):
+        def _get_size(cls, _):
+            return cls._size
+
+        def _inspect_args(cls, *args):
+            """
+            Determine:
+            - size:
+            - shape, order, strides
+            - offsets
+            - value: None if args contains dimensions else args[0]
+            """
+            # Array of predetermined shape with static items: not much to do
+            # but check the passed input is compatible.
+            if len(args) == 0:
+                value = None
+            elif len(args) == 1:
+                shape = get_shape_from_array(args[0], len(cls._shape))
+                if shape != cls._shape:
+                    raise ValueError(
+                        f"Cannot initialise {cls.__name__} with {args[0]}, as "
+                        f"its shape is not compatible."
+                    )
+                value = args[0]
+            elif len(args) > 1:
+                raise ValueError("too many arguments")
+
+            offsets = np.empty(cls._shape, dtype="int64")
+            offset = 0
+            for idx in iter_index(cls._shape, cls._order):
+                offsets[idx] = offset
+                offset += cls._itemtype._size
+
+            assert cls._size == _to_slot_size(offset)
+
+            info = ArrayInstanceInfo(size=cls._size)
+            info.shape = cls._shape
+            info.strides = cls._strides
+            info.order = cls._order
+            info.value = value
+            info.item_offsets = offsets
+            return info
+
+        data['_get_size'] = classmethod(_get_size)
+        data['_inspect_args'] = classmethod(_inspect_args)
+
+    @staticmethod
+    def _make_dynamic_array_interface(data):
+        def _get_size(_, instance):
+            return Int64._from_buffer(instance._buffer, instance._offset)
+
+        def _inspect_args(cls, *args):
+            """
+            Determine:
+            - size:
+            - shape, order, strides
+            - offsets
+            - value: None if args contains dimensions else args[0]
+            """
+            dshape = None
+            offset = 8  # space for size data
+            # determine shape and order
+            if cls._is_static_shape:
+                shape = cls._shape
+                order = cls._order
+                strides = cls._strides
+                items = np.prod(shape)
+                value = args[0]
+            else:  # complete dimensions
+                if len(args) == 0:
+                    raise ValueError(
+                        "Cannot initialize array with dynamic shape without arguments"
+                    )
+                if not is_integer(args[0]):  # init with array
+                    value = args[0]
+                    shape = get_shape_from_array(value, len(cls._shape))
+                    dshape = []
+                    for idim, ndim in enumerate(cls._shape):
+                        if ndim is None:
+                            dshape.append(idim)
+                        else:
+                            if shape[idim] != ndim:
+                                raise ValueError(
+                                    "Array: incompatible dimensions"
+                                )
+                    value = value
+                else:  # init with shapes
+                    if _is_dynamic(cls._itemtype):
+                        raise (
+                            ValueError(
+                                "Cannot initialize a dynamic array with a dynamic type using length"
+                            )
+                        )
+                    value = None
+                    shape = []
+                    dshape = []  # index of dynamic shapes
+                    for ndim in cls._shape:
+                        if ndim is None:
+                            shape.append(args[len(dshape)])
+                            dshape.append(len(shape))
+                        else:
+                            shape.append(ndim)
+                # now we have shape, dshape
+                shape = shape
+                offset += len(dshape) * 8  # space for dynamic shapes
+                if len(shape) > 1:
+                    offset += len(shape) * 8  # space for strides
+                order = mk_order(cls._order, shape)
+                if cls._is_static_type:
+                    strides = get_strides(shape, order, cls._itemtype._size)
+                else:
+                    strides = get_strides(shape, order, 8)
+                items = np.prod(shape)
+
+            item_infos = {}
+            item_offsets = {}
+
+            # needs items, order, shape, value
+            if cls._is_static_type:
+                # offsets = np.empty(shape, dtype="int64")
+                # for idx in iter_index(shape, order):
+                #    offsets[idx] = offset
+                #    offset += cls._itemtype._size
+                offset += cls._itemtype._size * items
+                size = _to_slot_size(offset)
+            else:
+                # args must be an array of correct dimensions
+                item_offsets = np.empty(shape, dtype="int64")
+                offset += items * 8
+                for idx in iter_index(shape, order):
+                    item_info = cls._itemtype._inspect_args(value[idx])
+                    item_infos[idx] = item_info
+                    item_offsets[idx] = offset
+                    offset += item_info.size
+                size = _to_slot_size(offset)
+
+            info = ArrayInstanceInfo(size=size)
+            info.shape = shape
+            info.strides = strides
+            info.order = order
+            info.value = value
+            info.item_offsets = item_offsets
+            info.item_infos = item_infos
+            info.dshape = dshape
+            return info
+
+        data['_get_size'] = classmethod(_get_size)
+        data['_inspect_args'] = classmethod(_inspect_args)
 
     def __repr__(cls):
         return f"<array {cls.__name__}>"
@@ -417,138 +572,6 @@ class Array(XoType, metaclass=MetaArray):
             "_order": tuple(order),
         }
         return MetaArray(name, (cls,), data)
-
-    @classmethod
-    def _inspect_args(cls, *args) -> ArrayInstanceInfo:
-        """
-        Determine:
-        - size:
-        - shape, order, strides
-        - offsets
-        - value: None if args contains dimensions else args[0]
-        """
-        dshape = None
-
-        if cls._size is not None:
-            # Array of predetermined shape with static items: not much to do
-            # but check the passed input is compatible.
-            if len(args) == 0:
-                value = None
-            elif len(args) == 1:
-                shape = get_shape_from_array(args[0], len(cls._shape))
-                if shape != cls._shape:
-                    raise ValueError(
-                        f"Cannot initialise {cls.__name__} with {args[0]}, as "
-                        f"its shape is not compatible."
-                    )
-                value = args[0]
-            elif len(args) > 1:
-                raise ValueError("too many arguments")
-            return cls._inspect_args_static(value)
-        else:  # handling other cases
-            offset = 8  # space for size data
-            # determine shape and order
-            if cls._is_static_shape:
-                shape = cls._shape
-                order = cls._order
-                strides = cls._strides
-                items = np.prod(shape)
-                value = args[0]
-            else:  # complete dimensions
-                if len(args) == 0:
-                    raise ValueError(
-                        "Cannot initialize array with dynamic shape without arguments"
-                    )
-                if not is_integer(args[0]):  # init with array
-                    value = args[0]
-                    shape = get_shape_from_array(value, len(cls._shape))
-                    dshape = []
-                    for idim, ndim in enumerate(cls._shape):
-                        if ndim is None:
-                            dshape.append(idim)
-                        else:
-                            if shape[idim] != ndim:
-                                raise ValueError(
-                                    "Array: incompatible dimensions"
-                                )
-                    value = value
-                else:  # init with shapes
-                    if _is_dynamic(cls._itemtype):
-                        raise (
-                            ValueError(
-                                "Cannot initialize a dynamic array with a dynamic type using length"
-                            )
-                        )
-                    value = None
-                    shape = []
-                    dshape = []  # index of dynamic shapes
-                    for ndim in cls._shape:
-                        if ndim is None:
-                            shape.append(args[len(dshape)])
-                            dshape.append(len(shape))
-                        else:
-                            shape.append(ndim)
-                # now we have shape, dshape
-                shape = shape
-                offset += len(dshape) * 8  # space for dynamic shapes
-                if len(shape) > 1:
-                    offset += len(shape) * 8  # space for strides
-                order = mk_order(cls._order, shape)
-                if cls._is_static_type:
-                    strides = get_strides(shape, order, cls._itemtype._size)
-                else:
-                    strides = get_strides(shape, order, 8)
-                items = np.prod(shape)
-
-            item_infos = {}
-            item_offsets = {}
-
-            # needs items, order, shape, value
-            if cls._is_static_type:
-                # offsets = np.empty(shape, dtype="int64")
-                # for idx in iter_index(shape, order):
-                #    offsets[idx] = offset
-                #    offset += cls._itemtype._size
-                offset += cls._itemtype._size * items
-                size = _to_slot_size(offset)
-            else:
-                # args must be an array of correct dimensions
-                item_offsets = np.empty(shape, dtype="int64")
-                offset += items * 8
-                for idx in iter_index(shape, order):
-                    item_info = cls._itemtype._inspect_args(value[idx])
-                    item_infos[idx] = item_info
-                    item_offsets[idx] = offset
-                    offset += item_info.size
-                size = _to_slot_size(offset)
-
-            info = ArrayInstanceInfo(size=size)
-            info.shape = shape
-            info.strides = strides
-            info.order = order
-            info.value = value
-            info.item_offsets = item_offsets
-            info.item_infos = item_infos
-            info.dshape = dshape
-            return info
-
-    @classmethod
-    def _inspect_args_static(cls, value):
-        offsets = np.empty(cls._shape, dtype="int64")
-        offset = 0
-        for idx in iter_index(cls._shape, cls._order):
-            offsets[idx] = offset
-            offset += cls._itemtype._size
-
-        assert cls._size == _to_slot_size(offset)
-
-        info = ArrayInstanceInfo(size=cls._size)
-        info.shape = cls._shape
-        info.strides = cls._strides
-        info.order = cls._order
-        info.value = value
-        info.item_offsets = offsets
-        return info
 
     @classmethod
     def _from_buffer(cls, buffer, offset=0):
@@ -709,13 +732,6 @@ class Array(XoType, metaclass=MetaArray):
             self._strides = info.strides
         if not cls._is_static_type:
             self._offsets = info.item_offsets
-
-    @classmethod
-    def _get_size(cls, instance):
-        if _is_dynamic(cls):
-            return Int64._from_buffer(instance._buffer, instance._offset)
-        else:
-            return cls._size
 
     @classmethod
     def _get_position(cls, index):

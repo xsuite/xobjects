@@ -60,6 +60,7 @@ class MetaXoClass(MetaStruct):
 class XoClass(Struct, metaclass=MetaXoClass):
     _type_id = UInt64
 
+    _is_static = False
     _methods: MethodList = []
     _derived_classes: List[Type['XoClass']]
 

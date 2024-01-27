@@ -367,9 +367,7 @@ def test_xo_class_method():
 @pytest.mark.parametrize('is_static', [True, False])
 def test_xo_class_methods_complex_method_inheritance(is_static):
     class A(xo.XoClass):
-        dummy = xo.UInt8
-
-        _is_static = is_static
+        dummy = xo.UInt8 if is_static else xo.UInt8[:]
 
         action = Method(
             "uint8_t A_action(A this) { return 'A'; }",
@@ -446,7 +444,7 @@ def test_xo_class_methods_complex_method_inheritance(is_static):
         )
     }
 
-    tester = Tester(a=A(), b=B(), c=C(), d=D())
+    tester = Tester(a=A(dummy=1), b=B(dummy=1), c=C(dummy=1), d=D(dummy=1))
     tester.compile_kernels()
     assert tester._context.kernels['do_test'](this=tester) == 0
 

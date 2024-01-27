@@ -227,6 +227,7 @@ class MetaStruct(XoTypeMeta):
 
         base_struct = mcs._get_base_struct(bases)
         fields, is_static = mcs._prepare_fields(base_struct, data)
+        is_static = data.get("_is_static", is_static)  # allow for override
 
         data["_base_struct"] = base_struct
         data["_fields"] = fields

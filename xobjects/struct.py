@@ -26,18 +26,13 @@ static fields, and M the number of dynamic fields):
 
 (1) At offset 0: int64 size of the struct if the struct is dynamic (i.e. has
     dynamic fields); otherwise size is omitted and (2) is here.
-(2) At offset 8 (or 0, see above): the N static field values in order, the
-    fields are 8-byte aligned.
-(3) At the next 8-byte aligned offset: (M - 1) int64 values representing the
-    offsets, from the beginning of the struct, of the data corresponding to
-    the dynamic fields indexed 1 through (M - 1). Note in particular, that the
-    offset of the static field 0 is omitted, as it is implicitly known to start
-    immediately after the end of this section.
-(4) At the next 8-byte aligned offset: the data corresponding to the dynamic
-    field index 0.
-(5) At the next 8-byte aligned offset begin, 8-byte aligned, values of dynamic
+(2) At offset 8 (or 0, see above): the N field values in order, the
+    fields are 8-byte aligned. If the field is dynamic, the entry will be
+    a uint64 offset to the place further in the buffer, where the data is
+    contained. Otherwise, the value appears directly in place.
+(3) At the next 8-byte aligned offset begin, 8-byte aligned, values of dynamic
     fields 1 though (M - 1) pointed to by the offsets specified in (3).
-(6) The whole structure is padded, as needed, with zeros to make the size, as
+(4) The whole structure is padded, as needed, with zeros to make the size, as
     given in (1), a multiple of 8.
 
 Consider as an instance of the struct `Example` defined above:
@@ -50,16 +45,17 @@ Its memory layout can be viewed with:
 
 This reveals the following structure of `example`:
 
-[ 0] 80,  0,  0,  0,  0,  0,  0,  0  # int64 length (here: little endian)
-[ 8]  4,  0,  5,  0,  0,  0,  0,  0  # f1: uint16[2] array; 4 bytes padding
-[16] 11,  0,  0,  0,  0,  0,  0,  0  # f3: uint8; 7 bytes padding
-[24] 56,  0,  0,  0,  0,  0,  0,  0  # int64 field 1 offset (f1 starts at 56)
-[32] 24,  0,  0,  0,  0,  0,  0,  0  # f0 header (1/2): int64 size in bytes
-[40]  3,  0,  0,  0,  0,  0,  0,  0  # f0 header (2/2): int64 no. of elements
-[48]  1,  2,  3,  0,  0,  0,  0,  0  # f0 items: uint8[3]; 5 bytes of padding
-[56] 24,  0,  0,  0,  0,  0,  0,  0  # f1 header (1/2): int64 size in bytes
-[64]  5,  0,  0,  0,  0,  0,  0,  0  # f1 header (2/2): int64 no. of elements
-[72]  6,  7,  8,  9, 10,  0,  0,  0  # f1 items: uint8[5]; 3 bytes of padding
+[ 0] 88,  0,  0,  0,  0,  0,  0,  0  # int64 length (here: little endian)
+[ 8] 40,  0,  0,  0,  0,  0,  0,  0  # uint64 offset to data of f0
+[16]  4,  0,  5,  0,  0,  0,  0,  0  # f1: uint16[2] array; 4 bytes padding
+[24] 64,  0,  0,  0,  0,  0,  0,  0  # uint64 offset to data of f1
+[32] 11,  0,  0,  0,  0,  0,  0,  0  # f3: uint8; 7 bytes padding
+[40] 24,  0,  0,  0,  0,  0,  0,  0  # f0 header (1/2): int64 size in bytes
+[48]  3,  0,  0,  0,  0,  0,  0,  0  # f0 header (2/2): int64 no. of elements
+[56]  1,  2,  3,  0,  0,  0,  0,  0  # f0 items: uint8[3]; 5 bytes of padding
+[64] 24,  0,  0,  0,  0,  0,  0,  0  # f1 header (1/2): int64 size in bytes
+[72]  5,  0,  0,  0,  0,  0,  0,  0  # f1 header (2/2): int64 no. of elements
+[80]  6,  7,  8,  9, 10,  0,  0,  0  # f1 items: uint8[5]; 3 bytes of padding
 """
 import logging
 from dataclasses import dataclass

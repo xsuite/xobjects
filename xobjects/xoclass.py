@@ -2,12 +2,66 @@
 # This file is part of the Xobjects Package.  #
 # Copyright (c) CERN, 2023.                   #
 # ########################################### #
-"""A structure type for Xobjects with dynamic method dispatch."""
+"""A structure type for Xobjects with dynamic method dispatch.
+
+Apart from the regular behaviour expected from an Xobjects struct, one can
+define C methods that will be exposed as kernels on the Python side, and on the
+C side, through special methods, which allow the execution of the right method
+without full knowledge of the type.
+
+Example:
+
+        class Base(xo.XoClass):
+    >>>     res = xo.UInt64
+    >>>     a = xo.UInt32
+    >>>     b = xo.UInt32
+    >>>     method_sum = Method(
+    >>>         \"\"\"
+    >>>         uint64_t Base_method_sum(Base this) {
+    >>>             uint64_t sum = Base_get_a(this) + Base_get_b(this);
+    >>>             Base_set_res(this, sum);
+    >>>             return sum;
+    >>>         }
+    >>>         \"\"\",
+    >>>         name='Base_method_sum',
+    >>>         return_type=xo.Arg(xo.UInt64),
+    >>>         args=[],
+    >>>     )
+
+    >>> class Child(Base):
+    >>>     c = xo.UInt32
+    >>>     method_sum = Method(
+    >>>         \"\"\"
+    >>>         uint64_t Child_method_sum(Child this) {
+    >>>             uint64_t sum = Base_method_sum((Base)this) + Child_get_c(this);
+    >>>             Child_set_res(this, sum);
+    >>>             return sum;
+    >>>         }
+    >>>         \"\"\",
+    >>>         name='Child_method_sum',
+    >>>         return_type=xo.Arg(xo.UInt64),
+    >>>         args=[],
+    >>>     )
+
+In the above example, Child inherits from Base, and overrides Base's method to
+include the modification in the Child's body. We can then run:
+
+    >>> child = Child(a=1, b=2, c=3)
+    >>> child.compile_kernels()
+    >>> child.method_sum()
+    ... 6
+
+On the C side, a function `uint64_t call_Base_method(Base obj)` is exposed, that
+can be passed an opaque pointer to an instance of Base, or any of its
+descendants, and which will dispatch the method to the correct implementation
+based on the argument: if `obj` is a Base, to `Base_method`, and if `obj` is
+really a Child, to `Child_method`.
+"""
 from typing import Type, List
 
 from xobjects import UInt64
 from xobjects.context import Source
-from xobjects.struct import MetaStruct, Struct, Field
+from xobjects.struct import MetaStruct, Struct
 from xobjects.methods import Method, MethodList
 from xobjects.typeutils import default_conf
 
@@ -89,11 +143,9 @@ class XoClass(Struct, metaclass=MetaXoClass):
 
     @classmethod
     def _gen_c_api(cls, conf=default_conf) -> Source:
-        source = f'// START {cls}._gen_c_api\n'
-        source += super()._gen_c_api(conf).source
+        source = super()._gen_c_api(conf).source
         source += '\n\n'
         source += cls._generate_c_implementation()
-        source += f'// END {cls}._gen_c_api\n'
 
         source = Source(
             source=source,

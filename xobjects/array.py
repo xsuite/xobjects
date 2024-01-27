@@ -301,9 +301,7 @@ class MetaArray(XoTypeMeta):
             data_offset += 8  # space for dynamic size
         data["_size"] = _size
         data["_data_offset"] = data_offset
-
-        # TODO: Remove getattr once all xo types inherit XoType:
-        data["_has_refs"] = getattr(data["_itemtype"], '_has_refs', False)
+        data["_has_refs"] = data["_itemtype"]._has_refs
 
         return XoTypeMeta.__new__(mcs, name, bases, data)
 

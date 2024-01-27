@@ -239,8 +239,8 @@ class MetaStruct(XoTypeMeta):
         else:
             mcs._make_dynamic_struct_interface(base_struct, data, fields)
 
-        data["_has_refs"] = any(  # TODO: Remove getattr when types are XoType
-            getattr(field.ftype, "_has_refs", False) for field in fields
+        data["_has_refs"] = any(
+            field.ftype._has_refs for field in fields
         )
 
         cls = XoTypeMeta.__new__(mcs, name, bases, data)

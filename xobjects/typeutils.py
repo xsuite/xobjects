@@ -5,6 +5,7 @@
 
 import math
 import time
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -55,20 +56,22 @@ def dispatch_arg(f, arg):
         return f(arg)
 
 
+@dataclass
 class Info:
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-
-    def __repr__(self):
-        args = [f"{k}={repr(v)}" for k, v in self.__dict__.items()]
-        return f"Info({','.join(args)})"
-
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+    size: int = None
+    data: object = None
+    items = None
+    is_static_size: bool = False
+    value = None
+    extra = {}
+    offsets = {}
+    shape = None
+    strides = None
+    order = None
 
 
 def _to_slot_size(size):
-    "round to nearest multiple of 8"
+    """Round to the nearest multiple of 8."""
     return (size + 7) & (-8)
 
 
@@ -78,6 +81,10 @@ def _is_dynamic(cls):
 
 def is_integer(i):
     return isinstance(i, (int, np.integer))
+
+
+def is_xo_type(cls):
+    return hasattr(cls, '_inspect_args')
 
 
 float2c = {2: "half", 4: "float", 8: "double", 16: "double[2]"}
@@ -102,7 +109,7 @@ def get_c_type(typ):
         elif tt == "i":
             return f"int{nb*8}_t"
         elif tt == "u":
-            return f"int{nb*8}_t"
+            return f"uint{nb*8}_t"
         elif tt == "c":
             return f"{float2c[nb//2]}[2]"
         elif tt == "S":
@@ -111,8 +118,3 @@ def get_c_type(typ):
         return typ._c_type
     else:
         raise ValueError(f"Cannot find C type for type {typ}")
-
-
-class Register:
-    def __init__(self):
-        self.classes = {}

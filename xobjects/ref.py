@@ -7,7 +7,8 @@ import logging
 
 import numpy as np
 
-from .typeutils import Info, dispatch_arg, allocate_on_buffer, default_conf
+from .base_type import XoTypeMeta, XoType
+from .typeutils import Info, allocate_on_buffer, default_conf
 from .scalar import Int64
 from .array import Array
 
@@ -18,14 +19,24 @@ NULLTYPE = -1
 NULLREF = np.array([NULLVALUE, NULLTYPE], dtype="int64")
 
 
-# Ref is a like a scalar
-class MetaRef(type):
+def is_ref(atype):
+    return isinstance(atype, Ref)
+
+
+def is_unionref_type(atype):
+    return isinstance(atype, MetaUnionRef)
+
+
+class MetaRef(XoTypeMeta):
+    """The metaclass for the Xobjects reference type."""
     def __getitem__(cls, reftype):
         return cls(reftype)
 
 
-class Ref(metaclass=MetaRef):
+class Ref(XoType, metaclass=MetaRef):
+    """The Xobjects reference type."""
     _has_refs = True
+    _size = 8
 
     def __init__(self, reftype):
         if hasattr(reftype, "_XoStruct"):
@@ -35,8 +46,6 @@ class Ref(metaclass=MetaRef):
 
         self.__name__ = "Ref" + self._reftype.__name__
         self._c_type = self.__name__
-
-        self._size = 8
 
     def _from_buffer(self, buffer, offset=0):
         refoffset = Int64._from_buffer(buffer, offset)
@@ -72,7 +81,7 @@ class Ref(metaclass=MetaRef):
         return Info(size=self._size)
 
     def __getitem__(self, shape):
-        return Array.mk_arrayclass(self, shape)
+        return Array.make_array_class(self, shape)
 
     def _gen_data_paths(self, base=None):
         paths = []
@@ -99,15 +108,19 @@ class Ref(metaclass=MetaRef):
     def _get_inner_types(self):
         return [self._reftype]
 
+    def _get_size(cls, instance: 'Ref'):
+        return instance._size
+
 
 # UnionRef is a proper class because
 #  - name generation is particularly inconvenient
 #  - can be useful to instantiate for debugging
-class MetaUnionRef(type):
+class MetaUnionRef(XoTypeMeta):
+    """The metaclass for the Xobjects UnionRef type."""
     _reftypes: list
     _methods: list
 
-    def __new__(cls, name, bases, data):
+    def __new__(mcs, name, bases, data):
         if "_c_type" not in data:
             data["_c_type"] = name
         if "_methods" not in data:
@@ -115,7 +128,7 @@ class MetaUnionRef(type):
 
         data["_has_refs"] = True
 
-        return type.__new__(cls, name, bases, data)
+        return type.__new__(mcs, name, bases, data)
 
     def _is_member(cls, value):
         typ = value.__class__
@@ -152,6 +165,69 @@ class MetaUnionRef(type):
         # If no match found:
         raise TypeError(f"Invalid id: {typeid}!")
 
+
+class UnionRef(XoType, metaclass=MetaUnionRef):
+    """The Xobjects type for a reference to a multiple possible types."""
+    _size = 16
+    _reftypes: list
+
+    def __init__(
+        self, *args, _context=None, _buffer=None, _offset=None, **kwargs
+    ):
+        cls = self.__class__
+
+        self._buffer, self._offset = allocate_on_buffer(
+            cls._size, _context, _buffer, _offset
+        )
+
+        cls._to_buffer(self._buffer, self._offset, args)
+
+    def get(self):
+        reloffset, typeid = Int64._array_from_buffer(
+            self._buffer, self._offset, 2
+        )
+        if reloffset == NULLVALUE:
+            return None
+        else:
+            cls = self.__class__
+            typ = cls._type_from_typeid(typeid)
+            offset = self._offset + reloffset
+            return typ._from_buffer(self._buffer, offset)
+
+    @classmethod
+    def _gen_data_paths(cls, base=None):
+        paths = []
+        if base is None:
+            base = []
+        paths.append(base + [cls])
+        return paths
+
+    @classmethod
+    def _gen_c_decl(cls, conf=default_conf):
+        from . import capi
+
+        paths = cls._gen_data_paths()
+        return capi.gen_cdefs(cls, paths, conf)
+
+    @classmethod
+    def _gen_c_api(cls, conf=default_conf):
+        from . import capi
+
+        paths = cls._gen_data_paths()
+        return capi.gen_code(cls, paths, conf)
+
+    @classmethod
+    def _gen_kernels(cls, conf=default_conf):
+        from . import capi
+
+        paths = cls._gen_data_paths()
+        return capi.gen_kernels(cls, paths, conf)
+
+    @classmethod
+    def _get_inner_types(cls):
+        return cls._reftypes
+
+    @classmethod
     def _from_buffer(cls, buffer, offset=0):
         refoffset, typeid = Int64._array_from_buffer(buffer, offset, 2)
         if refoffset == NULLVALUE:
@@ -160,6 +236,7 @@ class MetaUnionRef(type):
             reftype = cls._type_from_typeid(typeid)
             return reftype._from_buffer(buffer, offset + refoffset)
 
+    @classmethod
     def _inspect_args(cls, *args):
         """
         A unionref can be initialized with an instance of the classes in reftypes or
@@ -174,6 +251,7 @@ class MetaUnionRef(type):
         info = Info(size=cls._size)
         return info
 
+    @classmethod
     def _to_buffer(cls, buffer, offset, value, info=None):
         if isinstance(value, cls):  # binary copy
             buffer.update_from_xbuffer(
@@ -212,86 +290,17 @@ class MetaUnionRef(type):
                 ref = np.array([xobj._offset - offset, typeid])
                 Int64._array_to_buffer(buffer, offset, ref)
 
+    @classmethod
     def __getitem__(cls, shape):
-        return Array.mk_arrayclass(cls, shape)
+        return Array.make_array_class(cls, shape)
 
-    def _pre_init(cls, *arg, **kwargs):
-        return kwargs
-
+    @classmethod
     def __repr__(cls):
         return f"<unionref {cls.__name__}>"
 
-
-class UnionRef(metaclass=MetaUnionRef):
-    _size = 16
-    _reftypes: list
-
-    def __init__(
-        self, *args, _context=None, _buffer=None, _offset=None, **kwargs
-    ):
-        cls = self.__class__
-
-        args, _ = self._pre_init(*args, **kwargs)
-
-        self._buffer, self._offset = allocate_on_buffer(
-            cls._size, _context, _buffer, _offset
-        )
-
-        cls._to_buffer(self._buffer, self._offset, args)
-
-        self._post_init()
-
-    def get(self):
-        reloffset, typeid = Int64._array_from_buffer(
-            self._buffer, self._offset, 2
-        )
-        if reloffset == NULLVALUE:
-            return None
-        else:
-            cls = self.__class__
-            typ = cls._type_from_typeid(typeid)
-            offset = self._offset + reloffset
-            return typ._from_buffer(self._buffer, offset)
-
     @classmethod
-    def _pre_init(cls, *args, **kwargs):
-        return args, kwargs
-
-    def _post_init(self):
-        pass
-
-    @classmethod
-    def _gen_data_paths(cls, base=None):
-        paths = []
-        if base is None:
-            base = []
-        paths.append(base + [cls])
-        return paths
-
-    @classmethod
-    def _gen_c_decl(cls, conf=default_conf):
-        from . import capi
-
-        paths = cls._gen_data_paths()
-        return capi.gen_cdefs(cls, paths, conf)
-
-    @classmethod
-    def _gen_c_api(cls, conf=default_conf):
-        from . import capi
-
-        paths = cls._gen_data_paths()
-        return capi.gen_code(cls, paths, conf)
-
-    @classmethod
-    def _gen_kernels(cls, conf=default_conf):
-        from . import capi
-
-        paths = cls._gen_data_paths()
-        return capi.gen_kernels(cls, paths, conf)
-
-    @classmethod
-    def _get_inner_types(cls):
-        return cls._reftypes
+    def _get_size(cls, instance: 'UnionRef'):
+        return cls._size
 
     def _to_json(self):
         v = self.get()
@@ -299,11 +308,3 @@ class UnionRef(metaclass=MetaUnionRef):
         if hasattr(v, "_to_json"):
             v = v._to_json()
         return (classname, v)
-
-
-def is_ref(atype):
-    return isinstance(atype, Ref)
-
-
-def is_unionref(atype):
-    return isinstance(atype, MetaUnionRef)

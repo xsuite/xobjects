@@ -19,11 +19,13 @@ def np_c_strides(shape):
 def test_strides():
     shape = (2, 3, 5, 7)
 
-    assert np_c_strides(shape) == get_c_strides(shape, 8)
-    assert get_strides(shape, (0, 1, 2, 3), 8) == get_c_strides(shape, 8)
+    c_strides = (3 * 5 * 7 * 8, 5 * 7 * 8, 7 * 8, 8)
+    assert np_c_strides(shape) == c_strides
+    assert get_strides(shape, (0, 1, 2, 3), 8) == c_strides
 
-    assert np_f_strides(shape) == get_f_strides(shape, 8)
-    assert get_strides(shape, (3, 2, 1, 0), 8) == get_f_strides(shape, 8)
+    f_strides = (8, 2 * 8, 2 * 3 * 8, 2 * 3 * 5 * 8)
+    assert np_f_strides(shape) == f_strides
+    assert get_strides(shape, (3, 2, 1, 0), 8) == f_strides
 
 
 def test_iter_index():

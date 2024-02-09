@@ -171,12 +171,16 @@ class MetaHybridClass(type):
         _XoStruct._DressingClass = new_class
 
         if "_extra_c_sources" in data.keys():
-            new_class._XoStruct._extra_c_sources.extend(
-                data["_extra_c_sources"]
-            )
+            new_class._XoStruct._extra_c_sources = [
+                *new_class._XoStruct._extra_c_sources,
+                *data["_extra_c_sources"],
+            ]
 
         if "_depends_on" in data.keys():
-            new_class._XoStruct._depends_on.extend(data["_depends_on"])
+            new_class._XoStruct._depends_on = [
+                *new_class._XoStruct._depends_on,
+                *data["_depends_on"],
+            ]
 
         if "_kernels" in data.keys():
             kernels = data["_kernels"].copy()
@@ -186,6 +190,7 @@ class MetaHybridClass(type):
                         aa.atype = new_class._XoStruct
                     if isclass(aa.atype) and issubclass(aa.atype, HybridClass):
                         aa.atype = aa.atype._XoStruct
+            new_class._XoStruct._kernels = new_class._XoStruct._kernels.copy()
             new_class._XoStruct._kernels.update(kernels)
 
         for ii, tt in enumerate(new_class._XoStruct._depends_on):

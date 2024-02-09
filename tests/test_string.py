@@ -17,6 +17,10 @@ def test_string_fixed():
     assert cls.__name__ == "String10"
     assert cls._size == 10
 
+    ss = cls("Hello")
+    assert ss._size == 10
+    assert ss.to_str() == "Hello"
+
 
 def test_string_init1():
     ss = xo.String(10)

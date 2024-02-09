@@ -18,6 +18,7 @@ from .scalar import (
 from .array import Array
 from .string import String
 from .struct import Struct, Field
+from .xoclass import XoClass
 from .ref import Ref, UnionRef
 
 from .context_cpu import ContextCpu

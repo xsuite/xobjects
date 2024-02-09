@@ -23,7 +23,7 @@ setup(
     url="https://xsuite.readthedocs.io/",
     python_requires=">=3.7",
     setup_requires=[],
-    install_requires=["numpy", "cffi"],
+    install_requires=["numpy", "cffi", "scipy"],
     packages=["xobjects"],
     license="Apache 2.0",
     download_url="https://pypi.python.org/pypi/xobjects",

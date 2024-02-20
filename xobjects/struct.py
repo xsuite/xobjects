@@ -57,9 +57,11 @@ from .typeutils import (
     default_conf,
 )
 
+from .general import Print
 from .scalar import Int64
 from .array import Array
-from .context import Source
+from .context import Source, Arg, Kernel
+from .context_cpu import ContextCpu
 
 log = logging.getLogger(__name__)
 
@@ -496,7 +498,30 @@ class Struct(metaclass=MetaStruct):
         apply_to_source=(),
         save_source_as=None,
         extra_classes=(),
+        use_prebuilt_kernels=True,
     ):
+        if use_prebuilt_kernels:
+            _print_state = Print.suppress
+            Print.suppress = True
+            import xtrack as xt
+            from xtrack.prebuild_kernels import get_suitable_kernel, XT_PREBUILT_KERNELS_LOCATION
+            cls = self.__class__
+            context = self._context
+            # TODO: support other configs?
+            _default_config  = xt.Line().config
+            kernel_info = get_suitable_kernel(
+                _default_config, (cls,) + tuple(extra_classes)
+            )
+            Print.suppress = _print_state
+            if kernel_info and isinstance(context, ContextCpu):
+                module_name, _ = kernel_info
+                kernels = context.kernels_from_file(
+                    module_name=module_name,
+                    containing_dir=XT_PREBUILT_KERNELS_LOCATION,
+                    kernel_descriptions=get_kernels_with_default_particles(self),
+                )
+                context.kernels.update(kernels)
+                return
         self.compile_class_kernels(
             context=self._context,
             only_if_needed=only_if_needed,
@@ -504,6 +529,37 @@ class Struct(metaclass=MetaStruct):
             save_source_as=save_source_as,
             extra_classes=extra_classes,
         )
+
+
+def get_kernels_with_default_particles(el):
+    # prebuilt kernels only work with xp.Particles, however, at the time
+    # of compilation a lot of kernels use xp.ParticlesBase as it is not
+    # known yet which will be use.
+    import xpart as xp
+    class_kernels = {}
+    for name, ker in el._kernels.items():
+        new_args = []
+        for arg in ker.args:
+            new_arg = Arg(atype=arg.atype,
+                             pointer=arg.pointer,
+                             name=arg.name,
+                             const=arg.const,
+                             factory=arg.factory)
+            if getattr(new_arg.atype, '_DressingClass', None) == xp.ParticlesBase:
+                new_arg.atype = xp.Particles._XoStruct
+            new_args.append(new_arg)
+        if ker.ret is None:
+            new_ret = None
+        else:
+            new_ret = xo.Arg(atype=ker.ret.atype,
+                             pointer=ker.ret.pointer,
+                             name=ker.ret.name,
+                             const=ker.ret.const,
+                             factory=ker.ret.factory)
+            if getattr(new_ret.atype, '_DressingClass', None) == xp.ParticlesBase:
+                new_ret.atype = xp.Particles._XoStruct
+        class_kernels[name] = Kernel(args=new_args, ret=new_ret, c_name=ker.c_name)
+    return class_kernels
 
 
 def is_struct(atype):

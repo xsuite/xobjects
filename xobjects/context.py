@@ -230,6 +230,7 @@ class ModuleNotAvailable(object):
 
 class XContext(ABC):
     minimum_alignment = 1
+    allow_prebuilt_kernels = False
 
     def __init__(self):
         self._kernels = KernelDict()

@@ -19,7 +19,6 @@ import scipy as sp
 _forbid_compile = False
 
 from .context import (
-    Arg,
     Kernel,
     ModuleNotAvailable,
     SourceType,
@@ -146,6 +145,8 @@ class ContextCpu(XContext):
         """
         super().__init__()
         self.omp_num_threads = omp_num_threads
+        if omp_num_threads==0:
+            self.allow_prebuilt_kernels = True
 
     def __str__(self):
         if not self.openmp_enabled:
@@ -367,7 +368,6 @@ class ContextCpu(XContext):
             containing_dir=containing_dir,
         )
         out_kernels = {}
-        kernel_descriptions = _get_kernels_with_default_particles(kernel_descriptions)
         for pyname, kernel_desc in kernel_descriptions.items():
             classes = tuple(kernel_desc.get_overridable_classes())
             out_kernels[(pyname, classes)] = KernelCpu(
@@ -677,37 +677,6 @@ class BufferByteArray(XBuffer):
     def to_pointer_arg(self, offset, nbytes):
         """return data that can be used as argument in kernel"""
         return self.buffer[offset : offset + nbytes]
-
-
-def _get_kernels_with_default_particles(kernel_descriptions):
-    # prebuilt kernels only work with xp.Particles, however, at the time
-    # of compilation a lot of kernels use xp.ParticlesBase as it is not
-    # known yet which will be use.
-    import xpart as xp
-    new_descriptions = {}
-    for name, ker in kernel_descriptions.items():
-        new_args = []
-        for arg in ker.args:
-            new_arg = Arg(atype=arg.atype,
-                             pointer=arg.pointer,
-                             name=arg.name,
-                             const=arg.const,
-                             factory=arg.factory)
-            if getattr(new_arg.atype, '_DressingClass', None) == xp.ParticlesBase:
-                new_arg.atype = xp.Particles._XoStruct
-            new_args.append(new_arg)
-        if ker.ret is None:
-            new_ret = None
-        else:
-            new_ret = xo.Arg(atype=ker.ret.atype,
-                             pointer=ker.ret.pointer,
-                             name=ker.ret.name,
-                             const=ker.ret.const,
-                             factory=ker.ret.factory)
-            if getattr(new_ret.atype, '_DressingClass', None) == xp.ParticlesBase:
-                new_ret.atype = xp.Particles._XoStruct
-        new_descriptions[name] = Kernel(args=new_args, ret=new_ret, c_name=ker.c_name)
-    return new_descriptions
 
 
 class BufferNumpy(XBuffer):

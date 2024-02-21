@@ -501,27 +501,28 @@ class Struct(metaclass=MetaStruct):
         use_prebuilt_kernels=True,
     ):
         if use_prebuilt_kernels:
-            _print_state = Print.suppress
-            Print.suppress = True
-            import xtrack as xt
-            from xtrack.prebuild_kernels import get_suitable_kernel, XT_PREBUILT_KERNELS_LOCATION
             cls = self.__class__
             context = self._context
-            # TODO: support other configs?
-            _default_config  = xt.Line().config
-            kernel_info = get_suitable_kernel(
-                _default_config, (cls,) + tuple(extra_classes)
-            )
-            Print.suppress = _print_state
-            if kernel_info and isinstance(context, ContextCpu):
-                module_name, _ = kernel_info
-                kernels = context.kernels_from_file(
-                    module_name=module_name,
-                    containing_dir=XT_PREBUILT_KERNELS_LOCATION,
-                    kernel_descriptions=self._kernels,
+            if context.allow_prebuilt_kernels:
+                import xtrack as xt
+                from xtrack.prebuild_kernels import get_suitable_kernel, XT_PREBUILT_KERNELS_LOCATION
+                # TODO: support other configs?
+                _default_config  = xt.Line().config
+                _print_state = Print.suppress
+                Print.suppress = True
+                kernel_info = get_suitable_kernel(
+                    _default_config, (cls,) + tuple(extra_classes)
                 )
-                context.kernels.update(kernels)
-                return
+                Print.suppress = _print_state
+                if kernel_info:
+                    module_name, _ = kernel_info
+                    kernels = context.kernels_from_file(
+                        module_name=module_name,
+                        containing_dir=XT_PREBUILT_KERNELS_LOCATION,
+                        kernel_descriptions=self._kernels,
+                    )
+                    context.kernels.update(kernels)
+                    return
         self.compile_class_kernels(
             context=self._context,
             only_if_needed=only_if_needed,

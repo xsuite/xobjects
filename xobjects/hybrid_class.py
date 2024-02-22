@@ -192,6 +192,14 @@ class MetaHybridClass(type):
             if isclass(tt) and issubclass(tt, HybridClass):
                 new_class._XoStruct._depends_on[ii] = tt._XoStruct
 
+        # Attach methods corresponding to kernels
+        if '_kernels' in data.keys():
+            for nn, desc in data['_kernels'].items():
+                setattr(new_class, nn, PyMethodDescriptor(
+                    kernel_name=nn,
+                    additional_arg_names=tuple(arg.name for arg in desc.args),
+                ))
+
         return new_class
 
 
@@ -373,3 +381,43 @@ class HybridClass(metaclass=MetaHybridClass):
 
 class ThisClass:  # Place holder
     pass
+
+
+class PyMethod:
+
+    def __init__(self, kernel_name, element, additional_arg_names):
+        self.kernel_name = kernel_name
+        self.element = element
+        self.additional_arg_names = additional_arg_names
+
+    def __call__(self, **kwargs):
+        instance = self.element
+        context = instance.context
+
+        use_prebuilt_kernels = kwargs.pop('use_prebuilt_kernels', True)
+        only_if_needed = kwargs.pop('only_if_needed', True)
+        HybridClass.compile_kernels(instance, only_if_needed=only_if_needed,
+                                    use_prebuilt_kernels=use_prebuilt_kernels)
+        kernel = getattr(context.kernels, self.kernel_name)
+
+        el_var_name = None
+        for arg in instance._kernels[self.kernel_name].args:
+            if arg.atype == instance.__class__._XoStruct:
+                el_var_name = arg.name
+        if el_var_name is None:
+            raise ValueError(f"Kernel {self.kernel_name} does not depend "
+                           + f"on element type {instance.__class__._XoStruct} "
+                           + f"which it is attached to!")
+        kwargs[el_var_name] = instance._xobject
+
+        return kernel(**kwargs)
+
+class PyMethodDescriptor:
+    def __init__(self, kernel_name, additional_arg_names):
+        self.kernel_name = kernel_name
+        self.additional_arg_names = additional_arg_names
+
+    def __get__(self, instance, owner):
+        return PyMethod(kernel_name=self.kernel_name,
+                        element=instance,
+                        additional_arg_names=self.additional_arg_names)

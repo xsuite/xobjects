@@ -167,6 +167,7 @@ class KernelDict(dict):
     KernelDispatcher object, which dynamically dispatches the kernel call to
     the correct kernel based on the types of the arguments.
     """
+
     def __getattr__(self, attr):
         if attr.startswith("__"):
             raise AttributeError(attr)
@@ -581,6 +582,7 @@ class Kernel:
         if isinstance(self.ret, Arg) and hasattr(self.ret.atype, "_gen_c_api"):
             classes.append(self.ret.atype)
         return classes
+
 
 class Source:
     def __init__(self, source, name=None):

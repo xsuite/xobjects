@@ -475,8 +475,7 @@ class Struct(metaclass=MetaStruct):
         if only_if_needed:
             all_found = True
             for kk, kernel_description in cls._kernels.items():
-                classes = tuple(kernel_description.get_overridable_classes())
-                if (kk, classes) not in context.kernels.keys():
+                if kk not in context.kernels.keys():
                     all_found = False
                     break
             if all_found:

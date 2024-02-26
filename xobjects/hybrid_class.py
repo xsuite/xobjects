@@ -392,7 +392,7 @@ class PyMethod:
 
     def __call__(self, **kwargs):
         instance = self.element
-        context = instance.context
+        context = instance._context
 
         use_prebuilt_kernels = kwargs.pop('use_prebuilt_kernels', True)
         only_if_needed = kwargs.pop('only_if_needed', True)

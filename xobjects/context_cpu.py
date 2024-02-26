@@ -335,15 +335,14 @@ class ContextCpu(XContext):
             # Only kernel information, but no possibility to call the kernel
             out_kernels = {}
             for pyname, kernel in kernel_descriptions.items():
-                classes = tuple(kernel.description.get_overridable_classes())
-                out_kernels[(pyname, classes)] = KernelCpu(
+                out_kernels[pyname] = KernelCpu(
                     function=None,
                     description=kernel,
                     ffi_interface=None,
                     context=self,
                 )
 
-        for (pyname, _), kernel in out_kernels.items():
+        for pyname, kernel in out_kernels.items():
             kernel.source = source
             kernel.specialized_source = specialized_source
             # TODO: find better implementation?
@@ -369,8 +368,7 @@ class ContextCpu(XContext):
         )
         out_kernels = {}
         for pyname, kernel_desc in kernel_descriptions.items():
-            classes = tuple(kernel_desc.get_overridable_classes())
-            out_kernels[(pyname, classes)] = KernelCpu(
+            out_kernels[pyname] = KernelCpu(
                 function=getattr(module.lib, kernel_desc.c_name),
                 description=kernel_desc,
                 ffi_interface=module.ffi,

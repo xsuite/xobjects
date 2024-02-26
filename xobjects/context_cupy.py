@@ -471,11 +471,7 @@ class ContextCupy(XContext):
             out_kernels[pyname].source = source
             out_kernels[pyname].specialized_source = specialized_source
 
-        kernels_with_classes = {
-            (name, tuple(kernel.description.get_overridable_classes())): kernel
-            for name, kernel in out_kernels.items()
-        }
-        return kernels_with_classes
+        return out_kernels
 
     def nparray_to_context_array(self, arr):
         """
@@ -632,8 +628,9 @@ class BufferCupy(XBuffer):
 
 
 class KernelCupy(object):
-    def __init__(self, function, description, block_size, context,
-                 shared_mem_size_bytes):
+    def __init__(
+        self, function, description, block_size, context, shared_mem_size_bytes
+    ):
 
         self.function = function
         self.description = description
@@ -689,8 +686,13 @@ class KernelCupy(object):
             shared_mem_size_bytes = self.shared_mem_size_bytes
 
         grid_size = int(np.ceil(n_threads / self.block_size))
-        self.function((grid_size,), (self.block_size,), arg_list,
-                      shared_mem=shared_mem_size_bytes)
+        self.function(
+            (grid_size,),
+            (self.block_size,),
+            arg_list,
+            shared_mem=shared_mem_size_bytes,
+        )
+
 
 class FFTCupy(object):
     def __init__(self, context, data, axes):

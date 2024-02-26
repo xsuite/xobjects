@@ -168,11 +168,6 @@ class KernelDict(dict):
     the correct kernel based on the types of the arguments.
     """
 
-    def __getitem__(self, item):
-        if isinstance(item, str):
-            return KernelDispatcher(item, self)
-        return dict.__getitem__(self, item)
-
     def __getattr__(self, attr):
         if attr.startswith("__"):
             raise AttributeError(attr)
@@ -181,8 +176,7 @@ class KernelDict(dict):
 
 class KernelDispatcher:
     """
-    Dispatches a kernel call to the correct kernel based on the types of the
-    arguments.
+    Dispatches a kernel call to the correct kernel.
     """
 
     def __init__(self, kernel_name, kernels):
@@ -194,28 +188,10 @@ class KernelDispatcher:
             raise ValueError(
                 "Kernels can only be called with named arguments."
             )
-
-        classes = []
-        for arg in kwargs.values():
-            if isinstance(arg, xo.HybridClass):
-                overridable = arg._overridable
-                arg_cls = arg._XoStruct
-            elif isinstance(arg, xo.Struct):
-                arg_cls = type(arg)
-                try:
-                    overridable = arg_cls._DressingClass._overridable
-                except AttributeError:
-                    overridable = False
-            else:
-                continue
-
-            if overridable:
-                classes.append(arg_cls)
-
-        return self._kernels[(self._name, tuple(classes))](**kwargs)
+        return self._kernels[self._name](**kwargs)
 
     def set_n_threads(self, n_threads):
-        for (name, _), kernel in self._kernels.items():
+        for name, kernel in self._kernels.items():
             if name == self._name:
                 kernel.description.n_threads = n_threads
 
@@ -607,14 +583,6 @@ class Kernel:
         if isinstance(self.ret, Arg) and hasattr(self.ret.atype, "_gen_c_api"):
             classes.append(self.ret.atype)
         return classes
-
-    def get_overridable_classes(self):
-        return [
-            cls
-            for cls in self.get_classes()
-            if hasattr(cls, "_DressingClass")
-            and cls._DressingClass._overridable
-        ]
 
 
 class Source:

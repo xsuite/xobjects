@@ -497,82 +497,31 @@ class Struct(metaclass=MetaStruct):
         apply_to_source=(),
         save_source_as=None,
         extra_classes=(),
-        use_prebuilt_kernels=True,
+        prebuilt_kernels_path=None,
     ):
-        if use_prebuilt_kernels:
-            cls = self.__class__
-            context = self._context
-            if context.allow_prebuilt_kernels:
-                import xtrack as xt
-                from xtrack.prebuild_kernels import (
-                    get_suitable_kernel,
-                    XT_PREBUILT_KERNELS_LOCATION
+        context = self._context
+        if prebuilt_kernels_path:
+            class_name = type(self).__name__
+            if self._context.allow_prebuilt_kernels:
+                module_name = context.cffi_module_for_c_types(
+                    [class_name],
+                    prebuilt_kernels_path,
                 )
-                # TODO: support other configs?
-                _default_config  = xt.Line().config
-                _print_state = Print.suppress
-                Print.suppress = True
-                kernel_info = get_suitable_kernel(
-                    _default_config, (cls,) + tuple(extra_classes)
-                )
-                Print.suppress = _print_state
-                if kernel_info:
-                    module_name, _ = kernel_info
-                    extra_kernels = _kernels_with_particles(
-                        self._kernels)
+                if module_name:
                     kernels = context.kernels_from_file(
                         module_name=module_name,
-                        containing_dir=XT_PREBUILT_KERNELS_LOCATION,
-                        kernel_descriptions=extra_kernels,
+                        containing_dir=prebuilt_kernels_path,
+                        kernel_descriptions=self._kernels,
                     )
                     context.kernels.update(kernels)
                     return
         self.compile_class_kernels(
-            context=self._context,
+            context=context,
             only_if_needed=only_if_needed,
             apply_to_source=apply_to_source,
             save_source_as=save_source_as,
             extra_classes=extra_classes,
         )
-
-
-def _kernels_with_particles(kernel_descriptions):
-    # prebuilt kernels only work with xp.Particles, however, at the time of
-    # compilation a lot of kernels use xp.ParticlesBase as it is not known
-    # yet which will be used. So we fix this when reading the built kernel.
-    import xpart as xp
-    new_descriptions = {}
-    for name, ker in kernel_descriptions.items():
-        if not isinstance(ker, Kernel):
-            raise ValueError(f"Kernel {name} of type "
-                           + f"{ker.__class__.__name__} "
-                           + f"currently not supported.")
-        new_args = []
-        for arg in ker.args:
-            new_arg = Arg(atype=arg.atype,
-                          pointer=arg.pointer,
-                          name=arg.name,
-                          const=arg.const,
-                          factory=arg.factory)
-            if getattr(new_arg.atype, '_DressingClass',
-                       None) == xp.ParticlesBase:
-                new_arg.atype = xp.Particles._XoStruct
-            new_args.append(new_arg)
-        if ker.ret is None:
-            new_ret = None
-        else:
-            new_ret = Arg(atype=ker.ret.atype,
-                          pointer=ker.ret.pointer,
-                          name=ker.ret.name,
-                          const=ker.ret.const,
-                          factory=ker.ret.factory)
-            if getattr(new_ret.atype, '_DressingClass',
-                       None) == xp.ParticlesBase:
-                new_ret.atype = xp.Particles._XoStruct
-        new_descriptions[name] = Kernel(args=new_args,
-                                        ret=new_ret,
-                                        c_name=ker.c_name)
-    return new_descriptions
 
 
 def is_struct(atype):

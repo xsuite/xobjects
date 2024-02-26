@@ -508,6 +508,22 @@ class ContextCpu(XContext):
 
         return module
 
+    @staticmethod
+    def cffi_module_for_c_types(c_types, containing_dir="."):
+        path = Path(containing_dir)
+        for file in path.iterdir():
+            if not file.suffix in ['.so', '.dylib', '.dll']:
+                continue
+            module_name = file.name.split('.')[0]
+            spec = importlib.util.spec_from_file_location(module_name, str(file))
+            module = importlib.util.module_from_spec(spec)
+
+            typedefs = module.ffi.list_types()[0]
+            if set(c_types) <= set(typedefs):
+                return module_name
+
+        return None
+
     def nparray_to_context_array(self, arr):
         """
         Moves a numpy array to the device memory. No action is performed by

@@ -497,26 +497,9 @@ class Struct(metaclass=MetaStruct):
         apply_to_source=(),
         save_source_as=None,
         extra_classes=(),
-        prebuilt_kernels_path=None,
     ):
-        context = self._context
-        if prebuilt_kernels_path:
-            class_name = type(self).__name__
-            if self._context.allow_prebuilt_kernels:
-                module_name = context.cffi_module_for_c_types(
-                    [class_name],
-                    prebuilt_kernels_path,
-                )
-                if module_name:
-                    kernels = context.kernels_from_file(
-                        module_name=module_name,
-                        containing_dir=prebuilt_kernels_path,
-                        kernel_descriptions=self._kernels,
-                    )
-                    context.kernels.update(kernels)
-                    return
         self.compile_class_kernels(
-            context=context,
+            context=self._context,
             only_if_needed=only_if_needed,
             apply_to_source=apply_to_source,
             save_source_as=save_source_as,

@@ -17,6 +17,7 @@ import numpy as np
 import scipy as sp
 
 _forbid_compile = False
+_suppress_warnings = False
 
 from .context import (
     Kernel,
@@ -422,6 +423,10 @@ class ContextCpu(XContext):
             # TODO: to be handled properly
             xtr_compile_args = []
             xtr_link_args = []
+
+        if _suppress_warnings:
+            xtr_compile_args.append("-w")
+            xtr_link_args.append("-w")
 
         ffi_interface.set_source(
             module_name,

@@ -285,8 +285,8 @@ class HybridClass(metaclass=MetaHybridClass):
         else:
             obj = self
 
-        skip_fields = set(getattr(obj, '_skip_in_to_dict', []))
-        additional_fields = set(getattr(obj, '_store_in_to_dict', []))
+        skip_fields = set(getattr(obj, "_skip_in_to_dict", []))
+        additional_fields = set(getattr(obj, "_store_in_to_dict", []))
         fields_to_store = (set(obj._fields) - skip_fields) | additional_fields
 
         defaults = {}

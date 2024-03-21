@@ -307,7 +307,7 @@ class Array(metaclass=MetaArray):
             if len(args) == 0:
                 value = None
             elif len(args) == 1:
-                arg, = args
+                (arg,) = args
                 if arg is None:
                     value = None
                 else:

@@ -289,13 +289,23 @@ class HybridClass(metaclass=MetaHybridClass):
         additional_fields = set(getattr(obj, '_store_in_to_dict', []))
         fields_to_store = (set(obj._fields) - skip_fields) | additional_fields
 
+        defaults = {}
+        for field in obj._XoStruct._fields:
+            try:
+                defaults[field.name] = field.get_default()
+            except (TypeError, ValueError):
+                # The above can fail with different error types
+                # if a field type is dynamic.
+                pass
+
         for ff in fields_to_store:
             vv = getattr(obj, ff)
             if hasattr(vv, "to_dict"):
                 out[ff] = vv.to_dict()
             elif hasattr(vv, "_to_dict"):
                 out[ff] = vv._to_dict()
-            else:
+            elif np.any(defaults.get(ff) != vv):
+                # Only include those scalar values that are not default.
                 out[ff] = vv
 
         return out

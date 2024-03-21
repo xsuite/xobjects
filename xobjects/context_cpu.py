@@ -146,7 +146,7 @@ class ContextCpu(XContext):
         """
         super().__init__()
         self.omp_num_threads = omp_num_threads
-        if omp_num_threads==0:
+        if omp_num_threads == 0:
             self.allow_prebuilt_kernels = True
 
     def __str__(self):
@@ -517,10 +517,12 @@ class ContextCpu(XContext):
     def cffi_module_for_c_types(c_types, containing_dir="."):
         path = Path(containing_dir)
         for file in path.iterdir():
-            if not file.suffix in ['.so', '.dylib', '.dll']:
+            if not file.suffix in [".so", ".dylib", ".dll"]:
                 continue
-            module_name = file.name.split('.')[0]
-            spec = importlib.util.spec_from_file_location(module_name, str(file))
+            module_name = file.name.split(".")[0]
+            spec = importlib.util.spec_from_file_location(
+                module_name, str(file)
+            )
             module = importlib.util.module_from_spec(spec)
 
             typedefs = module.ffi.list_types()[0]

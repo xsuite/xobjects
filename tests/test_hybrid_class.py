@@ -310,3 +310,23 @@ def test_move_field_of_nested_fails(classes_for_test_hybrid_class_ref):
 
     with pytest.raises(MemoryError):
         outer.inner.move(_buffer=different_buffer)
+
+
+def test_to_json_defaults():
+    class A(xo.HybridClass):
+        _xofields = {
+            "a": xo.Float64[3],
+            "b": xo.Int64,
+            "c": xo.Field(xo.Int32, default=42),
+            "d": xo.Field(xo.Int32, default_factory=lambda: 7),
+        }
+
+    a = A(c=42)
+    assert a.to_dict() == {"__class__": "A"}
+
+    b = A(a=[1, 2, 3], d=8)
+    b_dict = b.to_dict()
+    assert b_dict.pop("__class__") == "A"
+    assert np.all(b_dict.pop("a") == [1, 2, 3])
+    assert b_dict.pop("d") == 8
+    assert b_dict == {}

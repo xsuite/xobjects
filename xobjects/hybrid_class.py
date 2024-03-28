@@ -46,8 +46,8 @@ class _FieldOfDressed:
             #  in the latter case reference mechanism is used)
             if not (
                 container._xobject._buffer is value._xobject._buffer
-                and getattr(container._xobject, self.name)._offset
-                == value._xobject._offset
+                and (getattr(container._xobject, self.name) is not None and
+                    getattr(container._xobject, self.name)._offset == value._xobject._offset)
             ):
                 setattr(container._xobject, self.name, value._xobject)
 

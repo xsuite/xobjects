@@ -202,7 +202,7 @@ class HybridClass(metaclass=MetaHybridClass):
     _force_moveable = False
 
     def move(self, _context=None, _buffer=None, _offset=None):
-        if not self._movable:
+        if not self._movable and not self._force_moveable:
             raise MemoryError(
                 "This object cannot be moved, likely because it "
                 "lives within another. Please, make a copy."

@@ -199,6 +199,7 @@ class MetaHybridClass(type):
 class HybridClass(metaclass=MetaHybridClass):
     _movable = True
     _overridable = True
+    _force_moveable = False
 
     def move(self, _context=None, _buffer=None, _offset=None):
         if not self._movable:
@@ -207,7 +208,7 @@ class HybridClass(metaclass=MetaHybridClass):
                 "lives within another. Please, make a copy."
             )
 
-        if self._xobject._has_refs:
+        if self._xobject._has_refs and not self._force_moveable:
             raise MemoryError(
                 "This object cannot be moved, as it contains "
                 "references to other objects."

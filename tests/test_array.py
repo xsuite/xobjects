@@ -125,6 +125,12 @@ def test_array_allocation():
     assert ss._itemtype == xo.Int64
 
 
+def test_static_array_allocation_with_none():
+    MyArray = xo.Int64[10]
+    ss = MyArray(None)
+    assert ss._itemtype == xo.Int64
+
+
 def test_array_sshape_stype():
     Array1D = xo.Int64[3]
     Array2D = xo.Int64[2, 3]

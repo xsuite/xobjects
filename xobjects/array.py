@@ -307,10 +307,14 @@ class Array(metaclass=MetaArray):
             if len(args) == 0:
                 value = None
             elif len(args) == 1:
-                shape = get_shape_from_array(args[0], len(cls._shape))
-                if shape != cls._shape:
-                    raise ValueError(f"shape not valid for {args[0]} ")
-                value = args[0]
+                (arg,) = args
+                if arg is None:
+                    value = None
+                else:
+                    shape = get_shape_from_array(arg, len(cls._shape))
+                    if shape != cls._shape:
+                        raise ValueError(f"shape not valid for {arg} ")
+                    value = arg
             elif len(args) > 1:
                 raise ValueError("too many arguments")
             size = cls._size

@@ -312,9 +312,19 @@ class HybridClass(metaclass=MetaHybridClass):
 
         return out
 
+    @staticmethod
+    def _static_from_dict(cls, dct, _context=None, _buffer=None, _offset=None):
+        return cls(
+            **dct,
+            _context=_context,
+            _buffer=_buffer,
+            _offset=_offset,
+            _kwargs_name_check=False,
+        )
+
     @classmethod
     def from_dict(cls, dct, _context=None, _buffer=None, _offset=None):
-        return cls(
+        return HybridClass._static_from_dict(cls,
             **dct,
             _context=_context,
             _buffer=_buffer,

@@ -36,4 +36,6 @@ from .linkedarray import BypassLinked
 
 from .general import _print
 
+from .test_helpers import assert_allclose
+
 from ._version import __version__

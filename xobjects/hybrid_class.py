@@ -325,7 +325,7 @@ class HybridClass(metaclass=MetaHybridClass):
     @classmethod
     def from_dict(cls, dct, _context=None, _buffer=None, _offset=None):
         return HybridClass._static_from_dict(cls,
-            **dct,
+            dct,
             _context=_context,
             _buffer=_buffer,
             _offset=_offset,

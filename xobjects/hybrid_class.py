@@ -329,7 +329,6 @@ class HybridClass(metaclass=MetaHybridClass):
             _context=_context,
             _buffer=_buffer,
             _offset=_offset,
-            _kwargs_name_check=False,
         )
 
     def copy(self, _context=None, _buffer=None, _offset=None):

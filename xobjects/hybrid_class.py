@@ -379,13 +379,24 @@ class HybridClass(metaclass=MetaHybridClass):
 
     def __repr__(self):
 
-        fnames = []
-        if hasattr(self, "_add_to_repr"):
-            fnames += self._add_to_repr
+        if hasattr(self, "_repr_fields"):
+            fnames = self._repr_fields
+        else:
+            fnames = []
+            if hasattr(self, "_add_to_repr"):
+                fnames += self._add_to_repr
+            fnames += [fname for fname in self._fields]
+            if hasattr(self, "_skip_in_repr"):
+                fnames = [ff for ff in fnames if ff not in self._skip_in_repr]
 
-        fnames += [fname for fname in self._fields]
-
-        args = [f"{fname}={getattr(self, fname)}" for fname in fnames]
+        args = []
+        for fname in fnames:
+            vv = getattr(self, fname)
+            if isinstance(vv, float):
+                vvrepr = f"{vv:.3g}"
+            else:
+                vvrepr = repr(vv)
+            args.append(f"{fname}={vvrepr}")
         return f'{type(self).__name__}({", ".join(args)})'
 
 

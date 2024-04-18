@@ -378,7 +378,14 @@ class HybridClass(metaclass=MetaHybridClass):
         return self._xobject.compile_kernels(*args, **kwargs)
 
     def __repr__(self):
-        args = [f"{fname}={getattr(self, fname)}" for fname in self._fields]
+
+        fnames = []
+        if hasattr(self, "_add_to_repr"):
+            fnames += self._add_to_repr
+
+        fnames += [fname for fname in self._fields]
+
+        args = [f"{fname}={getattr(self, fname)}" for fname in fnames]
         return f'{type(self).__name__}({", ".join(args)})'
 
 

@@ -17,8 +17,8 @@ _print = Print()
 
 
 def assert_allclose(a, b, rtol=1e-7, atol=1e-7):
-    if hasattr(a, 'get'):
+    if hasattr(a, "get"):
         a = a.get()
-    if hasattr(b, 'get'):
+    if hasattr(b, "get"):
         b = b.get()
     np_assert_allclose(a, b, rtol=rtol, atol=atol)

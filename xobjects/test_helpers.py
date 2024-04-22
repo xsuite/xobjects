@@ -5,7 +5,6 @@
 
 from functools import wraps
 from typing import Callable, Iterable, Union
-from numpy.testing import assert_allclose as np_assert_allclose
 
 import pytest
 
@@ -84,10 +83,3 @@ def requires_context(context_name: str):
         return lambda test_function: test_function
 
     return pytest.mark.skip(f"{context_name} is unavailable on this platform.")
-
-def assert_allclose(a, b, rtol=1e-7, atol=1e-7):
-    if hasattr(a, 'get'):
-        a = a.get()
-    if hasattr(b, 'get'):
-        b = b.get()
-    np_assert_allclose(a, b, rtol=rtol, atol=atol)

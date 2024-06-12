@@ -3,6 +3,7 @@
 # Copyright (c) CERN, 2024.                   #
 # ########################################### #
 from numpy.testing import assert_allclose as np_assert_allclose
+import numpy as np
 
 
 class Print:

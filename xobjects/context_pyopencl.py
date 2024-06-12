@@ -218,7 +218,9 @@ class ContextPyopencl(XContext):
             with open(save_source_as, "w") as fid:
                 fid.write(specialized_source)
 
-        prg = cl.Program(self.context, specialized_source).build()
+        prg = cl.Program(self.context, specialized_source).build(
+            options="-cl-std=CL2.0"
+        )
 
         out_kernels = {}
         for pyname, kernel in kernel_descriptions.items():

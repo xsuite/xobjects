@@ -21,4 +21,12 @@ def assert_allclose(a, b, rtol=1e-7, atol=1e-7):
         a = a.get()
     if hasattr(b, "get"):
         b = b.get()
+    try:
+        a = np.squeeze(a)
+    except:
+        pass
+    try:
+        b = np.squeeze(b)
+    except:
+        pass
     np_assert_allclose(a, b, rtol=rtol, atol=atol)

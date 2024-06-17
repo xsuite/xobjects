@@ -219,7 +219,7 @@ class ContextPyopencl(XContext):
                 fid.write(specialized_source)
 
         prg = cl.Program(self.context, specialized_source).build(
-            options="-cl-std=CL2.0"
+            options="-cl-std=CL2.0",
         )
 
         out_kernels = {}
@@ -237,6 +237,11 @@ class ContextPyopencl(XContext):
             out_kernels[pyname].specialized_source = specialized_source
 
         return out_kernels
+
+    def __str__(self):
+        platform_id = cl.get_platforms().index(self.platform)
+        device_id = self.platform.get_devices().index(self.device)
+        return f"{type(self).__name__}:{platform_id}.{device_id}"
 
     def nparray_to_context_array(self, arr):
         """

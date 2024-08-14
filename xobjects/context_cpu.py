@@ -106,6 +106,9 @@ class LinkedArrayCpu(BaseLinkedArray, np.ndarray):
             order="C",
         )
 
+    def copy(self):
+        return np.array(self)
+
 
 def _so_for_module_name(name, containing_dir=".") -> Path:
     # The so file name is something like:

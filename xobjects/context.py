@@ -210,19 +210,30 @@ class XContext(ABC):
 
     def __init__(self):
         self._kernels = KernelDict()
-        self._buffers = []
+        self._buffers = weakref.WeakSet()
+        self._allocations = 0
 
     def __str__(self):
         return type(self).__name__
 
     def new_buffer(self, capacity=1048576):
         buf = self._make_buffer(capacity=capacity)
-        self.buffers.append(weakref.finalize(buf, log.debug, "free buf"))
+        self._buffers.add(buf)
+        self._allocations += 1
         return buf
+
+    def __getstate__(self):
+        state = self.__dict__
+        del state["_buffers"]
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._buffers = weakref.WeakSet()
 
     @property
     def buffers(self):
-        return self._buffers
+        return list(self._buffers)
 
     @property
     def kernels(self):

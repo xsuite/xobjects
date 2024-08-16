@@ -634,7 +634,6 @@ class KernelCupy(object):
     def __init__(
         self, function, description, block_size, context, shared_mem_size_bytes
     ):
-
         self.function = function
         self.description = description
         self.block_size = block_size

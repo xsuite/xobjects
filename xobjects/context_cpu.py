@@ -10,6 +10,7 @@ import sysconfig
 import uuid
 from pathlib import Path
 from typing import Callable, Dict, List, Sequence, Tuple
+import weakref
 
 from .general import _print
 
@@ -105,6 +106,9 @@ class LinkedArrayCpu(BaseLinkedArray, np.ndarray):
             strides=a.strides,
             order="C",
         )
+
+    def copy(self):
+        return np.array(self)
 
 
 def _so_for_module_name(name, containing_dir=".") -> Path:
@@ -642,10 +646,12 @@ class ContextCpu(XContext):
     def __getstate__(self):
         state = self.__dict__.copy()
         state["_kernels"] = {}
+        del state["_buffers"]
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
+        self._buffers = weakref.WeakSet()
 
 
 class BufferByteArray(XBuffer):

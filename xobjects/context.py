@@ -224,7 +224,7 @@ class XContext(ABC):
 
     @property
     def buffers(self):
-        return self._buffers
+        return list(self._buffers)
 
     @property
     def kernels(self):

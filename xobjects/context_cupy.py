@@ -473,6 +473,9 @@ class ContextCupy(XContext):
 
         return out_kernels
 
+    def __str__(self):
+        return f"{type(self).__name__}:{cupy.cuda.get_device_id()}"
+
     def nparray_to_context_array(self, arr):
         """
         Copies a numpy array to the device memory.
@@ -631,7 +634,6 @@ class KernelCupy(object):
     def __init__(
         self, function, description, block_size, context, shared_mem_size_bytes
     ):
-
         self.function = function
         self.description = description
         self.block_size = block_size

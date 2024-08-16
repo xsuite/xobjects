@@ -10,6 +10,7 @@ import sysconfig
 import uuid
 from pathlib import Path
 from typing import Callable, Dict, List, Sequence, Tuple
+import weakref
 
 from .general import _print
 
@@ -645,10 +646,12 @@ class ContextCpu(XContext):
     def __getstate__(self):
         state = self.__dict__.copy()
         state["_kernels"] = {}
+        del state["_buffers"]
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
+        self._buffers = weakref.WeakSet()
 
 
 class BufferByteArray(XBuffer):

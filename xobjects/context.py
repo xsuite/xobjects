@@ -222,6 +222,15 @@ class XContext(ABC):
         self._allocations += 1
         return buf
 
+    def __getstate__(self):
+        state = self.__dict__
+        del state["_buffers"]
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._buffers = weakref.WeakSet()
+
     @property
     def buffers(self):
         return list(self._buffers)

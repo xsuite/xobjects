@@ -471,7 +471,7 @@ def gen_method_switch(cls, path, conf, method):
         #endif"""
         )
     lst.append("  }")
-    lst.append("  return 0;")
+    lst.append(f"  return{'' if method.ret is None else ' 0'};")
     lst.append("}")
     return "\n".join(lst), kernel
 

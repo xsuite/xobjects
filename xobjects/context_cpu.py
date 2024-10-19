@@ -399,7 +399,7 @@ class ContextCpu(XContext):
 
         for pyname, kernel in kernel_descriptions.items():
             # check if kernel not already declared
-            if f' {kernel.c_name}(' not in cdefs:
+            if f" {kernel.c_name}(" not in cdefs:
                 signature = cdef_from_kernel(kernel, pyname)
                 ffi_interface.cdef(signature)
                 log.debug(f"cffi def {pyname} {signature}")

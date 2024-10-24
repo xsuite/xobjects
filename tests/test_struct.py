@@ -3,6 +3,7 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 import cffi
+import numpy as np
 
 import xobjects as xo
 from xobjects.test_helpers import for_all_test_contexts, requires_context
@@ -211,6 +212,88 @@ def test_copy_dynamic():
     assert s1.b[1] == s2.b[1]
     s1.b[1] = 33
     assert s2.b[1] == 4
+
+
+def test_kernel_namings():
+    class MyStruct(xo.Struct):
+        n  = xo.Int32
+        var_mult_1 = xo.Float64[:]
+        var_mult_2 = xo.Float64[:]
+        var_mult_3 = xo.Float64[:]
+        var_mult_4 = xo.Float64[:]
+
+        _extra_c_sources = [r"""
+double mul(MyStruct stru) {
+    int32_t n = MyStruct_get_n(stru);
+    double* var_mult_1 = MyStruct_getp1_var_mult_1(stru, 0);
+    double* var_mult_2 = MyStruct_getp1_var_mult_2(stru, 0);
+    double y = 0;
+    for (int32_t tid=0; tid<n; tid++){
+        y+= var_mult_1[tid] * var_mult_2[tid];
+        }
+    return y;
+    }
+
+double mult(MyStruct stru) {
+    int32_t n = MyStruct_get_n(stru);
+    double* var_mult_1 = MyStruct_getp1_var_mult_1(stru, 0);
+    double* var_mult_2 = MyStruct_getp1_var_mult_2(stru, 0);
+    double* var_mult_3 = MyStruct_getp1_var_mult_3(stru, 0);
+    double y = 0;
+    for (int32_t tid=0; tid<n; tid++){
+        y+= var_mult_1[tid] * var_mult_2[tid] * var_mult_3[tid];
+        }
+    return y;
+    }
+
+double mult_four(MyStruct stru) {
+    int32_t n = MyStruct_get_n(stru);
+    double* var_mult_1 = MyStruct_getp1_var_mult_1(stru, 0);
+    double* var_mult_2 = MyStruct_getp1_var_mult_2(stru, 0);
+    double* var_mult_3 = MyStruct_getp1_var_mult_3(stru, 0);
+    double* var_mult_4 = MyStruct_getp1_var_mult_4(stru, 0);
+    double y = 0;
+    for (int32_t tid=0; tid<n; tid++){
+        y+= var_mult_1[tid] * var_mult_2[tid] * var_mult_3[tid] * var_mult_4[tid];
+        }
+    return y;
+    }"""]
+
+    kernel_descriptions = {
+        "mul": xo.Kernel(
+            args=[xo.Arg(MyStruct, name="stru")],
+            ret=xo.Arg(xo.Float64),
+        ),
+        "mult": xo.Kernel(
+            c_name="mult",
+            args=[xo.Arg(MyStruct, name="stru")],
+            ret=xo.Arg(xo.Float64),
+        ),
+        "pyname_mul": xo.Kernel(
+            c_name="mult_four",
+            args=[xo.Arg(MyStruct, name="stru")],
+            ret=xo.Arg(xo.Float64),
+        )
+    }
+
+    a1 = np.arange(10.0)
+    a2 = np.arange(10.0)
+    a3 = np.arange(10.0)
+    a4 = np.arange(10.0)
+    stru = MyStruct(n=10, var_mult_1=a1, var_mult_2=a2, var_mult_3=a3, var_mult_4=a4)
+
+    ctx = stru._context
+    ctx.add_kernels(kernels=kernel_descriptions)
+    assert "mul" in ctx.kernels
+    # assert "mult" in ctx.kernels
+    assert "pyname_mul" in ctx.kernels
+
+    y = ctx.kernels.mul(stru=stru)
+    assert y == 285.0
+    y = ctx.kernels.mult(stru=stru)
+    assert y == 2025.0
+    y = ctx.kernels.pyname_mul(stru=stru)
+    assert y == 15333.0
 
 
 @requires_context("ContextCpu")

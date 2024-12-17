@@ -216,13 +216,14 @@ def test_copy_dynamic():
 
 def test_kernel_namings():
     class MyStruct(xo.Struct):
-        n  = xo.Int32
+        n = xo.Int32
         var_mult_1 = xo.Float64[:]
         var_mult_2 = xo.Float64[:]
         var_mult_3 = xo.Float64[:]
         var_mult_4 = xo.Float64[:]
 
-        _extra_c_sources = [r"""
+        _extra_c_sources = [
+            r"""
 double mul(MyStruct stru) {
     int32_t n = MyStruct_get_n(stru);
     double* var_mult_1 = MyStruct_getp1_var_mult_1(stru, 0);
@@ -257,7 +258,8 @@ double mult_four(MyStruct stru) {
         y+= var_mult_1[tid] * var_mult_2[tid] * var_mult_3[tid] * var_mult_4[tid];
         }
     return y;
-    }"""]
+    }"""
+        ]
 
     kernel_descriptions = {
         "mul": xo.Kernel(
@@ -273,14 +275,16 @@ double mult_four(MyStruct stru) {
             c_name="mult_four",
             args=[xo.Arg(MyStruct, name="stru")],
             ret=xo.Arg(xo.Float64),
-        )
+        ),
     }
 
     a1 = np.arange(10.0)
     a2 = np.arange(10.0)
     a3 = np.arange(10.0)
     a4 = np.arange(10.0)
-    stru = MyStruct(n=10, var_mult_1=a1, var_mult_2=a2, var_mult_3=a3, var_mult_4=a4)
+    stru = MyStruct(
+        n=10, var_mult_1=a1, var_mult_2=a2, var_mult_3=a3, var_mult_4=a4
+    )
 
     ctx = stru._context
     ctx.add_kernels(kernels=kernel_descriptions)

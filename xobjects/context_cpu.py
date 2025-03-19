@@ -169,8 +169,8 @@ class ContextCpu(XContext):
         specialize=True,
         apply_to_source=(),
         save_source_as=None,
-        extra_compile_args: Sequence[str] = ("-O3", "-Wno-unused-function"),
-        extra_link_args: Sequence[str] = ("-O3",),
+        extra_compile_args: Sequence[str] = (),
+        extra_link_args: Sequence[str] = (),
         extra_cdef="",
         extra_classes=(),
         extra_headers=(),
@@ -271,13 +271,16 @@ class ContextCpu(XContext):
         specialize=True,
         apply_to_source=(),
         save_source_as=None,
-        extra_compile_args=("-O3", "-Wno-unused-function"),
-        extra_link_args=("-O3",),
+        extra_compile_args=(),
+        extra_link_args=(),
         extra_cdef="",
         extra_classes=(),
         extra_headers=(),
         compile=True,  # noqa
     ) -> Dict[Tuple[str, tuple], "KernelCpu"]:
+        extra_compile_args += ("-O3", "-Wno-unused-function")
+        extra_link_args += ("-O3",)
+
         # Determine names and paths
         clean_up_so = not module_name
         module_name = module_name or str(uuid.uuid4().hex)
@@ -409,20 +412,25 @@ class ContextCpu(XContext):
             ffi_interface.cdef("int omp_get_max_threads();")
 
         # Compile
-        xtr_compile_args = ["-std=c99"]
-        xtr_link_args = ["-std=c99"]
+        xtr_compile_args = ["-std=c99", "-DXO_CONTEXT_CPU"]
+        xtr_link_args = ["-std=c99", "-DXO_CONTEXT_CPU"]
         xtr_compile_args += extra_compile_args
         xtr_link_args += extra_link_args
 
         if self.openmp_enabled:
             xtr_compile_args.append("-fopenmp")
             xtr_link_args.append("-fopenmp")
+            xtr_compile_args.append("-DXO_CONTEXT_CPU_OPENMP")
+            xtr_link_args.append("-DXO_CONTEXT_CPU_OPENMP")
 
             # https://mac.r-project.org/openmp/
             # on macos comment the above and uncomment the below flags to compile OpenMP with Xcode clang:
             # xtr_compile_args.append("-Xclang")
             # xtr_compile_args.append("-fopenmp")
             # xtr_link_args.append("-lomp")
+        else:
+            xtr_compile_args.append("-DXO_CONTEXT_CPU_SERIAL")
+            xtr_link_args.append("-DXO_CONTEXT_CPU_SERIAL")
 
         if os.name == "nt":  # windows
             # TODO: to be handled properly

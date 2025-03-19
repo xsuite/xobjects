@@ -96,7 +96,7 @@ class JEncoder(json.JSONEncoder):
 def _build_xofields_dict(bases, data):
     if "_xofields" in data.keys():
         xofields = data["_xofields"].copy()
-    elif any(map(lambda b: hasattr(b, "_xofields"), bases)):
+    elif any(hasattr(b, "_xofields") for b in bases):
         n_filled = 0
         for bb in bases:
             if hasattr(bb, "_xofields") and len(bb._xofields.keys()) > 0:

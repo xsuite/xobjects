@@ -416,6 +416,7 @@ class ContextCupy(XContext):
         specialize=True,
         apply_to_source=(),
         save_source_as=None,
+        extra_compile_args=(),
         extra_cdef=None,
         extra_classes=(),
         extra_headers=(),
@@ -454,7 +455,10 @@ class ContextCupy(XContext):
             with open(save_source_as, "w") as fid:
                 fid.write(specialized_source)
 
-        module = cupy.RawModule(code=specialized_source)
+        extra_compile_args = (*extra_compile_args, "-DXO_CONTEXT_CUDA")
+        module = cupy.RawModule(
+            code=specialized_source, options=extra_compile_args
+        )
 
         out_kernels = {}
         for pyname, kernel in kernel_descriptions.items():

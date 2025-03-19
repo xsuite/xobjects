@@ -254,6 +254,7 @@ class XContext(ABC):
         extra_classes: Sequence[Type] = (),
         extra_headers: Sequence[SourceType] = (),
         compile: bool = True,  # noqa
+        extra_compile_args: Sequence[str] = (),
     ):
         """
         Adds user-defined kernels to the context. The kernel source
@@ -333,6 +334,7 @@ class XContext(ABC):
             extra_classes=extra_classes,
             extra_headers=extra_headers,
             compile=compile,
+            extra_compile_args=extra_compile_args,
         )
         self.kernels.update(generated_kernels)
 
@@ -348,6 +350,7 @@ class XContext(ABC):
         extra_classes: Sequence[Type],
         extra_headers: Sequence[SourceType],
         compile: bool,
+        extra_compile_args: Sequence[str],
     ) -> Dict[Tuple[str, tuple], KernelType]:
         pass
 

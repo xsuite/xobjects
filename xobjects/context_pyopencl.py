@@ -180,6 +180,7 @@ class ContextPyopencl(XContext):
         specialize=True,
         apply_to_source=(),
         save_source_as=None,
+        extra_compile_args=(),
         extra_cdef=None,
         extra_classes=(),
         extra_headers=(),
@@ -218,8 +219,13 @@ class ContextPyopencl(XContext):
             with open(save_source_as, "w") as fid:
                 fid.write(specialized_source)
 
+        extra_compile_args = (
+            *extra_compile_args,
+            "-cl-std=CL2.0",
+            "-DXO_CONTEXT_CL",
+        )
         prg = cl.Program(self.context, specialized_source).build(
-            options="-cl-std=CL2.0",
+            options=extra_compile_args,
         )
 
         out_kernels = {}

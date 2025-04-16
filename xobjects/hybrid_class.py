@@ -40,7 +40,6 @@ class _FieldOfDressed:
         if self.isnplikearray:
             self.__get__(container=container)[:] = value
         elif hasattr(value, "_xobject"):  # value is a dressed xobject
-
             # Copy xobject data from value inside self._xobject
             # (unless same memory area or Ref and same buffer,
             #  in the latter case reference mechanism is used)
@@ -381,7 +380,6 @@ class HybridClass(metaclass=MetaHybridClass):
         return self._xobject.compile_kernels(*args, **kwargs)
 
     def __repr__(self):
-
         if hasattr(self, "_repr_fields"):
             fnames = self._repr_fields
         else:
@@ -395,10 +393,7 @@ class HybridClass(metaclass=MetaHybridClass):
         args = []
         for fname in fnames:
             vv = getattr(self, fname)
-            if isinstance(vv, float):
-                vvrepr = f"{vv:.3g}"
-            else:
-                vvrepr = repr(vv)
+            vvrepr = repr(vv)
             args.append(f"{fname}={vvrepr}")
         return f'{type(self).__name__}({", ".join(args)})'
 

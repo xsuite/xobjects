@@ -17,7 +17,7 @@ class Print:
 _print = Print()
 
 
-def assert_allclose(a, b, rtol=1e-7, atol=1e-7):
+def assert_allclose(a, b, rtol=0, atol=0, max_outliers=0):
     if hasattr(a, "get"):
         a = a.get()
     if hasattr(b, "get"):
@@ -30,4 +30,23 @@ def assert_allclose(a, b, rtol=1e-7, atol=1e-7):
         b = np.squeeze(b)
     except:
         pass
-    np_assert_allclose(a, b, rtol=rtol, atol=atol)
+
+    try:
+        np_assert_allclose(a, b, rtol=rtol, atol=atol)
+    except AssertionError as e:
+        if max_outliers == 0:
+            raise e
+        if not allclose_with_outliers(a, b, rtol, atol, max_outliers):
+            raise AssertionError(
+                "Arrays are not close enough, even with outliers allowed."
+            ) from e
+
+
+def allclose_with_outliers(a, b, rtol=1e-7, atol=0, max_outliers=0):
+    a = np.asanyarray(a)
+    b = np.asanyarray(b)
+    diff = np.abs(a - b)
+    allowed = atol + rtol * np.abs(b)
+    mask = diff > allowed
+    num_outliers = np.count_nonzero(mask)
+    return num_outliers <= max_outliers

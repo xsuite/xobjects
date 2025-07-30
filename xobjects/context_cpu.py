@@ -422,12 +422,6 @@ class ContextCpu(XContext):
             xtr_link_args.append("-fopenmp")
             xtr_compile_args.append("-DXO_CONTEXT_CPU_OPENMP")
             xtr_link_args.append("-DXO_CONTEXT_CPU_OPENMP")
-
-            # https://mac.r-project.org/openmp/
-            # on macos comment the above and uncomment the below flags to compile OpenMP with Xcode clang:
-            # xtr_compile_args.append("-Xclang")
-            # xtr_compile_args.append("-fopenmp")
-            # xtr_link_args.append("-lomp")
         else:
             xtr_compile_args.append("-DXO_CONTEXT_CPU_SERIAL")
             xtr_link_args.append("-DXO_CONTEXT_CPU_SERIAL")

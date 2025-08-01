@@ -6,9 +6,9 @@
 import logging
 import os
 import weakref
-import xobjects as xo
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from importlib.metadata import entry_points
 from pathlib import Path
 from typing import (
     Dict,
@@ -353,6 +353,26 @@ class XContext(ABC):
         extra_compile_args: Sequence[str],
     ) -> Dict[Tuple[str, tuple], KernelType]:
         pass
+
+    def get_installed_c_source_paths(self) -> List[str]:
+        """Returns a list of include paths registered in dependent packages.
+
+        In a package that depends on xobjects, you can register C source paths
+        using the entry point `xobjects.c_sources`. A path to the directory
+        containing the specified module will be added to the include path when
+        building kernels. For example, the following will allow to write
+        ``#include <xtrack/path/to/some/header.h>`` in kernel sources:
+
+         .. code-block:: toml
+            [project.entry-points.xobjects]
+            include = "xtrack"
+        """
+        sources = []
+        for ep in entry_points(group='xobjects', name='include'):
+            module = ep.load()
+            path = Path(module.__file__).parents[1]
+            sources.append(str(path))
+        return sources
 
     @abstractmethod
     def nparray_to_context_array(self, arr):

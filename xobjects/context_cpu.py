@@ -427,7 +427,7 @@ class ContextCpu(XContext):
             xtr_link_args.append("-DXO_CONTEXT_CPU_SERIAL")
 
         extra_include_paths = self.get_installed_c_source_paths()
-        include_flags = [f'-I{path}' for path in extra_include_paths]
+        include_flags = [f"-I{path}" for path in extra_include_paths]
         xtr_compile_args.extend(include_flags)
         xtr_link_args.extend(include_flags)
 

@@ -368,7 +368,7 @@ class XContext(ABC):
             include = "xtrack"
         """
         sources = []
-        for ep in entry_points(group='xobjects', name='include'):
+        for ep in entry_points(group="xobjects", name="include"):
             module = ep.load()
             path = Path(module.__file__).parents[1]
             sources.append(str(path))

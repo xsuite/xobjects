@@ -220,7 +220,7 @@ class ContextPyopencl(XContext):
                 fid.write(specialized_source)
 
         extra_include_paths = self.get_installed_c_source_paths()
-        include_flags = [f'-I{path}' for path in extra_include_paths]
+        include_flags = [f"-I{path}" for path in extra_include_paths]
 
         extra_compile_args = (
             *extra_compile_args,

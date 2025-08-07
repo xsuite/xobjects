@@ -1,4 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xobjects"
+dynamic = ["version"]
+description = "In-memory serialization and code generator for CPU and GPU"
+readme = ""
+authors = [
+    { name = "Riccardo De Maria", email = "riccardo.de.maria@cern.ch" }
+]
+license = { text = "Apache 2.0" }
+requires-python = ">=3.7"
+dependencies = [
+    "numpy",
+    "cffi",
+    "scipy"
+]
+[project.urls]
+Homepage = "https://xsuite.readthedocs.io/"
+"Bug Tracker" = "https://github.com/xsuite/xsuite/issues"
+Documentation = "https://xsuite.readthedocs.io/"
+"Source Code" = "https://github.com/xsuite/xobjects"
+"Download" = "https://pypi.python.org/pypi/xobjects"
+
+[project.optional-dependencies]
+tests = ["pytest", "pytest-mock"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["xobjects"]
+
+[tool.setuptools.dynamic]
+version = {attr = "xobjects._version.__version__"}
+
 [tool.black]
 line-length = 79
-target-version = ['py36', 'py37', 'py38']
+target-version = ['py310', 'py311', 'py312']
 include = '\.pyi?$'
+
+[project.entry-points.xobjects]
+include = "xobjects"

@@ -472,9 +472,13 @@ class XBuffer(ABC):
         self.capacity = newcapacity
 
     def free(self, offset, size):
+        if offset < 0 or offset + size > self.capacity:
+            raise ValueError("Cannot free outside of buffer")
         nch = Chunk(offset, offset + size)
         # insert sorted
-        if offset > self.chunks[-1].start:  # new chuck at the end
+        if len(self.chunks) == 0:
+            self.chunks.append(nch)
+        elif offset > self.chunks[-1].start:  # new chuck at the end
             self.chunks.append(nch)
         else:  # new chuck needs to be inserted
             for ic, ch in enumerate(self.chunks):

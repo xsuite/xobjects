@@ -407,6 +407,8 @@ class HybridClass(metaclass=MetaHybridClass):
             if hasattr(self, "_add_to_repr"):
                 fnames += self._add_to_repr
             fnames += [fname for fname in self._fields]
+            if hasattr(self, "_extra_fields_in_to_dict"):
+                fnames += self._extra_fields_in_to_dict
             if hasattr(self, "_skip_in_repr"):
                 fnames = [ff for ff in fnames if ff not in self._skip_in_repr]
 

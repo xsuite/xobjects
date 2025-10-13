@@ -292,7 +292,9 @@ class HybridClass(metaclass=MetaHybridClass):
 
         skip_fields = set(getattr(obj, "_skip_in_to_dict", []))
         additional_fields = set(getattr(obj, "_store_in_to_dict", []))
+        extra_fields = set(getattr(obj, "_extra_fields_in_to_dict", []))
         fields_to_store = (set(obj._fields) - skip_fields) | additional_fields
+        fields_to_store |= extra_fields
 
         defaults = {}
         for field in obj._XoStruct._fields:
@@ -344,7 +346,21 @@ class HybridClass(metaclass=MetaHybridClass):
         xobject = self._XoStruct(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
         )
-        return self.__class__(_xobject=xobject)
+        # Get the python-only attributes
+        additional_fields = set(getattr(self, "_extra_fields_in_to_dict", []))
+        python_kwargs = {}
+        for field in additional_fields:
+            vv = getattr(self, field)
+            if hasattr(vv, "copy"):
+                try:
+                    python_kwargs[field] = vv.copy(
+                        _context=_context, _buffer=_buffer, _offset=_offset
+                    )
+                except TypeError:
+                    python_kwargs[field] = vv.copy()
+            else:
+                python_kwargs[field] = vv
+        return self.__class__(_xobject=xobject, **python_kwargs)
 
     @property
     def _buffer(self):

@@ -345,9 +345,9 @@ class HybridClass(metaclass=MetaHybridClass):
         new = self.__class__.__new__(self.__class__)
         new.__dict__.update(self.__dict__)
         for kk, vv in new.__dict__.items():
-            if kk == '_xobject':
+            if kk == "_xobject":
                 continue
-            if hasattr(vv, 'copy'):
+            if hasattr(vv, "copy"):
                 new.__dict__[kk] = vv.copy()
         new._xobject = new_xobject
         return new

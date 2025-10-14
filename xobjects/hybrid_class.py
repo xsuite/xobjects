@@ -307,8 +307,6 @@ class HybridClass(metaclass=MetaHybridClass):
             vv = getattr(obj, ff)
             if hasattr(vv, "to_dict"):
                 out[ff] = vv.to_dict()
-            elif hasattr(vv, "_to_json"):
-                out[ff] = vv._to_json()
             elif hasattr(vv, "_to_dict"):
                 out[ff] = vv._to_dict()
             elif np.any(defaults.get(ff) != vv):

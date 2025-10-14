@@ -690,10 +690,13 @@ class Array(metaclass=MetaArray):
         return [cls._itemtype]
 
     def _to_json(self):
+        raise NameError("`_to_json` has been removed. Use `_to_dict` instead.")
+
+    def _to_dict(self):
         out = []
         for v in self:  # TODO does not support multidimensional arrays
-            if hasattr(v, "_to_json"):
-                vdata = v._to_json()
+            if hasattr(v, "_to_dict"):
+                vdata = v._to_dict()
             else:
                 vdata = v
             if self._has_refs and v is not None:

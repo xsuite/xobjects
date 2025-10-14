@@ -460,7 +460,7 @@ class ContextCupy(XContext):
         extra_compile_args = (
             *extra_compile_args,
             *include_flags,
-            "-DXO_CONTEXT_CUDA"
+            "-DXO_CONTEXT_CUDA",
         )
 
         module = cupy.RawModule(

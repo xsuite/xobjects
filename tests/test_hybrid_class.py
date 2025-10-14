@@ -339,8 +339,7 @@ def test_to_dict_python_vars():
             "_b": xo.Int64,
         }
         _skip_in_to_dict = ["_a", "_b"]
-        _store_in_to_dict = ["a", "b"]
-        _extra_fields_in_to_dict = ["c"]
+        _store_in_to_dict = ["a", "b", "c"]
 
         def __init__(self, **kwargs):
             if "_xobject" in kwargs and kwargs["_xobject"] is not None:
@@ -353,7 +352,7 @@ def test_to_dict_python_vars():
         def _initialize(self, **kwargs):
             # Need to handle non-xofields manually
             c = kwargs.pop("c", -9)
-            self.xoinitialize(**kwargs)
+            super().__init__(**kwargs)
             self._c = c
 
         @property

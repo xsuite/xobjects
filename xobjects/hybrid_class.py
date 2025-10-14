@@ -292,9 +292,7 @@ class HybridClass(metaclass=MetaHybridClass):
 
         skip_fields = set(getattr(obj, "_skip_in_to_dict", []))
         additional_fields = set(getattr(obj, "_store_in_to_dict", []))
-        extra_fields = set(getattr(obj, "_extra_fields_in_to_dict", []))
         fields_to_store = (set(obj._fields) - skip_fields) | additional_fields
-        fields_to_store |= extra_fields
 
         defaults = {}
         for field in obj._XoStruct._fields:
@@ -343,24 +341,18 @@ class HybridClass(metaclass=MetaHybridClass):
         if _context is None and _buffer is None:
             _context = self._xobject._buffer.context
         # This makes a copy of the xobject
-        xobject = self._XoStruct(
+        new_xobject = self._XoStruct(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
         )
-        # Get the python-only attributes
-        additional_fields = set(getattr(self, "_extra_fields_in_to_dict", []))
-        python_kwargs = {}
-        for field in additional_fields:
-            vv = getattr(self, field)
-            if hasattr(vv, "copy"):
-                try:
-                    python_kwargs[field] = vv.copy(
-                        _context=_context, _buffer=_buffer, _offset=_offset
-                    )
-                except TypeError:
-                    python_kwargs[field] = vv.copy()
-            else:
-                python_kwargs[field] = vv
-        return self.__class__(_xobject=xobject, **python_kwargs)
+        new = self.__class__.__new__(self.__class__)
+        new.__dict__.update(self.__dict__)
+        for kk, vv in new.__dict__.items():
+            if kk == '_xobject':
+                continue
+            if hasattr(vv, 'copy'):
+                new.__dict__[kk] = vv.copy()
+        new._xobject = new_xobject
+        return new
 
     @property
     def _buffer(self):
@@ -407,8 +399,6 @@ class HybridClass(metaclass=MetaHybridClass):
             if hasattr(self, "_add_to_repr"):
                 fnames += self._add_to_repr
             fnames += [fname for fname in self._fields]
-            if hasattr(self, "_extra_fields_in_to_dict"):
-                fnames += self._extra_fields_in_to_dict
             if hasattr(self, "_skip_in_repr"):
                 fnames = [ff for ff in fnames if ff not in self._skip_in_repr]
 

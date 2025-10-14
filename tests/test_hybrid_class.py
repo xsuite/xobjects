@@ -338,16 +338,16 @@ def test_to_dict_python_vars():
             "_a": xo.Float64[3],
             "_b": xo.Int64,
         }
-        _skip_in_to_dict = ['_a', '_b']
-        _store_in_to_dict = ['a', 'b']
-        _extra_fields_in_to_dict = ['c']
+        _skip_in_to_dict = ["_a", "_b"]
+        _store_in_to_dict = ["a", "b"]
+        _extra_fields_in_to_dict = ["c"]
 
         def __init__(self, **kwargs):
-            if '_xobject' in kwargs and kwargs['_xobject'] is not None:
+            if "_xobject" in kwargs and kwargs["_xobject"] is not None:
                 self._initialize(**kwargs)
                 return
-            kwargs['_a'] = kwargs.pop('a', [1., 2., 3.])
-            kwargs['_b'] = kwargs.pop('b', 0)
+            kwargs["_a"] = kwargs.pop("a", [1.0, 2.0, 3.0])
+            kwargs["_b"] = kwargs.pop("b", 0)
             self._initialize(**kwargs)
 
         def _initialize(self, **kwargs):
@@ -380,7 +380,7 @@ def test_to_dict_python_vars():
 
     # Verify that to_dict has all fields, including python-only ones,
     # for custom initialisation
-    td2 = TD(a=[8,9,10], b=40, c=20)
+    td2 = TD(a=[8, 9, 10], b=40, c=20)
     td2_dict = td2.to_dict()
     assert td2_dict.pop("__class__") == "TD"
     assert all(td2_dict.pop("a") == [8, 9, 10])
@@ -402,7 +402,7 @@ def test_to_dict_python_vars():
     assert td4.c == td2.c
 
     # Verify that move works correctly
-    td3.move(_context=xo.ContextCpu(omp_num_threads='auto'))
+    td3.move(_context=xo.ContextCpu(omp_num_threads="auto"))
     assert all(td3.a == td2.a)
     assert td3.b == td2.b
     assert td3.c == td2.c

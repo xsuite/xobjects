@@ -296,8 +296,9 @@ class HybridClass(metaclass=MetaHybridClass):
 
         defaults = {}
         for field in obj._XoStruct._fields:
+            name = obj._rename.get(field.name, field.name)
             try:
-                defaults[field.name] = field.get_default()
+                defaults[name] = field.get_default()
             except (TypeError, ValueError):
                 # The above can fail with different error types
                 # if a field type is dynamic.

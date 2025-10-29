@@ -343,7 +343,7 @@ def test_to_dict_python_vars():
 
         def __init__(self, **kwargs):
             if "_xobject" in kwargs and kwargs["_xobject"] is not None:
-                self._initialize(**kwargs)
+                self.xoinitialize(**kwargs)
                 return
             kwargs["_a"] = kwargs.pop("a", [1.0, 2.0, 3.0])
             kwargs["_b"] = kwargs.pop("b", 0)

@@ -340,10 +340,18 @@ class HybridClass(metaclass=MetaHybridClass):
         if _context is None and _buffer is None:
             _context = self._xobject._buffer.context
         # This makes a copy of the xobject
-        xobject = self._XoStruct(
+        new_xobject = self._XoStruct(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
         )
-        return self.__class__(_xobject=xobject)
+        new = self.__class__.__new__(self.__class__)
+        new.__dict__.update(self.__dict__)
+        for kk, vv in new.__dict__.items():
+            if kk == "_xobject":
+                continue
+            if hasattr(vv, "copy"):
+                new.__dict__[kk] = vv.copy()
+        new._xobject = new_xobject
+        return new
 
     @property
     def _buffer(self):

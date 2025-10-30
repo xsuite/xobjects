@@ -294,10 +294,13 @@ class UnionRef(metaclass=MetaUnionRef):
         return cls._reftypes
 
     def _to_json(self):
+        raise NameError("`_to_json` has been removed. Use `_to_dict` instead.")
+
+    def _to_dict(self):
         v = self.get()
         classname = v.__class__.__name__
-        if hasattr(v, "_to_json"):
-            v = v._to_json()
+        if hasattr(v, "_to_dict"):
+            v = v._to_dict()
         return (classname, v)
 
 

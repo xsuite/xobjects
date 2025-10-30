@@ -330,3 +330,78 @@ def test_to_json_defaults():
     assert np.all(b_dict.pop("a") == [1, 2, 3])
     assert b_dict.pop("d") == 8
     assert b_dict == {}
+
+
+def test_to_dict_python_vars():
+    class TD(xo.HybridClass):
+        _xofields = {
+            "_a": xo.Float64[3],
+            "_b": xo.Int64,
+        }
+        _skip_in_to_dict = ["_a", "_b"]
+        _store_in_to_dict = ["a", "b", "c"]
+
+        def __init__(self, **kwargs):
+            if "_xobject" in kwargs and kwargs["_xobject"] is not None:
+                self.xoinitialize(**kwargs)
+                return
+            kwargs["_a"] = kwargs.pop("a", [1.0, 2.0, 3.0])
+            kwargs["_b"] = kwargs.pop("b", 0)
+            self._initialize(**kwargs)
+
+        def _initialize(self, **kwargs):
+            # Need to handle non-xofields manually
+            c = kwargs.pop("c", -9)
+            super().__init__(**kwargs)
+            self._c = c
+
+        @property
+        def a(self):
+            return self._a
+
+        @property
+        def b(self):
+            return self._b
+
+        @property
+        def c(self):
+            return self._c
+
+    # Verify that to_dict has all fields, including python-only ones,
+    # for default initialisation
+    td1 = TD()
+    td1_dict = td1.to_dict()
+    assert td1_dict.pop("__class__") == "TD"
+    assert all(td1_dict.pop("a") == [1, 2, 3])
+    assert td1_dict.pop("b") == 0
+    assert td1_dict.pop("c") == -9
+    assert td1_dict == {}
+
+    # Verify that to_dict has all fields, including python-only ones,
+    # for custom initialisation
+    td2 = TD(a=[8, 9, 10], b=40, c=20)
+    td2_dict = td2.to_dict()
+    assert td2_dict.pop("__class__") == "TD"
+    assert all(td2_dict.pop("a") == [8, 9, 10])
+    assert td2_dict.pop("b") == 40
+    assert td2_dict.pop("c") == 20
+    assert td2_dict == {}
+
+    # Verify that from_dict works correctly
+    td2_dict = td2.to_dict()
+    td3 = TD.from_dict(td2_dict)
+    assert all(td3.a == td2.a)
+    assert td3.b == td2.b
+    assert td3.c == td2.c
+
+    # Verify that copy works correctly
+    td4 = td3.copy()
+    assert all(td4.a == td2.a)
+    assert td4.b == td2.b
+    assert td4.c == td2.c
+
+    # Verify that move works correctly
+    td3.move(_context=xo.ContextCpu(omp_num_threads="auto"))
+    assert all(td3.a == td2.a)
+    assert td3.b == td2.b
+    assert td3.c == td2.c

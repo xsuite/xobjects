@@ -366,15 +366,15 @@ class Struct(metaclass=MetaStruct):
             foffset = offset + cls._fields[index].offset
             Int64._to_buffer(buffer, foffset, data_offset)
 
-    def _to_dict(self):
-        return {field.name: field.__get__(self) for field in self._fields}
-
     def _to_json(self):
+        raise NameError("`_to_json` has been removed. Use `_to_dict` instead.")
+
+    def _to_dict(self):
         out = {}
         for field in self._fields:
             v = field.__get__(self)
-            if hasattr(v, "_to_json"):
-                v = v._to_json()
+            if hasattr(v, "_to_dict"):
+                v = v._to_dict()
             out[field.name] = v
         return out
 

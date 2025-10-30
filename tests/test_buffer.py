@@ -95,10 +95,12 @@ def test_free_simple(test_context):
         ch.free_string(offset)
         ch.check()
 
+
 @for_all_test_contexts
 def test_free(test_context):
     class CheckFree(xo.Struct):
         a = xo.Float64
+
     ch = CheckFree(a=5, _context=test_context)
     assert ch._buffer.capacity == 8
     assert ch._buffer.chunks == []
@@ -107,17 +109,17 @@ def test_free(test_context):
     with pytest.raises(ValueError, match="Cannot free outside of buffer"):
         ch._buffer.free(0, 10)
     with pytest.raises(ValueError, match="Cannot free outside of buffer"):
-        ch._buffer.free(7,2)
-    ch._buffer.free(0,4)
+        ch._buffer.free(7, 2)
+    ch._buffer.free(0, 4)
     assert len(ch._buffer.chunks) == 1
     assert ch._buffer.chunks[0].start == 0
     assert ch._buffer.chunks[0].end == 4
-    ch._buffer.free(0,4)  # Does nothing
-    ch._buffer.free(2,4)  # Increases free chunk
+    ch._buffer.free(0, 4)  # Does nothing
+    ch._buffer.free(2, 4)  # Increases free chunk
     assert len(ch._buffer.chunks) == 1
     assert ch._buffer.chunks[0].start == 0
     assert ch._buffer.chunks[0].end == 6
-    ch._buffer.free(7,1)
+    ch._buffer.free(7, 1)
     assert len(ch._buffer.chunks) == 2
     assert ch._buffer.chunks[0].start == 0
     assert ch._buffer.chunks[0].end == 6

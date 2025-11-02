@@ -397,7 +397,7 @@ class HybridClass(metaclass=MetaHybridClass):
             fnames = []
             if hasattr(self, "_add_to_repr"):
                 fnames += self._add_to_repr
-            fnames += [fname for fname in self._fields]
+            fnames += [fname for fname in self._xofields.keys() if not fname.startswith("_")]
             if hasattr(self, "_skip_in_repr"):
                 fnames = [ff for ff in fnames if ff not in self._skip_in_repr]
 
@@ -406,6 +406,12 @@ class HybridClass(metaclass=MetaHybridClass):
             vv = getattr(self, fname)
             if isinstance(vv, float):
                 vvrepr = f"{vv:.3g}"
+            elif isinstance(vv, np.ndarray):
+                vvrepr = repr(vv)
+                # kill "array("
+                vvrepr = vvrepr.split("(", 1)[1]
+                # kill trailing ")"
+                vvrepr = vvrepr.rsplit(")", 1)[0]
             else:
                 vvrepr = repr(vv)
             args.append(f"{fname}={vvrepr}")

@@ -1,7 +1,11 @@
+// copyright ################################# //
+// This file is part of the Xtrack Package.    //
+// Copyright (c) CERN, 2025.                   //
+// ########################################### //
+
+
 #ifndef XOBJECTS_COMMON_H
 #define XOBJECTS_COMMON_H
-
-#include "xobjects/headers/atomicadd.h"
 
 /*
     Common macros for vectorization and parallelization, as well as common

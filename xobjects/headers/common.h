@@ -31,7 +31,6 @@
 
     #define END_VECTORIZE \
         }
-
 #endif  // XO_CONTEXT_CPU_OPENMP
 
 

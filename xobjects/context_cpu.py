@@ -543,7 +543,7 @@ class ContextCpu(XContext):
 
         return None
 
-    def nparray_to_context_array(self, arr):
+    def nparray_to_context_array(self, arr, copy=False):
         """
         Moves a numpy array to the device memory. No action is performed by
         this function in the CPU context. The method is provided
@@ -551,14 +551,16 @@ class ContextCpu(XContext):
 
         Args:
             arr (numpy.ndarray): Array to be transferred
+            copy (bool): If True, a copy of the array is made.
 
         Returns:
-            numpy.ndarray: The same array (no copy!).
-
+            numpy.ndarray: Numpy array with the same data, original or a copy.
         """
+        if copy:
+            arr = np.copy(arr)
         return arr
 
-    def nparray_from_context_array(self, dev_arr):
+    def nparray_from_context_array(self, dev_arr, copy=False):
         """
         Moves an array to the device to a numpy array. No action is performed by
         this function in the CPU context. The method is provided so that the CPU
@@ -566,10 +568,13 @@ class ContextCpu(XContext):
 
         Args:
             dev_arr (numpy.ndarray): Array to be transferred
-        Returns:
-            numpy.ndarray: The same array (no copy!)
+            copy (bool): If True, a copy of the array is made.
 
+        Returns:
+            numpy.ndarray: Numpy array with the same data, original or a copy.
         """
+        if copy:
+            dev_arr = np.copy(dev_arr)
         return dev_arr
 
     @property
@@ -579,7 +584,6 @@ class ContextCpu(XContext):
         through ``nplike_lib`` to keep compatibility with the other contexts.
 
         """
-
         return np
 
     @property
@@ -589,7 +593,6 @@ class ContextCpu(XContext):
         through ``splike_lib`` to keep compatibility with the other contexts.
 
         """
-
         return sp
 
     def synchronize(self):

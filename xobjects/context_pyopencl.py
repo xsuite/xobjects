@@ -253,28 +253,30 @@ class ContextPyopencl(XContext):
         device_id = self.platform.get_devices().index(self.device)
         return f"{type(self).__name__}:{platform_id}.{device_id}"
 
-    def nparray_to_context_array(self, arr):
-        """
-        Copies a numpy array to the device memory.
+    def nparray_to_context_array(self, arr, copy=False):
+        """Copies a numpy array to the device memory.
+
         Args:
             arr (numpy.ndarray): Array to be transferred
+            copy (bool): This parameter is ignored for OpenCL, as the data lives
+                on a different device.
 
         Returns:
             pyopencl.array.Array:The same array copied to the device.
-
         """
         dev_arr = cla.to_device(self.queue, arr)
         return dev_arr
 
-    def nparray_from_context_array(self, dev_arr):
-        """
-        Copies an array to the device to a numpy array.
+    def nparray_from_context_array(self, dev_arr, copy=False):
+        """Copies an array to the device to a numpy array.
 
         Args:
             dev_arr (pyopencl.array.Array): Array to be transferred.
+            copy (bool): This parameter is ignored for OpenCL, as the data lives
+                on a different device.
+
         Returns:
             numpy.ndarray: The same data copied to a numpy array.
-
         """
         return dev_arr.get()
 

@@ -11,7 +11,7 @@ import numpy as np
 import cffi
 
 import xobjects as xo
-
+from xobjects.test_helpers import for_all_test_contexts
 
 ffi = cffi.FFI()
 
@@ -576,8 +576,133 @@ def test_gpu_api():
         ctx.add_kernels(
             sources=[src_code],
             kernels=kernel_descriptions,
-            # save_src_as=f'_test_{name}.c')
             save_source_as=None,
             compile=True,
             extra_classes=[xo.String[:]],
         )
+
+
+@for_all_test_contexts
+def test_array_of_arrays(test_context):
+    cell_ids = [3, 5, 7]
+    particle_per_cell = [
+        [1, 8],
+        [9, 3, 2],
+        [4, 5, 6, 7],
+    ]
+
+    class Cells(xo.Struct):
+        ids = xo.Int64[:]
+        particles = xo.Int64[:][:]
+
+    cells = Cells(ids=cell_ids, particles=particle_per_cell)
+
+    # Data layout (displayed as uint64):
+    #
+    #   [0] 216 (cells size)
+    #   [8]  56 (offset field 2 -- particles field)
+    #  [16] cell_ids data:
+    #        [0] 40 (cell_ids size)
+    #        [8]  3 (cell_ids length)
+    #       [16] {3, 5, 7} (cell_ids elements)
+    #  [56] particles data:
+    #        [0] 160 (particles size)
+    #        [8]   3 (particles length)
+    #       [16]  40 (offset particles[0])
+    #       [24]  72 (offset particles[1])
+    #       [32] 112 (offset particles[2])
+    #       [40] particles[0] data:
+    #             [0] 32 (particles[0] size)
+    #             [8]  2 (particles[0] length)
+    #            [16] {1, 8} (particles[0] elements)
+    #       [72] particles[1] data:
+    #             [0] 40 (particles[1] size)
+    #             [8]  3 (particles[1] length)
+    #            [16] {9, 3, 2} (particles[1
+    #      [112] particles[2] data:
+    #             [0] 48 (particles[2] size)
+    #             [8]  4 (particles[2] length)
+    #            [16] {4, 5, 6, 7} (particles[2] elements)
+
+    src = r"""
+    #include "xobjects/headers/common.h"
+
+    int MAX_PARTICLES = 4;
+    int MAX_CELLS = 3;
+
+    GPUKERN
+    uint8_t loop_over(Cells cells, uint64_t* out_counts, uint64_t* out_vals)
+    {
+        uint8_t success = 1;
+        int64_t num_cells = Cells_len_ids(cells);
+
+        for (int64_t i = 0; i < num_cells; i++) {
+            int64_t id = Cells_get_ids(cells, i);
+            int64_t count = Cells_len1_particles(cells, i);
+
+            printf("Cell ID: %lld\n Particles (count %lld): ", id, count);
+
+            if (i >= MAX_CELLS) {
+                success = 0;
+                continue;
+            }
+
+            out_counts[i] = count;
+
+            ArrNInt64 particles = Cells_getp1_particles(cells, i);
+            uint32_t num_particles = ArrNInt64_len(particles);
+
+            VECTORIZE_OVER(j, num_particles);
+                int64_t val = ArrNInt64_get(particles, j);
+                printf("%lld ", val);
+
+                if (j >= MAX_PARTICLES) {
+                    success = 0;
+                    continue;
+                }
+
+                out_vals[i * MAX_PARTICLES + j] = val;
+            END_VECTORIZE;
+            printf("\n");
+        }
+        fflush(stdout);
+        return success;
+    }
+    """
+
+    kernels = {
+        "loop_over": xo.Kernel(
+            args=[
+                xo.Arg(Cells, name="cells"),
+                xo.Arg(xo.UInt64, pointer=True, name="out_counts"),
+                xo.Arg(xo.UInt64, pointer=True, name="out_vals"),
+            ],
+            n_threads="n",
+            ret=xo.Arg(xo.UInt8),
+        )
+    }
+    kernels.update(Cells._gen_kernels())
+
+    test_context.add_kernels(
+        sources=[src],
+        kernels=kernels,
+    )
+
+    counts = np.zeros(len(cell_ids), dtype=np.uint64)
+    vals = np.zeros(12, dtype=np.uint64)
+
+    for i, _ in enumerate(particle_per_cell):
+        for j, expected in enumerate(particle_per_cell[i]):
+            result = test_context.kernels.Cells_get_particles(
+                obj=cells, i0=i, i1=j
+            )
+            assert result == expected
+
+    ret = test_context.kernels.loop_over(
+        cells=cells,
+        out_counts=counts,
+        out_vals=vals,
+    )
+    assert ret == 1
+    assert np.all(counts == [2, 3, 4])
+    assert np.all(vals == [1, 8, 0, 0, 9, 3, 2, 0, 4, 5, 6, 7])

@@ -103,9 +103,10 @@ def get_layers(parts):
 
 
 def int_from_obj(offset, conf):
-    inttype = gen_pointer(conf.get("inttype", "int64_t") + "*", conf)
-    chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
-    return f"*({inttype})(({chartype}) obj+{offset})"
+    """Generate code to read the integer at location obj + offset (bytes)."""
+    int_pointer_type = gen_pointer(conf.get("inttype", "int64_t") + "*", conf)
+    char_pointer_type = gen_pointer(conf.get("chartype", "char") + "*", conf)
+    return f"*({int_pointer_type})(({char_pointer_type}) obj+{offset})"
 
 
 def Field_get_c_offset(self, conf):
@@ -146,7 +147,7 @@ def Index_get_c_offset(part, conf, icount):
         out.append(f"  offset+={soffset};")
     else:
         lookup_field_offset = f"offset+{soffset}"
-        out.append(f"  offset={int_from_obj(lookup_field_offset, conf)};")
+        out.append(f"  offset+={int_from_obj(lookup_field_offset, conf)};")
     return out
 
 
@@ -206,16 +207,17 @@ def gen_fun_kernel(cls, path, action, const, extra, ret, add_nindex=False):
 def gen_c_pointed(target: Arg, conf):
     size = gen_c_size_from_arg(target, conf)
     ret = gen_c_type_from_arg(target, conf)
+
     if target.pointer or is_compound(target.atype) or is_string(target.atype):
         chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
         return f"({ret})(({chartype}) obj+offset)"
-    else:
-        rettype = gen_pointer(ret + "*", conf)
-        if size == 1:
-            return f"*(({rettype}) obj+offset)"
-        else:
-            chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
-            return f"*({rettype})(({chartype}) obj+offset)"
+
+    rettype = gen_pointer(ret + "*", conf)
+    if size == 1:
+        return f"*(({rettype}) obj+offset)"
+
+    chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
+    return f"*({rettype})(({chartype}) obj+offset)"
 
 
 def gen_method_get(cls, path, conf):
@@ -507,7 +509,7 @@ def methods_from_path(cls, path, conf):
 
     if is_array(lasttype):
         out.append(gen_method_len(cls, path, conf))
-    #    out.append(gen_method_shape(cls, path, conf))
+        out.append(gen_method_shape(cls, path, conf))
     #    out.append(gen_method_nd(cls, path, conf))
     #    out.append(gen_method_strides(cls, path, conf))
     #    out.append(gen_method_getpos(cls, path, conf))

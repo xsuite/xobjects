@@ -52,7 +52,7 @@
 
     #define VECTORIZE_OVER(INDEX_NAME, COUNT) \
         { \
-            int64_t INDEX_NAME = get_global_id(0);
+            int64_t INDEX_NAME = get_global_id(0); \
             if (INDEX_NAME < (COUNT)) { \
 
     #define END_VECTORIZE \

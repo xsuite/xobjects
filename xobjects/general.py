@@ -18,6 +18,13 @@ _print = Print()
 
 
 def assert_allclose(a, b, rtol=0, atol=0, max_outliers=0):
+
+    try:
+        if a == b: # if this passes we return without raising
+            return
+    except:
+        pass
+
     if hasattr(a, "get"):
         a = a.get()
     if hasattr(b, "get"):

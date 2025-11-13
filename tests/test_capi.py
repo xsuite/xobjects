@@ -158,6 +158,34 @@ def test_array_dynamic_type_init_get_set(array_cls, example_shape):
             assert arr[ii].field1[idx_in_field] == 13 * vv
 
 
+@for_all_test_contexts
+@pytest.mark.parametrize(
+    "array_type",
+    [
+        xo.UInt64[3, 5, 7],
+        xo.UInt64[:, :, :],
+        xo.UInt64[:, 5, :],
+    ],
+)
+def test_array_get_shape(test_context, array_type):
+    kernels = array_type._gen_kernels()
+    test_context.add_kernels(kernels=kernels)
+
+    instance = array_type(np.array(range(3 * 5 * 7)).reshape((3, 5, 7)))
+
+    nd_function = test_context.kernels[f"{array_type.__name__}_nd"]
+    nd = nd_function(obj=instance)
+    assert nd == 3
+
+    shape = np.zeros(nd, dtype=np.int64)
+    shape_function = test_context.kernels[f"{array_type.__name__}_shape"]
+    shape_function(obj=instance, out_shape=shape)
+
+    assert shape[0] == 3
+    assert shape[1] == 5
+    assert shape[2] == 7
+
+
 def test_struct1():
     kernels = Struct1._gen_kernels()
     ctx = xo.ContextCpu()

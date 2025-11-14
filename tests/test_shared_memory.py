@@ -53,7 +53,7 @@ def test_shared_memory():
 
                   // sum s[0] += s[1]
                   if (tid == 0){
-                    sdata[tid] += sdata[tid + 1]; 
+                    sdata[tid] += sdata[tid + 1];
 
                     // write sum from shared to global mem
                     atomicAdd(&result[tid], sdata[tid]);

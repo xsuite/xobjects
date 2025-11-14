@@ -487,29 +487,32 @@ class ContextCupy(XContext):
     def __str__(self):
         return f"{type(self).__name__}:{cupy.cuda.get_device_id()}"
 
-    def nparray_to_context_array(self, arr):
+    def nparray_to_context_array(self, arr, copy=False):
         """
         Copies a numpy array to the device memory.
 
         Args:
             arr (numpy.ndarray): Array to be transferred
+            copy (bool): This parameter is ignored for CUDA, as the data lives
+                on a different device.
 
         Returns:
             cupy.ndarray:The same array copied to the device.
-
         """
         dev_arr = cupy.array(arr)
         return dev_arr
 
-    def nparray_from_context_array(self, dev_arr):
+    def nparray_from_context_array(self, dev_arr, copy=False):
         """
         Copies an array to the device to a numpy array.
 
         Args:
             dev_arr (cupy.ndarray): Array to be transferred.
+            copy (bool): This parameter is ignored for CUDA, as the data lives
+                on a different device.
+
         Returns:
             numpy.ndarray: The same data copied to a numpy array.
-
         """
         return dev_arr.get()
 

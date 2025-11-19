@@ -199,7 +199,10 @@ def test_array_get_shape(test_context, array_type):
         kernels=kernels,
     )
 
-    instance = array_type(np.array(range(3 * 5 * 7)).reshape((3, 5, 7)))
+    instance = array_type(
+        np.array(range(3 * 5 * 7)).reshape((3, 5, 7)),
+        _context=test_context,
+    )
 
     expected_nd = 3
     result_nd = test_context.zeros((1,), dtype=np.int64)

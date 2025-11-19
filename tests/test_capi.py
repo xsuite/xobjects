@@ -732,7 +732,7 @@ def test_array_of_arrays(test_context):
 
     counts = test_context.zeros(len(cell_ids), dtype=np.uint64)
     vals = test_context.zeros(12, dtype=np.uint64)
-    success = test_context.ones((1,), dtype=np.uint8)
+    success = test_context.zeros((1,), dtype=np.uint8) + 1
 
     for i, _ in enumerate(particle_per_cell):
         for j, expected in enumerate(particle_per_cell[i]):

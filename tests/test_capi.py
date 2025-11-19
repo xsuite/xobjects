@@ -623,7 +623,9 @@ def test_array_of_arrays(test_context):
         ids = xo.Int64[:]
         particles = xo.Int64[:][:]
 
-    cells = Cells(ids=cell_ids, particles=particle_per_cell)
+    cells = Cells(
+        ids=cell_ids, particles=particle_per_cell, _context=test_context
+    )
 
     # Data layout (displayed as uint64):
     #

@@ -168,22 +168,51 @@ def test_array_dynamic_type_init_get_set(array_cls, example_shape):
     ],
 )
 def test_array_get_shape(test_context, array_type):
-    kernels = array_type._gen_kernels()
-    test_context.add_kernels(kernels=kernels)
+    source = """
+        GPUKERN void get_nd_and_shape(
+            ARRAY_TYPE arr,
+            GPUGLMEM int64_t* out_nd,
+            GPUGLMEM int64_t* out_shape
+        ) {
+            *out_nd = ARRAY_TYPE_nd(arr);
+            ARRAY_TYPE_shape(arr, out_shape);
+        }
+    """.replace(
+        "ARRAY_TYPE", array_type.__name__
+    )
+
+    kernels = {
+        "get_nd_and_shape": xo.Kernel(
+            c_name="get_nd_and_shape",
+            args=[
+                xo.Arg(array_type, name="arr"),
+                xo.Arg(xo.Int64, pointer=True, name="out_nd"),
+                xo.Arg(xo.Int64, pointer=True, name="out_shape"),
+            ],
+        ),
+    }
+
+    test_context.add_kernels(
+        sources=[src],
+        kernels=kernels,
+    )
 
     instance = array_type(np.array(range(3 * 5 * 7)).reshape((3, 5, 7)))
 
-    nd_function = test_context.kernels[f"{array_type.__name__}_nd"]
-    nd = nd_function(obj=instance)
-    assert nd == 3
+    expected_nd = 3
+    result_nd = test_context.zeros((1,), dtype=np.int64)
 
-    shape = np.zeros(nd, dtype=np.int64)
-    shape_function = test_context.kernels[f"{array_type.__name__}_shape"]
-    shape_function(obj=instance, out_shape=shape)
+    expected_shape = [3, 5, 7]
+    result_shape = test_context.zeros((expected_nd,), dtype=np.int64)
 
-    assert shape[0] == 3
-    assert shape[1] == 5
-    assert shape[2] == 7
+    test_context.kernels.get_nd_and_shape(
+        arr=instance,
+        out_nd=result_nd,
+        out_shape=result_shape,
+    )
+
+    assert result_nd[0] == expected_nd
+    assert np.all(result_shape == expected_shape)
 
 
 def test_struct1():

@@ -744,12 +744,12 @@ def test_array_of_arrays(test_context):
             )
             assert result == expected
 
-    ret = test_context.kernels.loop_over(
+    test_context.kernels.loop_over(
         cells=cells,
         out_counts=counts,
         out_vals=vals,
         success=success,
     )
-    assert ret == 1
+    assert success == 1
     assert np.all(counts == [2, 3, 4])
     assert np.all(vals == [1, 8, 0, 0, 9, 3, 2, 0, 4, 5, 6, 7])

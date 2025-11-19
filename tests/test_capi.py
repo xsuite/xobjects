@@ -217,7 +217,9 @@ def test_array_get_shape(test_context, array_type):
     )
 
     assert result_nd[0] == expected_nd
-    assert np.all(result_shape == expected_shape)
+    assert result_shape[0] == expected_shape[0]
+    assert result_shape[1] == expected_shape[1]
+    assert result_shape[2] == expected_shape[2]
 
 
 def test_struct1():

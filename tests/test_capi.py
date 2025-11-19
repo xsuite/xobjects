@@ -655,8 +655,8 @@ def test_array_of_arrays(test_context):
     src = r"""
     #include "xobjects/headers/common.h"
 
-    int MAX_PARTICLES = 4;
-    int MAX_CELLS = 3;
+    static const int MAX_PARTICLES = 4;
+    static const int MAX_CELLS = 3;
 
     GPUKERN void loop_over(
         Cells cells,

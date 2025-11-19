@@ -18,15 +18,13 @@ def test_common_atomicadd(test_context):
 
     GPUKERN void test_atomic_add(GPUGLMEM double* out, int32_t iterations)
     {
-        double sum = 0;
         VECTORIZE_OVER(i, iterations);
             // If on CPU do some work to avoid the loop being optimized out
             #if defined(XO_CONTEXT_CPU_OPENMP)
                 usleep(10);
             #endif
-            atomicAdd(&sum, 1.0);
+            atomicAdd(out, 1.0);
         END_VECTORIZE;
-        out[0] = sum;
     }
     """
 
@@ -48,7 +46,7 @@ def test_common_atomicadd(test_context):
                     xo.Arg(xo.Float64, pointer=True, name="out"),
                     xo.Arg(xo.Int32, name="iterations"),
                 ],
-                n_threads="iterations",
+                n_threads=n_threads,
             )
         },
     )

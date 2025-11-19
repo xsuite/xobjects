@@ -169,6 +169,8 @@ def test_array_dynamic_type_init_get_set(array_cls, example_shape):
 )
 def test_array_get_shape(test_context, array_type):
     source = """
+        #include "xobjects/headers/common.h"
+
         GPUKERN void get_nd_and_shape(
             ARRAY_TYPE arr,
             GPUGLMEM int64_t* out_nd,

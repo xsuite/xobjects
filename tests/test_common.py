@@ -52,7 +52,9 @@ def test_common_atomicadd(test_context):
 
     expected = 1000
     result = np.array([0], dtype=np.float64)
-    test_context.kernels.test_atomic_add(out=result)
+    result_ctx = test_context.nparray_to_context_array(result)
+    test_context.kernels.test_atomic_add(out=result_ctx)
+    result = test_context.nparray_form_context_array(result_ctx)[0]
 
     assert result == expected
 

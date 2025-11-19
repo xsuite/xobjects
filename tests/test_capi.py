@@ -193,7 +193,7 @@ def test_array_get_shape(test_context, array_type):
     }
 
     test_context.add_kernels(
-        sources=[src],
+        sources=[source],
         kernels=kernels,
     )
 

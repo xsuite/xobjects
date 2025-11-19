@@ -658,14 +658,13 @@ def test_array_of_arrays(test_context):
     int MAX_PARTICLES = 4;
     int MAX_CELLS = 3;
 
-    GPUKERN
-    uint8_t loop_over(
+    GPUKERN void loop_over(
         Cells cells,
         GPUGLMEM uint64_t* out_counts,
-        GPUGLMEM uint64_t* out_vals
+        GPUGLMEM uint64_t* out_vals,
+        GPUGLMEM uint8_t* success,
     )
     {
-        uint8_t success = 1;
         int64_t num_cells = Cells_len_ids(cells);
 
         for (int64_t i = 0; i < num_cells; i++) {
@@ -673,7 +672,7 @@ def test_array_of_arrays(test_context):
             int64_t count = Cells_len1_particles(cells, i);
 
             if (i >= MAX_CELLS) {
-                success = 0;
+                *success = 0;
                 continue;
             }
 
@@ -686,15 +685,13 @@ def test_array_of_arrays(test_context):
                 int64_t val = ArrNInt64_get(particles, j);
 
                 if (j >= MAX_PARTICLES) {
-                    success = 0;
+                    *success = 0;
                     continue;
                 }
 
                 out_vals[i * MAX_PARTICLES + j] = val;
             END_VECTORIZE;
         }
-        fflush(stdout);
-        return success;
     }
     """
 
@@ -704,9 +701,9 @@ def test_array_of_arrays(test_context):
                 xo.Arg(Cells, name="cells"),
                 xo.Arg(xo.UInt64, pointer=True, name="out_counts"),
                 xo.Arg(xo.UInt64, pointer=True, name="out_vals"),
+                xo.Arg(xo.UInt8, pointer=True, name="success"),
             ],
-            n_threads="n",
-            ret=xo.Arg(xo.UInt8),
+            n_threads=3,
         )
     }
     kernels.update(Cells._gen_kernels())
@@ -716,8 +713,9 @@ def test_array_of_arrays(test_context):
         kernels=kernels,
     )
 
-    counts = np.zeros(len(cell_ids), dtype=np.uint64)
-    vals = np.zeros(12, dtype=np.uint64)
+    counts = test_context.zeros(len(cell_ids), dtype=np.uint64)
+    vals = test_context.zeros(12, dtype=np.uint64)
+    success = test_context.ones((1,), dtype=np.uint8)
 
     for i, _ in enumerate(particle_per_cell):
         for j, expected in enumerate(particle_per_cell[i]):
@@ -730,6 +728,7 @@ def test_array_of_arrays(test_context):
         cells=cells,
         out_counts=counts,
         out_vals=vals,
+        success=success,
     )
     assert ret == 1
     assert np.all(counts == [2, 3, 4])

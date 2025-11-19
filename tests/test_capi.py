@@ -719,8 +719,8 @@ def test_array_of_arrays(test_context):
         "kernel_Cells_get_particles": xo.Kernel(
             args=[
                 xo.Arg(Cells, name="obj"),
-                xo.Arg(xo.Int64, pointer=True, name="i0"),
-                xo.Arg(xo.Int64, pointer=True, name="i1"),
+                xo.Arg(xo.Int64, name="i0"),
+                xo.Arg(xo.Int64, name="i1"),
                 xo.Arg(xo.Int64, pointer=True, name="out"),
             ],
             n_threads=3,

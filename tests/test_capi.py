@@ -659,7 +659,11 @@ def test_array_of_arrays(test_context):
     int MAX_CELLS = 3;
 
     GPUKERN
-    uint8_t loop_over(Cells cells, uint64_t* out_counts, uint64_t* out_vals)
+    uint8_t loop_over(
+        Cells cells,
+        GPUGLMEM uint64_t* out_counts,
+        GPUGLMEM uint64_t* out_vals
+    )
     {
         uint8_t success = 1;
         int64_t num_cells = Cells_len_ids(cells);
@@ -667,8 +671,6 @@ def test_array_of_arrays(test_context):
         for (int64_t i = 0; i < num_cells; i++) {
             int64_t id = Cells_get_ids(cells, i);
             int64_t count = Cells_len1_particles(cells, i);
-
-            printf("Cell ID: %lld\n Particles (count %lld): ", id, count);
 
             if (i >= MAX_CELLS) {
                 success = 0;
@@ -682,7 +684,6 @@ def test_array_of_arrays(test_context):
 
             VECTORIZE_OVER(j, num_particles);
                 int64_t val = ArrNInt64_get(particles, j);
-                printf("%lld ", val);
 
                 if (j >= MAX_PARTICLES) {
                     success = 0;
@@ -691,7 +692,6 @@ def test_array_of_arrays(test_context):
 
                 out_vals[i * MAX_PARTICLES + j] = val;
             END_VECTORIZE;
-            printf("\n");
         }
         fflush(stdout);
         return success;

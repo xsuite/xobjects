@@ -16,8 +16,7 @@ def test_common_atomicadd(test_context):
     #include "xobjects/headers/common.h"
     #include "xobjects/headers/atomicadd.h"
 
-    GPUKERN
-    double test_atomic_add()
+    GPUKERN void test_atomic_add(GPUGLMEM double* out)
     {
         int iterations = 1000;
         double sum = 0;
@@ -28,7 +27,7 @@ def test_common_atomicadd(test_context):
             #endif
             atomicAdd(&sum, 1.0);
         END_VECTORIZE;
-        return sum;
+        *out = sum;
     }
     """
 
@@ -45,15 +44,15 @@ def test_common_atomicadd(test_context):
         sources=[src],
         kernels={
             "test_atomic_add": xo.Kernel(
-                args=[],
+                args=[xo.Arg(xo.Float64, pointer=True, name="out")],
                 n_threads=n_threads,
-                ret=xo.Arg(xo.Float64),
             )
         },
     )
 
     expected = 1000
-    result = test_context.kernels.test_atomic_add()
+    result = np.array([0], dtype=np.float64)
+    test_context.kernels.test_atomic_add(out=result)
 
     assert result == expected
 

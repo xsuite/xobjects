@@ -786,6 +786,9 @@ def test_array_of_arrays(test_context):
         out_vals=vals,
         success=success,
     )
+    counts = test_context.nparray_from_context_array(counts)
+    vals = test_context.nparray_from_context_array(vals)
+
     assert success == 1
     assert np.all(counts == [2, 3, 4])
     assert np.all(vals == [1, 8, 0, 0, 9, 3, 2, 0, 4, 5, 6, 7])

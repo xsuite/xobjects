@@ -19,6 +19,7 @@ from .array import Array
 from .string import String
 from .struct import Struct, Field
 from .ref import Ref, UnionRef
+from .sparse import factorized_sparse_solver
 
 from .context_cpu import ContextCpu
 from .context_pyopencl import ContextPyopencl

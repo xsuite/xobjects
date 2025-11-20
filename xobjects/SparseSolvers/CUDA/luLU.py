@@ -217,8 +217,14 @@ class CachedAbSolver:
 
 class luLU(SuperLU):
 
-    def __init__(self, A, trans = 'N', permc_spec=None, n_batches: int = 0, diag_pivot_thresh=None, relax=None,
-         panel_size=None, options={}):
+    def __init__(self, A, 
+                 trans = 'N', 
+                 permc_spec=None, 
+                 n_batches: int = 0, 
+                 diag_pivot_thresh=None, 
+                 relax=None,
+                 panel_size=None, 
+                 options={}):
         if not check_availability('spsm'):
             raise RuntimeError('spsm is not available.')
         if not scipy_available:
@@ -241,10 +247,13 @@ class luLU(SuperLU):
     
     def _init_solvers(self,trans = 'N', n_batches = 0):
         if n_batches == 0:
-            b_sample = _cupy.zeros(self.shape[0], dtype=self.b_dtype)
+            b_sample = _cupy.zeros(self.shape[0], 
+                                   dtype=self.b_dtype)
         else:
-            b_sample = _cupy.zeros((self.shape[0],n_batches), dtype=self.b_dtype, order = 'F')
+            b_sample = _cupy.zeros((self.shape[0],n_batches), 
+                                   dtype=self.b_dtype, order = 'F')
         self.trans = trans
+        self.b_shape = b_sample.shape
         self.Lsolver = CachedAbSolver(self.L, b_sample, lower=True, transa=self.trans)
         self.Usolver = CachedAbSolver(self.U, b_sample, lower=False, transa=self.trans)
         # self.Usolver = CachedAbSolver(self.U.T, b_sample, lower=True, transa="T") #Can improve performance at times
@@ -266,7 +275,8 @@ class luLU(SuperLU):
         """  # NOQA
         from cupyx import cusparse
         if trans != self.trans:
-            raise AssertionError("Solve function assumes cached configuration. Rebuild cache by calling _init_solvers with desired configuration.")
+            raise AssertionError("Solve function assumes cached configuration. " \
+            "Rebuild cache by calling _init_solvers with desired configuration.")
         if not isinstance(rhs, _cupy.ndarray):
             raise TypeError('ojb must be cupy.ndarray')
         if rhs.ndim not in (1, 2):
@@ -275,6 +285,12 @@ class luLU(SuperLU):
         if rhs.shape[0] != self.shape[0]:
             raise ValueError('shape mismatch (self.shape: {}, rhs.shape: {})'
                              .format(self.shape, rhs.shape))
+        assert rhs.shape == self.b_shape, (
+            "Cached solver can only accept RHS with the same shape "
+            f"as the initialized value. {self.b_shape}. "
+            "The initialized RHS shape can be changed by initializing "
+            "using a different value for n_batches"
+        )
         if trans not in ('N', 'T', 'H'):
             raise ValueError('trans must be \'N\', \'T\', or \'H\'')
 

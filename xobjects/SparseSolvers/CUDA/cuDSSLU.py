@@ -5,7 +5,11 @@ import nvmath
 class DirectSolverSuperLU(nvmath.sparse.advanced.DirectSolver):
     """cuDSS-based direct solver; reuse factors for many RHS (SuperLU-style)."""
 
-    def __init__(self, A, *, n_batches: int = 0,assume_general=True, order_rhs='auto', **kwargs):
+    def __init__(self, A, *, 
+                 n_batches: int = 0,
+                 assume_general=True, 
+                 order_rhs='auto', 
+                 **kwargs):
         # 1) Validate A
         if not isinstance(A, sp.csr_matrix):
             raise TypeError("A must be cupyx.scipy.sparse.csr_matrix")
@@ -20,6 +24,7 @@ class DirectSolverSuperLU(nvmath.sparse.advanced.DirectSolver):
         else:
             b_sample = cp.zeros((A.shape[0],n_batches), dtype=A.dtype, order = 'F')
         self.b_dtype = A.dtype
+        self.b_shape = b_sample.shape
         super().__init__(A, b_sample, **kwargs)
 
         # 3) Optional: configure plan
@@ -53,6 +58,12 @@ class DirectSolverSuperLU(nvmath.sparse.advanced.DirectSolver):
 
     def solve(self, b):
         """Solve A x = b using cached factors. Accepts (n,) or (n,k) RHS."""
+        assert b.shape == self.b_shape, (
+            "Cached solver can only accept RHS with the same shape "
+            f"as the initialized value. {self.b_shape}. "
+            "The initialized RHS shape can be changed by initializing "
+            "using a different value for n_batches"
+        )
         b = self._prepare_rhs(b)
         super().reset_operands(b=b)
         return super().solve()

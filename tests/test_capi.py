@@ -724,10 +724,9 @@ def test_array_of_arrays(test_context):
 
                 if (j >= MAX_PARTICLES) {
                     *success = 0;
-                    continue;
+                } else {
+                    out_vals[i * MAX_PARTICLES + j] = val;
                 }
-
-                out_vals[i * MAX_PARTICLES + j] = val;
             END_VECTORIZE;
         }
     }
@@ -750,7 +749,7 @@ def test_array_of_arrays(test_context):
                 xo.Arg(xo.UInt64, pointer=True, name="out_vals"),
                 xo.Arg(xo.UInt8, pointer=True, name="success"),
             ],
-            n_threads=3,
+            n_threads=4,
         ),
         "kernel_Cells_get_particles": xo.Kernel(
             args=[
@@ -759,7 +758,6 @@ def test_array_of_arrays(test_context):
                 xo.Arg(xo.Int64, name="i1"),
                 xo.Arg(xo.Int64, pointer=True, name="out"),
             ],
-            n_threads=3,
         ),
     }
 
@@ -778,7 +776,7 @@ def test_array_of_arrays(test_context):
             test_context.kernels.kernel_Cells_get_particles(
                 obj=cells, i0=i, i1=j, out=result
             )
-            assert result == expected
+            assert result[0] == expected
 
     test_context.kernels.loop_over(
         cells=cells,
@@ -789,6 +787,6 @@ def test_array_of_arrays(test_context):
     counts = test_context.nparray_from_context_array(counts)
     vals = test_context.nparray_from_context_array(vals)
 
-    assert success == 1
+    assert success[0] == 1
     assert np.all(counts == [2, 3, 4])
     assert np.all(vals == [1, 8, 0, 0, 9, 3, 2, 0, 4, 5, 6, 7])

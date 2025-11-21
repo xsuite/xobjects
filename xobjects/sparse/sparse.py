@@ -4,7 +4,7 @@ from ..context import XContext
 from ..context_cpu import ContextCpu
 from ..context_cupy import ContextCupy
 from ..context_pyopencl import ContextPyopencl
-from ..SparseSolvers.abstract_solver import SuperLUlikeSolver
+from .solvers._abstract_solver import SuperLUlikeSolver
 try:
     import cupyx.scipy.sparse
     from cupyx import cusparse
@@ -59,7 +59,7 @@ def factorized_sparse_solver(A: Union[scipy.sparse.csr_matrix,
         if force_solver is None:
             import warnings
             try:
-                from ..SparseSolvers.CUDA.cuDSSLU import DirectSolverSuperLU
+                from .solvers.CUDA._cuDSSLU import DirectSolverSuperLU
                 solver = DirectSolverSuperLU(A, n_batches = n_batches, **solverKwargs)
             except (ModuleNotFoundError, RuntimeError) as e:
                 warnings.warn("cuDSS not available. " 
@@ -72,7 +72,7 @@ def factorized_sparse_solver(A: Union[scipy.sparse.csr_matrix,
                         raise RuntimeError("csrsm2 is avaiable. "
                                            "cupy SuperLU performs better "
                                            "than Cached-SuperLU (spsm)")
-                    from ..SparseSolvers.CUDA.luLU import luLU
+                    from .solvers.CUDA._luLU import luLU
                     solver = luLU(A, n_batches = n_batches, **solverKwargs)
                 except RuntimeError as e:
                     warnings.warn("Cached-SuperLU (spsm) solver failed. " 
@@ -80,10 +80,10 @@ def factorized_sparse_solver(A: Union[scipy.sparse.csr_matrix,
                                   f"Error encountered: {e}")
                     solver = cupyx.scipy.sparse.linalg.splu(A, **solverKwargs)
         elif force_solver == "cuDSS":
-            from ..SparseSolvers.CUDA.cuDSSLU import DirectSolverSuperLU
+            from .solvers.CUDA._cuDSSLU import DirectSolverSuperLU
             solver = DirectSolverSuperLU(A, n_batches = n_batches, **solverKwargs)
         elif force_solver == "CachedSLU":
-            from ..SparseSolvers.CUDA.luLU import luLU
+            from .solvers.CUDA._luLU import luLU
             solver = luLU(A, n_batches = n_batches, **solverKwargs)
         elif force_solver == "cupySLU":
             solver = cupyx.scipy.sparse.linalg.splu(A, **solverKwargs)

@@ -8,7 +8,9 @@ from .solvers._abstract_solver import SuperLUlikeSolver
 try:
     import cupyx.scipy.sparse
     from cupyx import cusparse
+    _cupy_available = True
 except:
+    _cupy_available = False
     pass
 
 def factorized_sparse_solver(A: Union[scipy.sparse.csr_matrix, 
@@ -48,7 +50,9 @@ def factorized_sparse_solver(A: Union[scipy.sparse.csr_matrix,
                              "scipySLU, PyKLU")
         
     elif context == "cupy" or isinstance(context, ContextCupy):
-
+        if not _cupy_available:
+            raise ModuleNotFoundError("No cupy module found. " \
+                                      "ContextCupy unavailable")
         assert isinstance(A ,cupyx.scipy.sparse.csr_matrix), (
                 "When using ContextCupy, input must be "
                 "cupyx.scipy.sparse.csr_matrix")

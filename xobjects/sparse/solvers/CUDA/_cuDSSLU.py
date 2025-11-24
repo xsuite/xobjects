@@ -1,14 +1,15 @@
 import cupy as cp
 import cupyx.scipy.sparse as sp
 import nvmath
+from typing import Literal, Union
+import warnings
 
 class DirectSolverSuperLU(nvmath.sparse.advanced.DirectSolver):
     """cuDSS-based direct solver; reuse factors for many RHS (SuperLU-style)."""
 
-    def __init__(self, A, *, 
+    def __init__(self, A: sp.csr_matrix, *, 
                  n_batches: int = 0,
-                 assume_general=True, 
-                 order_rhs='auto', 
+                 assume_general: bool = True, 
                  **kwargs):
         # 1) Validate A
         if not isinstance(A, sp.csr_matrix):
@@ -16,13 +17,16 @@ class DirectSolverSuperLU(nvmath.sparse.advanced.DirectSolver):
         if A.shape[0] != A.shape[1]:
             raise ValueError("A must be square")
         if A.indices.dtype != cp.int32 or A.indptr.dtype != cp.int32:
-            A = sp.csr_matrix((A.data, A.indices.astype(cp.int32), A.indptr.astype(cp.int32)),
+            A = sp.csr_matrix((A.data, 
+                               A.indices.astype(cp.int32), 
+                               A.indptr.astype(cp.int32)),
                               shape=A.shape)
         # 2) Sample RHS to initialize parent
         if n_batches == 0:
             b_sample = cp.zeros(A.shape[0], dtype=A.dtype)
         else:
-            b_sample = cp.zeros((A.shape[0],n_batches), dtype=A.dtype, order = 'F')
+            b_sample = cp.zeros((A.shape[0],n_batches), 
+                                dtype=A.dtype, order = 'F')
         self.b_dtype = A.dtype
         self.b_shape = b_sample.shape
         super().__init__(A, b_sample, **kwargs)
@@ -35,8 +39,6 @@ class DirectSolverSuperLU(nvmath.sparse.advanced.DirectSolver):
                 pc.matrix_type = nvmath.sparse.advanced.DirectSolverMatrixType.GENERAL
             except AttributeError:
                 pass  # older wheels infer type; safe to ignore
-        # Expose a simple RHS layout policy
-        self._order_rhs = order_rhs  # 'F'|'C'|'auto'
 
         # 4) Build & factorize once; warmup solve to build internal caches
         super().plan()
@@ -47,15 +49,19 @@ class DirectSolverSuperLU(nvmath.sparse.advanced.DirectSolver):
 
     def _prepare_rhs(self, b):
         # Accept 1-D or 2-D; ensure dtype/device and layout
+        if not isinstance(b, cp.ndarray):
+            raise TypeError('b must be cupy.ndarray')
         if b.dtype != self.b_dtype:
-            raise TypeError(f"RHS dtype {b.dtype} does not match matrix dtype {self.b_dtype}")
+            raise TypeError(f"RHS dtype {b.dtype} does not match "
+                            f"matrix dtype {self.b_dtype}")
         if b.ndim == 1:
             return b  # vector is fine
-        if self._order_rhs == 'auto':
-            # cuDSS prefers column-major for (n,k)
-            return cp.array(b, order='F', copy=False)
-        return cp.array(b, order=self._order_rhs, copy=False)
-
+        if not b.flags.f_contiguous:
+            warnings.warn("cuDSS expects a column-major ('F' ordered) " \
+                          "matrix for the RHS. RHS was autmatically converted "
+                          "by the solver.")
+        return cp.asfortranarray(b)
+       
     def solve(self, b):
         """Solve A x = b using cached factors. Accepts (n,) or (n,k) RHS."""
         assert b.shape == self.b_shape, (

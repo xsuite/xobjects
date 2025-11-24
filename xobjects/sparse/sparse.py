@@ -1,4 +1,5 @@
 import scipy.sparse
+from numpy import ndarray as nparray
 from typing import Optional, Literal, Union
 from ..context import XContext
 from ..context_cpu import ContextCpu
@@ -6,6 +7,7 @@ from ..context_cupy import ContextCupy
 from ..context_pyopencl import ContextPyopencl
 from .solvers._abstract_solver import SuperLUlikeSolver
 try:
+    from cupy import ndarray as cparray
     import cupyx.scipy.sparse
     from cupyx import cusparse
     _cupy_available = True
@@ -29,11 +31,23 @@ def factorized_sparse_solver(A: Union[scipy.sparse.csr_matrix,
                                               "cupy",
                                               "pyopencl"],
                                       XContext
-                                            ] = "cpu"
+                                            ] = None
                             ) -> SuperLUlikeSolver:
     if solverKwargs is None:
         solverKwargs = {}
+    if context is None:
+        if isinstance(A, scipy.sparse.spmatrix) or isinstance(A, nparray):
+            context = 'cpu'
+        elif (_cupy_available and 
+              (isinstance(A, cupyx.scipy.sparse.spmatrix) 
+               or isinstance(A, cparray))):
+            context = 'cupy'
+        else:
+            raise TypeError("Unsupported type for A")
     if context == "cpu" or isinstance(context, ContextCpu):
+        assert isinstance(A, scipy.sparse.spmatrix), (
+            "When using CPU context A must be a scipy.sparse matrix"
+            )
         if 'permc_spec' not in solverKwargs:
             solverKwargs = solverKwargs | {"permc_spec":"MMD_AT_PLUS_A"}
         if force_solver is None or force_solver == "scipySLU":

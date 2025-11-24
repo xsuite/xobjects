@@ -98,7 +98,8 @@ def fix_random_seed(seed: int):
             rng_state = np.random.get_state()
             try:
                 np.random.seed(seed)
-                test_function(*args, **kwargs)
+                #Return value of function instead of None
+                return test_function(*args, **kwargs) 
             finally:
                 np.random.set_state(rng_state)
 

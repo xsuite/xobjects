@@ -15,7 +15,6 @@ try:
     scipy_available = True
 except ImportError:
     scipy_available = False
-from line_profiler import profile
 
 class CachedAbSolver:
     
@@ -181,7 +180,7 @@ class CachedAbSolver:
         else:
             raise ValueError('b must be F-contiguous or C-contiguous.')
         return op_b
-    @profile
+    
     def solve(self, b):
         assert b.dtype == self.dtype
         assert self._get_opb(b) == self.op_b
@@ -257,7 +256,7 @@ class luLU(SuperLU):
         self.Lsolver = CachedAbSolver(self.L, b_sample, lower=True, transa=self.trans)
         self.Usolver = CachedAbSolver(self.U, b_sample, lower=False, transa=self.trans)
         # self.Usolver = CachedAbSolver(self.U.T, b_sample, lower=True, transa="T") #Can improve performance at times
-    @profile
+    
     def solve(self, rhs, trans='N'):
         """Solves linear system of equations with one or several right-hand sides.
 

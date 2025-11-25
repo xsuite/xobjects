@@ -96,3 +96,6 @@ class DirectSolverSuperLU(nvmath.sparse.advanced.DirectSolver):
             self.__exit__(None, None, None)  # DirectSolver is context-manageable
         except Exception:
             pass
+        
+    def __dealloc__(self):
+        self.close()

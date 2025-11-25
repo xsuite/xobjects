@@ -81,6 +81,8 @@ if _enabled:
 
 
 class ContextPyopencl(XContext):
+    context_cache = {}
+
     @property
     def nplike_array_type(self):
         return cla.Array
@@ -128,20 +130,29 @@ class ContextPyopencl(XContext):
         super().__init__()
 
         # TODO assume one device only
-        if device is None:
+        if device in self.context_cache:
+            self.platform, self.device, self.context = self.context_cache[
+                device
+            ]
+        elif device is None:
             self.context = cl.create_some_context(interactive=False)
             self.device = self.context.devices[0]
             self.platform = self.device.platform
         else:
             if isinstance(device, str):
-                platform, device = map(int, device.split("."))
+                platform, device_ = map(int, device.split("."))
                 self.platform = cl.get_platforms()[platform]
-                self.device = self.platform.get_devices()[device]
+                self.device = self.platform.get_devices()[device_]
             else:
                 self.device = device
                 self.platform = device.platform
 
             self.context = cl.Context([self.device])
+            self.context_cache[device] = (
+                self.platform,
+                self.device,
+                self.context,
+            )
 
         self.queue = cl.CommandQueue(self.context)
 

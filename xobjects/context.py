@@ -668,14 +668,15 @@ def get_context_from_string(ctxstr):
 
     if ctxstr is None:
         return xo.ContextCpu()
+
+    ll = ctxstr.split(":")
+    if len(ll) <= 1:
+        ctxtype = ll[0]
+        option = []
     else:
-        ll = ctxstr.split(":")
-        if len(ll) <= 1:
-            ctxtype = ll[0]
-            option = []
-        else:
-            ctxtype, options = ctxstr.split(":")
-            option = options.split(",")
+        ctxtype, options = ctxstr.split(":")
+        option = options.split(",")
+
     if ctxtype == "ContextCpu":
         if len(option) == 0:
             return xo.ContextCpu()

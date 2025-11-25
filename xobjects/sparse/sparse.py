@@ -51,7 +51,7 @@ def factorized_sparse_solver(A: Union[scipy.sparse.csr_matrix,
         if 'permc_spec' not in solverKwargs:
             solverKwargs = solverKwargs | {"permc_spec":"MMD_AT_PLUS_A"}
         if force_solver is None or force_solver == "scipySLU":
-            if A.shape[0]*n_batches < 10**5:
+            if A.shape[0]*n_batches < 10**5 and force_solver is None:
                 import warnings
                 warnings.warn("For small matrices, using PyKLU " 
                               "can provide improved performance")

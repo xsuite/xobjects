@@ -31,7 +31,7 @@ tests = ["pytest", "pytest-mock"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["xobjects"]
+include = ["xobjects*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "xobjects._version.__version__"}

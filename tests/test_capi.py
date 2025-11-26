@@ -11,7 +11,7 @@ import numpy as np
 import cffi
 
 import xobjects as xo
-
+from xobjects.test_helpers import for_all_test_contexts
 
 ffi = cffi.FFI()
 
@@ -156,6 +156,70 @@ def test_array_dynamic_type_init_get_set(array_cls, example_shape):
             assert get_fun_f(obj=arr, **idx_kwargs) == vv
             set_fun_f(obj=arr, value=13 * vv, **idx_kwargs)
             assert arr[ii].field1[idx_in_field] == 13 * vv
+
+
+@for_all_test_contexts
+@pytest.mark.parametrize(
+    "array_type",
+    [
+        xo.UInt64[3, 5, 7],
+        xo.UInt64[:, :, :],
+        xo.UInt64[:, 5, :],
+    ],
+)
+def test_array_get_shape(test_context, array_type):
+    source = """
+        #include "xobjects/headers/common.h"
+
+        GPUKERN void get_nd_and_shape(
+            ARRAY_TYPE arr,
+            GPUGLMEM int64_t* out_nd,
+            GPUGLMEM int64_t* out_shape
+        ) {
+            *out_nd = ARRAY_TYPE_nd(arr);
+            ARRAY_TYPE_shape(arr, out_shape);
+        }
+    """.replace(
+        "ARRAY_TYPE", array_type.__name__
+    )
+
+    kernels = {
+        "get_nd_and_shape": xo.Kernel(
+            c_name="get_nd_and_shape",
+            args=[
+                xo.Arg(array_type, name="arr"),
+                xo.Arg(xo.Int64, pointer=True, name="out_nd"),
+                xo.Arg(xo.Int64, pointer=True, name="out_shape"),
+            ],
+        ),
+    }
+
+    test_context.add_kernels(
+        sources=[source],
+        kernels=kernels,
+    )
+
+    instance = array_type(
+        np.array(range(3 * 5 * 7)).reshape((3, 5, 7)),
+        _context=test_context,
+    )
+
+    expected_nd = 3
+    result_nd = test_context.zeros((1,), dtype=np.int64)
+
+    expected_shape = [3, 5, 7]
+    result_shape = test_context.zeros((expected_nd,), dtype=np.int64)
+
+    test_context.kernels.get_nd_and_shape(
+        arr=instance,
+        out_nd=result_nd,
+        out_shape=result_shape,
+    )
+
+    assert result_nd[0] == expected_nd
+    assert result_shape[0] == expected_shape[0]
+    assert result_shape[1] == expected_shape[1]
+    assert result_shape[2] == expected_shape[2]
 
 
 def test_struct1():
@@ -539,45 +603,190 @@ def test_getp1_dyn_length_dyn_type_string_array():
         assert ord(ffi.cast("char *", s2)[8 + ii]) == ch
 
 
-def test_gpu_api():
-    for ctx in xo.context.get_test_contexts():
-        src_code = """
-        /*gpufun*/
-        void myfun(double x, double y,
-            double* z){
-            z[0] = x * y;
-            }
-
-        /*gpukern*/
-        void my_mul(const int n,
-            /*gpuglmem*/ const double* x1,
-            /*gpuglmem*/ const double* x2,
-            /*gpuglmem*/       double* y) {
-            int tid = 0 //vectorize_over tid n
-            double z;
-            myfun(x1[tid], x2[tid], &z);
-            y[tid] = z;
-            //end_vectorize
-            }
-        """
-
-        kernel_descriptions = {
-            "my_mul": xo.Kernel(
-                args=[
-                    xo.Arg(xo.Int32, name="n"),
-                    xo.Arg(xo.Float64, pointer=True, const=True, name="x1"),
-                    xo.Arg(xo.Float64, pointer=True, const=True, name="x2"),
-                    xo.Arg(xo.Float64, pointer=True, const=False, name="y"),
-                ],
-                n_threads="n",
-            ),
+@for_all_test_contexts
+def test_gpu_api(test_context):
+    src_code = """
+    /*gpufun*/
+    void myfun(double x, double y,
+        double* z){
+        z[0] = x * y;
         }
 
-        ctx.add_kernels(
-            sources=[src_code],
-            kernels=kernel_descriptions,
-            # save_src_as=f'_test_{name}.c')
-            save_source_as=None,
-            compile=True,
-            extra_classes=[xo.String[:]],
-        )
+    /*gpukern*/
+    void my_mul(const int n,
+        /*gpuglmem*/ const double* x1,
+        /*gpuglmem*/ const double* x2,
+        /*gpuglmem*/       double* y) {
+        int tid = 0 //vectorize_over tid n
+        double z;
+        myfun(x1[tid], x2[tid], &z);
+        y[tid] = z;
+        //end_vectorize
+        }
+    """
+
+    kernel_descriptions = {
+        "my_mul": xo.Kernel(
+            args=[
+                xo.Arg(xo.Int32, name="n"),
+                xo.Arg(xo.Float64, pointer=True, const=True, name="x1"),
+                xo.Arg(xo.Float64, pointer=True, const=True, name="x2"),
+                xo.Arg(xo.Float64, pointer=True, const=False, name="y"),
+            ],
+            n_threads="n",
+        ),
+    }
+
+    test_context.add_kernels(
+        sources=[src_code],
+        kernels=kernel_descriptions,
+        save_source_as=None,
+        compile=True,
+        extra_classes=[xo.String[:]],
+    )
+
+
+@for_all_test_contexts
+def test_array_of_arrays(test_context):
+    cell_ids = [3, 5, 7]
+    particle_per_cell = [
+        [1, 8],
+        [9, 3, 2],
+        [4, 5, 6, 7],
+    ]
+
+    class Cells(xo.Struct):
+        ids = xo.Int64[:]
+        particles = xo.Int64[:][:]
+
+    cells = Cells(
+        ids=cell_ids, particles=particle_per_cell, _context=test_context
+    )
+
+    # Data layout (displayed as uint64):
+    #
+    #   [0] 216 (cells size)
+    #   [8]  56 (offset field 2 -- particles field)
+    #  [16] cell_ids data:
+    #        [0] 40 (cell_ids size)
+    #        [8]  3 (cell_ids length)
+    #       [16] {3, 5, 7} (cell_ids elements)
+    #  [56] particles data:
+    #        [0] 160 (particles size)
+    #        [8]   3 (particles length)
+    #       [16]  40 (offset particles[0])
+    #       [24]  72 (offset particles[1])
+    #       [32] 112 (offset particles[2])
+    #       [40] particles[0] data:
+    #             [0] 32 (particles[0] size)
+    #             [8]  2 (particles[0] length)
+    #            [16] {1, 8} (particles[0] elements)
+    #       [72] particles[1] data:
+    #             [0] 40 (particles[1] size)
+    #             [8]  3 (particles[1] length)
+    #            [16] {9, 3, 2} (particles[1
+    #      [112] particles[2] data:
+    #             [0] 48 (particles[2] size)
+    #             [8]  4 (particles[2] length)
+    #            [16] {4, 5, 6, 7} (particles[2] elements)
+
+    src = r"""
+    #include "xobjects/headers/common.h"
+
+    static const int MAX_PARTICLES = 4;
+    static const int MAX_CELLS = 3;
+
+    GPUKERN void loop_over(
+        Cells cells,
+        GPUGLMEM uint64_t* out_counts,
+        GPUGLMEM uint64_t* out_vals,
+        GPUGLMEM uint8_t* success
+    )
+    {
+        int64_t num_cells = Cells_len_ids(cells);
+
+        for (int64_t i = 0; i < num_cells; i++) {
+            int64_t id = Cells_get_ids(cells, i);
+            int64_t count = Cells_len1_particles(cells, i);
+
+            if (i >= MAX_CELLS) {
+                *success = 0;
+                continue;
+            }
+
+            out_counts[i] = count;
+
+            ArrNInt64 particles = Cells_getp1_particles(cells, i);
+            uint32_t num_particles = ArrNInt64_len(particles);
+
+            VECTORIZE_OVER(j, num_particles);
+                int64_t val = ArrNInt64_get(particles, j);
+
+                if (j >= MAX_PARTICLES) {
+                    *success = 0;
+                } else {
+                    out_vals[i * MAX_PARTICLES + j] = val;
+                }
+            END_VECTORIZE;
+        }
+    }
+
+    GPUKERN void kernel_Cells_get_particles(
+        Cells obj,
+        int64_t i0,
+        int64_t i1,
+        GPUGLMEM int64_t* out
+    ) {
+        *out = Cells_get_particles(obj, i0, i1);
+    }
+    """
+
+    kernels = {
+        "loop_over": xo.Kernel(
+            args=[
+                xo.Arg(Cells, name="cells"),
+                xo.Arg(xo.UInt64, pointer=True, name="out_counts"),
+                xo.Arg(xo.UInt64, pointer=True, name="out_vals"),
+                xo.Arg(xo.UInt8, pointer=True, name="success"),
+            ],
+            n_threads=4,
+        ),
+        "kernel_Cells_get_particles": xo.Kernel(
+            args=[
+                xo.Arg(Cells, name="obj"),
+                xo.Arg(xo.Int64, name="i0"),
+                xo.Arg(xo.Int64, name="i1"),
+                xo.Arg(xo.Int64, pointer=True, name="out"),
+            ],
+        ),
+    }
+
+    test_context.add_kernels(
+        sources=[src],
+        kernels=kernels,
+    )
+
+    counts = test_context.zeros(len(cell_ids), dtype=np.uint64)
+    vals = test_context.zeros(12, dtype=np.uint64)
+    success = test_context.zeros((1,), dtype=np.uint8) + 1
+
+    for i, _ in enumerate(particle_per_cell):
+        for j, expected in enumerate(particle_per_cell[i]):
+            result = test_context.zeros(shape=(1,), dtype=np.int64)
+            test_context.kernels.kernel_Cells_get_particles(
+                obj=cells, i0=i, i1=j, out=result
+            )
+            assert result[0] == expected
+
+    test_context.kernels.loop_over(
+        cells=cells,
+        out_counts=counts,
+        out_vals=vals,
+        success=success,
+    )
+    counts = test_context.nparray_from_context_array(counts)
+    vals = test_context.nparray_from_context_array(vals)
+
+    assert success[0] == 1
+    assert np.all(counts == [2, 3, 4])
+    assert np.all(vals == [1, 8, 0, 0, 9, 3, 2, 0, 4, 5, 6, 7])

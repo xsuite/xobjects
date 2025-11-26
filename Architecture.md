@@ -40,19 +40,19 @@ Buffer:
 
 Types can be composed of:
 - scalar: numbers, String
-- compound: Struct, Array, Ref, UnionRef 
+- compound: Struct, Array, Ref, UnionRef
 
 ### Scalars
 - examples: Float64, Int64, ...
 - create: Float64(3.14)
 - memory layout
-    - data 
+    - data
 
 ### String:
 - create: String(string_or_int)
 - memory layout
     - size
-    - data 
+    - data
 
 
 ### Struct

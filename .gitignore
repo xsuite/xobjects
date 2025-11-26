@@ -8,4 +8,5 @@ cov_html
 .vscode
 .pytest_cache
 .coverage
+.idea
 *.c

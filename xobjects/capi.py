@@ -5,7 +5,7 @@
 
 from .context import Kernel, Arg
 
-from .scalar import Int64, Void, Int8, is_scalar
+from .scalar import UInt32, Int64, Void, is_scalar
 from .struct import is_field, is_struct
 from .array import is_index, is_array
 from .ref import is_unionref, is_ref
@@ -103,9 +103,10 @@ def get_layers(parts):
 
 
 def int_from_obj(offset, conf):
-    inttype = gen_pointer(conf.get("inttype", "int64_t") + "*", conf)
-    chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
-    return f"*({inttype})(({chartype}) obj+{offset})"
+    """Generate code to read the integer at location obj + offset (bytes)."""
+    int_pointer_type = gen_pointer(conf.get("inttype", "int64_t") + "*", conf)
+    char_pointer_type = gen_pointer(conf.get("chartype", "char") + "*", conf)
+    return f"*({int_pointer_type})(({char_pointer_type}) obj+{offset})"
 
 
 def Field_get_c_offset(self, conf):
@@ -146,7 +147,7 @@ def Index_get_c_offset(part, conf, icount):
         out.append(f"  offset+={soffset};")
     else:
         lookup_field_offset = f"offset+{soffset}"
-        out.append(f"  offset={int_from_obj(lookup_field_offset, conf)};")
+        out.append(f"  offset+={int_from_obj(lookup_field_offset, conf)};")
     return out
 
 
@@ -206,16 +207,17 @@ def gen_fun_kernel(cls, path, action, const, extra, ret, add_nindex=False):
 def gen_c_pointed(target: Arg, conf):
     size = gen_c_size_from_arg(target, conf)
     ret = gen_c_type_from_arg(target, conf)
+
     if target.pointer or is_compound(target.atype) or is_string(target.atype):
         chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
         return f"({ret})(({chartype}) obj+offset)"
-    else:
-        rettype = gen_pointer(ret + "*", conf)
-        if size == 1:
-            return f"*(({rettype}) obj+offset)"
-        else:
-            chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
-            return f"*({rettype})(({chartype}) obj+offset)"
+
+    rettype = gen_pointer(ret + "*", conf)
+    if size == 1:
+        return f"*(({rettype}) obj+offset)"
+
+    chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
+    return f"*({rettype})(({chartype}) obj+offset)"
 
 
 def gen_method_get(cls, path, conf):
@@ -364,13 +366,74 @@ def gen_method_size(cls, path, conf):
 
 
 def gen_method_shape(cls, path, conf):
-    "return shape in an array"
-    return None, None
+    array_type = path[-1]
+
+    out_shape_arg = Arg(Int64, name="out_shape", pointer=True)
+
+    kernel = gen_fun_kernel(
+        cls,
+        path,
+        const=False,
+        action="shape",
+        extra=[out_shape_arg],
+        ret=None,
+        add_nindex=True,
+    )
+    decl = gen_c_decl_from_kernel(kernel, conf)
+
+    lst = [decl + "{"]
+
+    nd = len(array_type._shape)
+
+    if array_type._is_static_shape:
+        terms = [str(dim) for dim in array_type._shape]
+    else:
+        lst.append(gen_method_offset(path, conf))
+        arrarg = Arg(Int64, pointer=True)
+        pointed = gen_c_pointed(arrarg, conf)
+        typearr = gen_pointer("int64_t*", conf)
+        lst.append(f"  {typearr} arr = {pointed};")
+        dim_len_idx = 1
+        terms = []
+        for dim_len in array_type._shape:
+            if dim_len:
+                terms.append(str(dim_len))
+            else:
+                terms.append(f"arr[{dim_len_idx}]")
+                dim_len_idx += 1
+
+    for dim_idx in range(nd):
+        lst.append(f"  out_shape[{dim_idx}] = {terms[dim_idx]};")
+
+    lst.append("}")
+
+    return "\n".join(lst), kernel
 
 
 def gen_method_nd(cls, path, conf):
     "return length of shape"
-    return None, None
+    array_type = path[-1]
+
+    retarg = Arg(UInt32)
+
+    kernel = gen_fun_kernel(
+        cls,
+        path,
+        const=False,
+        action="nd",
+        extra=[],
+        ret=retarg,
+        add_nindex=True,
+    )
+    decl = gen_c_decl_from_kernel(kernel, conf)
+
+    lst = [decl + "{"]
+
+    nd = len(array_type._shape)
+    lst.append(f"  return {nd};")
+    lst.append("}")
+
+    return "\n".join(lst), kernel
 
 
 def gen_method_strides(cls, path, conf):
@@ -507,8 +570,8 @@ def methods_from_path(cls, path, conf):
 
     if is_array(lasttype):
         out.append(gen_method_len(cls, path, conf))
-    #    out.append(gen_method_shape(cls, path, conf))
-    #    out.append(gen_method_nd(cls, path, conf))
+        out.append(gen_method_shape(cls, path, conf))
+        out.append(gen_method_nd(cls, path, conf))
     #    out.append(gen_method_strides(cls, path, conf))
     #    out.append(gen_method_getpos(cls, path, conf))
 

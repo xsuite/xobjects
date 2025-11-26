@@ -6,8 +6,8 @@
 import os
 
 copyright_statement = """copyright #################################
-This file is part of the Xobjects Package. 
-Copyright (c) CERN, 2021.                  
+This file is part of the Xobjects Package.
+Copyright (c) CERN, 2021.
 ###########################################"""
 
 config = [

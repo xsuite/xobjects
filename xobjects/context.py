@@ -375,12 +375,30 @@ class XContext(ABC):
         return sources
 
     @abstractmethod
-    def nparray_to_context_array(self, arr):
-        return arr
+    def nparray_to_context_array(self, arr, copy=False):
+        """Obtain an array on the context, given a numpy array.
+
+        Args:
+            arr: numpy array
+            copy: if True, always create a copy in the context. If False,
+                try to avoid copy if possible (not guaranteed).
+
+        Returns:
+            array on the context
+        """
 
     @abstractmethod
-    def nparray_from_context_array(self, dev_arr):
-        return dev_arr
+    def nparray_from_context_array(self, dev_arr, copy=False):
+        """Obtain a numpy array, given an array on the context.
+
+        Args:
+            arr: array on the context
+            copy: if True, always create a copy in the context. If False,
+                try to avoid copy if possible (not guaranteed).
+
+        Returns:
+            Numpy array
+        """
 
     @property
     @abstractmethod
@@ -650,14 +668,15 @@ def get_context_from_string(ctxstr):
 
     if ctxstr is None:
         return xo.ContextCpu()
+
+    ll = ctxstr.split(":")
+    if len(ll) <= 1:
+        ctxtype = ll[0]
+        option = []
     else:
-        ll = ctxstr.split(":")
-        if len(ll) <= 1:
-            ctxtype = ll[0]
-            option = []
-        else:
-            ctxtype, options = ctxstr.split(":")
-            option = options.split(",")
+        ctxtype, options = ctxstr.split(":")
+        option = options.split(",")
+
     if ctxtype == "ContextCpu":
         if len(option) == 0:
             return xo.ContextCpu()

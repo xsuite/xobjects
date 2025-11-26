@@ -1,17 +1,19 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = [
+    "setuptools>=77.0"
+]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "xobjects"
 dynamic = ["version"]
 description = "In-memory serialization and code generator for CPU and GPU"
-readme = ""
+readme = "README.md"
 authors = [
     { name = "Riccardo De Maria", email = "riccardo.de.maria@cern.ch" }
 ]
-license = { text = "Apache 2.0" }
-requires-python = ">=3.7"
+license = "Apache-2.0"
+requires-python = ">=3.9"
 dependencies = [
     "numpy",
     "cffi",
@@ -41,3 +43,8 @@ include = '\.pyi?$'
 
 [project.entry-points.xobjects]
 include = "xobjects"
+
+[pytest]
+markers = [
+    "context_dependent: marks test as one that depends on the execution context",
+]

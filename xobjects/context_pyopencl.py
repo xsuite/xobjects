@@ -126,7 +126,12 @@ class ContextPyopencl(XContext):
             ContextPyopencl: context object.
 
         """
-
+        
+        if not _enabled:
+            raise ModuleNotAvailable(
+                "pyopencl is not installed. ContextPyopencl is not available!"
+            )
+        
         super().__init__()
 
         # TODO assume one device only

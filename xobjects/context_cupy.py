@@ -398,6 +398,11 @@ class ContextCupy(XContext):
         default_shared_mem_size_bytes=0,
         device=None,
     ):
+        if not _enabled:
+            raise ModuleNotAvailable(
+                "cupy is not installed. " "ContextCupy is not available!"
+                )
+        
         if device is not None:
             cupy.cuda.Device(device).use()
 

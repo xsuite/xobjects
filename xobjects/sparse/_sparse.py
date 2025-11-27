@@ -57,7 +57,7 @@ def factorized_sparse_solver(A: Union[scipy.sparse.csr_matrix,
                               "can provide improved performance")
             solver = scipy.sparse.linalg.splu(A.tocsc(),**solverKwargs)
         elif force_solver == "PyKLU":
-            import PyKLU.klu as PyKLU
+            import PyKLU
             solver = PyKLU.Klu(A.tocsc())
         else:
             raise ValueError("Unrecognized CPU Sparse solver. Available options: "

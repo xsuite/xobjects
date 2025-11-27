@@ -2,20 +2,58 @@ import numpy as np
 import scipy.sparse as sp
 import xobjects as xo
 from xobjects.test_helpers import fix_random_seed
+from xobjects.sparse import _test_helpers as sptest
+from xobjects.context import ModuleNotAvailableError
+import warnings
 import pytest
 
-PARAMS = [
-    ("scipySLU",  xo.ContextCpu()),
-    ("PyKLU",     xo.ContextCpu()),
-    ("cuDSS",     xo.ContextCupy()),
-    ("CachedSLU", xo.ContextCupy()),
-    ("cupySLU",   xo.ContextCupy()),
-]
+'''
+The following tests rely on computing the relative residual of the solution
+The relative residual can be defined as:
+                               || A * x - b ||
+                        η = ---------------------
+                             ||A||*||x|| + ||b||
 
-REL_TOL = 1e-4
-ABS_TOL = 1e-8
-SPARSE_SYSTEM_SIZE = 5000 # (n,n) matrix
+Typically, the expected value for this quantity is:
+* Ideally: 1e-12 - 1e-14
+* Ill-conditioned systems: 1e-9 - 1e-10
+
+In this module, we evaluate the residual as follows:
+* We compare the residual of the reference solver (scipy) with ABS_TOL
+* We compare the residual of the KLU solver with ABS_TOL
+* We ensure that the residual of the KLU Solver is within TOLERANCE_FACTOR
+  of the reference solver. 
+  
+For reference, the machine precision for FP64 is ~2.2e-16 (PRECISION)
+
+Note: The completely random sparse system is more prone to failing the tests
+due to numerical noise, often requires looser tolerances. Still worth including
+but if testing larger systems, could potentially be omitted.
+'''
+
+cpu_tests = [
+        ("scipySLU",  xo.ContextCpu()),
+        ("PyKLU",     xo.ContextCpu()),
+        ]
+
+cupy_tests = []
+try:
+    cupy_tests = [
+        ("cuDSS",     xo.ContextCupy()),
+        ("CachedSLU", xo.ContextCupy()),
+        ("cupySLU",   xo.ContextCupy()),
+    ]
+except ModuleNotAvailableError:
+    warnings.warn("!!!ContextCupy unavailable. "
+                  "Skipping tests for Cupy Solvers!!!")
+
+PARAMS = cpu_tests + cupy_tests
+
+SPARSE_SYSTEM_SIZE = 2000 # (n,n) matrix
 NUM_BATCHES = 10
+PRECISION = np.finfo(float).eps
+ABS_TOL = 1e-12
+TOLERANCE_FACTOR = 2
 
 def batch_vectors_as_matrix(vector_list):
     return np.asfortranarray(np.moveaxis(np.array(vector_list),0,-1))
@@ -75,8 +113,10 @@ tridiag_system = make_tridiagonal_system(SPARSE_SYSTEM_SIZE, 0)
 @pytest.mark.parametrize("sparse_system", [random_system, tridiag_system])
 def test_vector_solve(test_solver, test_context, sparse_system):
     A_sp, b_sp, x_sp, _ = sparse_system
-    np.testing.assert_allclose(b_sp, A_sp@x_sp, 
-                               rtol = REL_TOL, atol = ABS_TOL) #Verify Scipy result
+    assert not sptest.issymmetric(A_sp)
+
+    scipy_residual = sptest.rel_residual(A_sp,x_sp,b_sp)
+    
     if "Cpu" in str(test_context):
         A = test_context.splike_lib.sparse.csc_matrix(A_sp)
     if "Cupy" in str(test_context):
@@ -88,9 +128,10 @@ def test_vector_solve(test_solver, test_context, sparse_system):
                                                 context = test_context
                                                 )
     x = solver.solve(b)
-    
-    xo.assert_allclose(x_sp, x, rtol = REL_TOL, atol = ABS_TOL)
-    xo.assert_allclose(b, A@x, rtol = REL_TOL, atol = ABS_TOL)
+
+    solver_residual = sptest.rel_residual(A,x,b)
+    sptest.assert_residual_ok(scipy_residual,solver_residual, 
+                              abs_tol = ABS_TOL, factor = TOLERANCE_FACTOR)
 
 random_system = make_random_sparse_system(SPARSE_SYSTEM_SIZE, NUM_BATCHES)
 tridiag_system = make_tridiagonal_system(SPARSE_SYSTEM_SIZE, NUM_BATCHES)
@@ -99,8 +140,8 @@ tridiag_system = make_tridiagonal_system(SPARSE_SYSTEM_SIZE, NUM_BATCHES)
 @pytest.mark.parametrize("sparse_system", [random_system, tridiag_system])
 def test_batched_solve(test_solver, test_context, sparse_system):
     A_sp, b_sp, x_sp, _ = sparse_system
-    np.testing.assert_allclose(b_sp, A_sp@x_sp, 
-                               rtol = REL_TOL, atol = ABS_TOL) #Verify Scipy result
+    assert not sptest.issymmetric(A_sp)
+    scipy_residual = sptest.rel_residual(A_sp,x_sp,b_sp)
     if "Cpu" in str(test_context):
         A = test_context.splike_lib.sparse.csc_matrix(A_sp)
     if "Cupy" in str(test_context):
@@ -113,6 +154,7 @@ def test_batched_solve(test_solver, test_context, sparse_system):
                                                 context = test_context
                                                 )
     x = solver.solve(b)
-    
-    xo.assert_allclose(x_sp, x, rtol = REL_TOL, atol = ABS_TOL)
-    xo.assert_allclose(b, A@x, rtol = REL_TOL, atol = ABS_TOL)
+
+    solver_residual = sptest.rel_residual(A,x,b)
+    sptest.assert_residual_ok(scipy_residual,solver_residual, 
+                              abs_tol = ABS_TOL, factor = TOLERANCE_FACTOR)

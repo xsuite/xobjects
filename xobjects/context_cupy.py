@@ -18,6 +18,7 @@ from .context import (
     classes_from_kernels,
     sort_classes,
     sources_from_classes,
+    ModuleNotAvailableError,
 )
 from .linkedarray import BaseLinkedArray
 from .specialize_source import specialize_source
@@ -399,7 +400,7 @@ class ContextCupy(XContext):
         device=None,
     ):
         if not _enabled:
-            raise ModuleNotAvailable(
+            raise ModuleNotAvailableError(
                 "cupy is not installed. " "ContextCupy is not available!"
                 )
         

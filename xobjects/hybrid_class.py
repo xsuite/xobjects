@@ -169,7 +169,7 @@ class MetaHybridClass(type):
 
             setattr(new_class, pyname, _FieldOfDressed(fname, _XoStruct))
 
-        new_class._fields = _XoStruct._fields.copy()
+        new_class._fields = [ff.name for ff in _XoStruct._fields]
 
         _XoStruct._DressingClass = new_class
 

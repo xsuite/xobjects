@@ -295,6 +295,9 @@ class HybridClass(metaclass=MetaHybridClass):
 
         defaults = {}
         for field in obj._XoStruct._fields:
+            if dft := getattr(self, f"_default_{field.name}", None):
+                defaults[field.name] = dft
+                continue
             name = obj._rename.get(field.name, field.name)
             try:
                 defaults[name] = field.get_default()

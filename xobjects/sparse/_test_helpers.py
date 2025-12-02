@@ -21,7 +21,7 @@ def rel_residual(A,x,b):
         b = b.get()
     assert issparse(A), ("A must be a sparse matrix")
 
-    return npl.norm(A@x - b) / (scspl.norm(A)*npl.norm(x) + npl.norm(b))
+    return npl.norm(A@x - b) / (npl.norm(b))
 
 def assert_residual_ok(res_ref, res_solver,
                        abs_tol=1e-12,

@@ -12,7 +12,7 @@ The following tests rely on computing the relative residual of the solution
 The relative residual can be defined as:
                                || A * x - b ||
                         η = ---------------------
-                             ||A||*||x|| + ||b||
+                                    ||b||
 
 Typically, the expected value for this quantity is:
 * Ideally: 1e-12 - 1e-14

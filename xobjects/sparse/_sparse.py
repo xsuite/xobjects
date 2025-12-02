@@ -4,6 +4,7 @@
 # ########################################### #
 
 import scipy.sparse
+import numpy.linalg as npl
 from numpy import ndarray as nparray
 from typing import Optional, Literal, Union
 from ..context import XContext
@@ -331,3 +332,14 @@ def factorized_sparse_solver(A: Union[scipy.sparse.csr_matrix,
 def dbugprint(verbose: bool, text: str):
     if verbose:
         _print("[xo.sparse] "+text)
+
+def rel_residual(A,x,b):
+    if hasattr(A, "get"):
+        A = A.get()
+    if hasattr(x, "get"):
+        x = x.get()
+    if hasattr(b, "get"):
+        b = b.get()
+    assert scipy.sparse.issparse(A), ("A must be a sparse matrix")
+
+    return npl.norm(A@x - b) / (npl.norm(b))

@@ -7,7 +7,6 @@ import numpy as np
 import scipy.sparse as sp
 import xobjects as xo
 from xobjects.test_helpers import fix_random_seed
-from xobjects.sparse import _test_helpers as sptest
 from xobjects.context import ModuleNotAvailableError
 import warnings
 import pytest
@@ -36,6 +35,41 @@ due to numerical noise, often requires looser tolerances. Still worth including
 but if testing larger systems, could potentially be omitted.
 '''
 
+# ---- Helper functions ----
+def issymmetric(A, tol=0):
+    if A.shape[0] != A.shape[1]:
+        return False
+    diff = A - A.T
+    if tol == 0:
+        return diff.nnz == 0
+    else:
+        # tolerance-based check
+        return abs(diff).max() <= tol
+
+
+def assert_residual_ok(res_ref, res_solver,
+                       abs_tol=1e-12,
+                       factor=10):
+    """
+    Check that our solver's residual is both:
+      - absolutely small enough (abs_tol),
+      - not catastrophically worse than the reference (factor * res_ref).
+    """
+    # sanity: reference solver itself should be good
+    assert res_ref < abs_tol, f"Reference residual too large: {res_ref}"
+
+    # absolute bound
+    assert res_solver < abs_tol, (
+        f"Residual {res_solver} exceeds absolute tolerance {abs_tol}"
+    )
+
+    # relative bound vs reference
+    assert res_solver <= factor * res_ref, (
+        f"Residual {res_solver} not within factor {factor} of "
+        f"reference residual {res_ref}"
+    )
+
+# ---- Tests ----
 cpu_tests = [
         ("scipySLU",  xo.ContextCpu()),
         ("PyKLU",     xo.ContextCpu()),
@@ -118,9 +152,9 @@ tridiag_system = make_tridiagonal_system(SPARSE_SYSTEM_SIZE, 0)
 @pytest.mark.parametrize("sparse_system", [random_system, tridiag_system])
 def test_vector_solve(test_solver, test_context, sparse_system):
     A_sp, b_sp, x_sp, _ = sparse_system
-    assert not sptest.issymmetric(A_sp)
+    assert not issymmetric(A_sp)
 
-    scipy_residual = sptest.rel_residual(A_sp,x_sp,b_sp)
+    scipy_residual = xo.sparse.rel_residual(A_sp,x_sp,b_sp)
     
     if "Cpu" in str(test_context):
         A = test_context.splike_lib.sparse.csc_matrix(A_sp)
@@ -134,9 +168,9 @@ def test_vector_solve(test_solver, test_context, sparse_system):
                                                 )
     x = solver.solve(b)
 
-    solver_residual = sptest.rel_residual(A,x,b)
-    sptest.assert_residual_ok(scipy_residual,solver_residual, 
-                              abs_tol = ABS_TOL, factor = TOLERANCE_FACTOR)
+    solver_residual = xo.sparse.rel_residual(A,x,b)
+    assert_residual_ok(scipy_residual,solver_residual, 
+                        abs_tol = ABS_TOL, factor = TOLERANCE_FACTOR)
 
 random_system = make_random_sparse_system(SPARSE_SYSTEM_SIZE, NUM_BATCHES)
 tridiag_system = make_tridiagonal_system(SPARSE_SYSTEM_SIZE, NUM_BATCHES)
@@ -145,8 +179,8 @@ tridiag_system = make_tridiagonal_system(SPARSE_SYSTEM_SIZE, NUM_BATCHES)
 @pytest.mark.parametrize("sparse_system", [random_system, tridiag_system])
 def test_batched_solve(test_solver, test_context, sparse_system):
     A_sp, b_sp, x_sp, _ = sparse_system
-    assert not sptest.issymmetric(A_sp)
-    scipy_residual = sptest.rel_residual(A_sp,x_sp,b_sp)
+    assert not issymmetric(A_sp)
+    scipy_residual = xo.sparse.rel_residual(A_sp,x_sp,b_sp)
     if "Cpu" in str(test_context):
         A = test_context.splike_lib.sparse.csc_matrix(A_sp)
     if "Cupy" in str(test_context):
@@ -160,6 +194,6 @@ def test_batched_solve(test_solver, test_context, sparse_system):
                                                 )
     x = solver.solve(b)
 
-    solver_residual = sptest.rel_residual(A,x,b)
-    sptest.assert_residual_ok(scipy_residual,solver_residual, 
-                              abs_tol = ABS_TOL, factor = TOLERANCE_FACTOR)
+    solver_residual = xo.sparse.rel_residual(A,x,b)
+    assert_residual_ok(scipy_residual,solver_residual, 
+                        abs_tol = ABS_TOL, factor = TOLERANCE_FACTOR)

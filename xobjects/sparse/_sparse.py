@@ -109,7 +109,7 @@ def factorized_sparse_solver(A: Union[scipy.sparse.csr_matrix,
         * `"scipySLU"` : Use `scipy.sparse.linalg.splu` (CPU).
         * `"PyKLU"`    : Use the `PyKLU.Klu` solver (CPU).
         * `"cuDSS"`    : Use CUDA/cuDSS-based `DirectSolverSuperLU` (GPU).
-        * `"CachedSLU"`: Use CUDA cached SuperLU (`luLU`) (GPU).
+        * `"CachedSLU"`: Use CUDA cached spsm SuperLU (`luLU`) (GPU).
         * `"cupySLU"`  : Use `cupyx.scipy.sparse.linalg.splu` (GPU).
 
         Using a solver that does not match the current `context` will result
@@ -153,8 +153,20 @@ def factorized_sparse_solver(A: Union[scipy.sparse.csr_matrix,
               - `PyKLU.Klu` (for `"PyKLU"`).
           * CUDA/CuPy:
               - `DirectSolverSuperLU` (cuDSS),
-              - `luLU` (cached SuperLU),
+              - `luLU` (cached spsm SuperLU),
               - `cupyx.scipy.sparse.linalg.SuperLU` (for `"cupySLU"`).
+        
+        All returned solver objects implement a `solve(b)` method.
+        For **optimal performance across all backends**, the right-hand
+        side `b` should be passed as a **Fortran-contiguous (column-major)**
+        array:
+
+        * For a single RHS: shape ``(n,)`` or ``(n, 1)`` (Fortran contiguous).
+        * For multiple RHSs: shape ``(n, nrhs)`` with **Fortran layout**.
+
+        If `b` is not Fortran-contiguous, the solver will internally copy or
+        transform it, which can incur extra overhead—especially on CUDA/GPU
+        backends and in batched-solve scenarios.
 
     Raises
     ------

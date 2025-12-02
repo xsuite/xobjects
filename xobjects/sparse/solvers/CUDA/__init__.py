@@ -1,24 +1,26 @@
-from ....context import ModuleNotAvailableError
 try:
-    from ._cuDSSLU import DirectSolverSuperLU as cuDSSSuperLU
+    from ._cuDSSLU import DirectSolverSuperLU as cuDSS
 except (ModuleNotFoundError,ImportError) as e:
-    def cuDSSSuperLU(*args, _import_err=e, **kwargs):
+    def cuDSS(*args, _import_err=e, **kwargs):
+        from ....context import ModuleNotAvailableError
         raise ModuleNotAvailableError(
-            "cuDSSSuperLU is not available. Could not import required backend."
+            "cuDSS is not available. Could not import required backend."
             ) from _import_err
 try:
-    from ._luLU import luLU as CachedSuperLU
+    from ._luLU import luLU as cachedSpSM
 except (ModuleNotFoundError,ImportError) as e:
-    def CachedSuperLU(*args, _import_err=e, **kwargs):
+    def cachedSpSM(*args, _import_err=e, **kwargs):
+        from ....context import ModuleNotAvailableError
         raise ModuleNotAvailableError(
-            "CachedSuperLU is not available. Could not import required backend."
+            "cachedSpSM is not available. Could not import required backend."
             ) from _import_err
 try:
-    from cupyx.scipy.sparse.linalg import splu as CupySuperLU
+    from cupyx.scipy.sparse.linalg import splu as cupysplu
 except (ModuleNotFoundError,ImportError) as e:
-    def CupySuperLU(*args, _import_err=e, **kwargs):
+    def cupysplu(*args, _import_err=e, **kwargs):
+        from ....context import ModuleNotAvailableError
         raise ModuleNotAvailableError(
-            "CupySuperLU is not available. Could not import required backend."
+            "cupysplu is not available. Could not import required backend."
             ) from _import_err
 
-__all__ = ["cuDSSSuperLU", "CachedSuperLU", "CupySuperLU"]
+__all__ = ["cuDSS", "cachedSpSM", "cupysplu"]

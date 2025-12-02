@@ -1,7 +1,12 @@
 from scipy.sparse.linalg import splu as scipySuperLU
-__all__ = ["scipySuperLU"]
+from ....context import ModuleNotAvailableError
+
 try:
     from PyKLU import Klu as KLUSuperLU
-    __all__.append("KLUSuperLU")
-except ImportError:
-    pass
+except (ModuleNotFoundError,ImportError) as e:
+    def KLUSuperLU(*args, _import_err=e, **kwargs):
+        raise ModuleNotAvailableError(
+            "KLUSuperLU is not available. Could not import required backend."
+            ) from _import_err
+
+__all__ = ["scipySuperLU", "KLUSuperLU"]

@@ -1,3 +1,8 @@
+# copyright ################################# #
+# This file is part of the Xobjects Package.  #
+# Copyright (c) CERN, 2021.                   #
+# ########################################### #
+
 import numpy.linalg as npl
 import scipy.sparse.linalg as scspl
 from scipy.sparse import issparse

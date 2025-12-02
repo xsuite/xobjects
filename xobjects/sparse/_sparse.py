@@ -1,3 +1,8 @@
+# copyright ################################# #
+# This file is part of the Xobjects Package.  #
+# Copyright (c) CERN, 2021.                   #
+# ########################################### #
+
 import scipy.sparse
 from numpy import ndarray as nparray
 from typing import Optional, Literal, Union

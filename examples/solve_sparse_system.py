@@ -1,3 +1,8 @@
+# copyright ################################# #
+# This file is part of the Xobjects Package.  #
+# Copyright (c) CERN, 2021.                   #
+# ########################################### #
+
 import xobjects as xo
 import scipy.sparse as sp
 import numpy as np
@@ -17,7 +22,7 @@ is to reuse the same LHS for many solves, so the solvers work as follows:
 solver(A) # Performs decomposition/factorization
 solver.solve(b) # Solves Ax = b using precomputed factors
 
-For optimal performance accross backends b should be a column-major (F Contiguous)
+For optimal performance across backends b should be a column-major (F Contiguous)
 array or vector.
 
 The intended interface for this module is:
@@ -34,7 +39,7 @@ with the xo.sparse module, so that cross-platform compatibility is guaranteed.
 For development and convenience purposes xo.sparse provides the:
 xo.sparse.solvers module
 
-which provides the following options:
+which provides the following:
 xo.sparse.solvers.CPU.
     - scipysplu : Alias for scipy SuperLU 
     - KLUSuperLU : Alias for PyKLU

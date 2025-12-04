@@ -169,7 +169,7 @@ class MetaHybridClass(type):
 
             setattr(new_class, pyname, _FieldOfDressed(fname, _XoStruct))
 
-        new_class._fields = pynames_list
+        new_class._fields = [ff.name for ff in _XoStruct._fields]
 
         _XoStruct._DressingClass = new_class
 
@@ -295,6 +295,9 @@ class HybridClass(metaclass=MetaHybridClass):
 
         defaults = {}
         for field in obj._XoStruct._fields:
+            if dft := getattr(self, f"_default_{field.name}", None):
+                defaults[field.name] = dft
+                continue
             name = obj._rename.get(field.name, field.name)
             try:
                 defaults[name] = field.get_default()

@@ -18,6 +18,7 @@ from .context import (
     classes_from_kernels,
     sort_classes,
     sources_from_classes,
+    ModuleNotAvailableError,
 )
 from .linkedarray import BaseLinkedArray
 from .specialize_source import specialize_source
@@ -398,6 +399,11 @@ class ContextCupy(XContext):
         default_shared_mem_size_bytes=0,
         device=None,
     ):
+        if not _enabled:
+            raise ModuleNotAvailableError(
+                "cupy is not installed. " "ContextCupy is not available!"
+                )
+        
         if device is not None:
             cupy.cuda.Device(device).use()
 

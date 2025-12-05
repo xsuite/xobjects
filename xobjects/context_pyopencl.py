@@ -18,6 +18,7 @@ from .context import (
     classes_from_kernels,
     sort_classes,
     sources_from_classes,
+    ModuleNotAvailableError,
 )
 from .linkedarray import BaseLinkedArray
 from .specialize_source import specialize_source
@@ -127,6 +128,11 @@ class ContextPyopencl(XContext):
 
         """
 
+        if not _enabled:
+            raise ModuleNotAvailableError(
+                "pyopencl is not installed. ContextPyopencl is not available!"
+            )
+        
         super().__init__()
 
         # TODO assume one device only

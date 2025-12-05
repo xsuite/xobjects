@@ -6,7 +6,7 @@
 import xobjects as xo
 import scipy.sparse as sp
 import numpy as np
-from xobjects.sparse._test_helpers import rel_residual
+from xobjects.sparse import rel_residual
 
 '''
 The goal of this example is to provide a short user guide for the xo.sparse module.

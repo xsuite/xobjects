@@ -298,9 +298,8 @@ class HybridClass(metaclass=MetaHybridClass):
             if dft := getattr(self, f"_default_{field.name}", None):
                 defaults[field.name] = dft
                 continue
-            name = obj._rename.get(field.name, field.name)
             try:
-                defaults[name] = field.get_default()
+                defaults[field.name] = field.get_default()
             except (TypeError, ValueError):
                 # The above can fail with different error types
                 # if a field type is dynamic.

@@ -47,7 +47,7 @@ def test_shared_memory():
                   unsigned int gid = blockIdx.x*blockDim.x + threadIdx.x;  // global thread ID: 0,1,2,3
 
                   // init shared memory with chunk of input array
-                  extern __shared__ double sdata[2];
+                  extern __shared__ double sdata[];
                   sdata[tid] = input_arr[gid];
                   __syncthreads();
 

@@ -24,7 +24,6 @@ union Element Drift Multipole BeamBeam6D
 array Elements Element :
 """
 
-
 import xobject as xo
 
 

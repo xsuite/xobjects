@@ -23,12 +23,10 @@ void mymul(int n,
 }
 """
 
-ffi_interface.cdef(
-    """
+ffi_interface.cdef("""
    void mymul(int n,
        double* x1, double* x2,
-       double* y);"""
-)
+       double* y);""")
 
 
 ffi_interface.set_source(

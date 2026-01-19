@@ -222,8 +222,7 @@ def test_kernel_namings():
         var_mult_3 = xo.Float64[:]
         var_mult_4 = xo.Float64[:]
 
-        _extra_c_sources = [
-            r"""
+        _extra_c_sources = [r"""
 double mul(MyStruct stru) {
     int32_t n = MyStruct_get_n(stru);
     double* var_mult_1 = MyStruct_getp1_var_mult_1(stru, 0);
@@ -258,8 +257,7 @@ double mult_four(MyStruct stru) {
         y+= var_mult_1[tid] * var_mult_2[tid] * var_mult_3[tid] * var_mult_4[tid];
         }
     return y;
-    }"""
-        ]
+    }"""]
 
     kernel_descriptions = {
         "mul": xo.Kernel(
@@ -316,15 +314,13 @@ def test_compile_kernels_only_if_needed(tmp_path, mocker):
             "x": xo.Float64,
             "y": xo.Float64,
         }
-        _extra_c_sources = [
-            """
+        _extra_c_sources = ["""
             /*gpufun*/ double myfun(TestClassData tc){
                 double x = TestClassData_get_x(tc);
                 double y = TestClassData_get_y(tc);
                 return x * y;
             }
-        """
-        ]
+        """]
         _kernels = {
             "myfun": xo.Kernel(
                 args=[

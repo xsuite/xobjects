@@ -464,9 +464,10 @@ class ContextCpu(XContext):
                 module_name + ".o",
             ]
 
-            for ff in files_to_remove:
-                if os.path.exists(ff):
-                    os.remove(ff)
+            if 'XOBJECTS_RETAIN_BUILD_FILES' not in os.environ:
+                for ff in files_to_remove:
+                    if os.path.exists(ff):
+                        os.remove(ff)
 
     def _build_sources(
         self,

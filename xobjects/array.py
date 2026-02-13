@@ -4,6 +4,7 @@
 # ########################################### #
 
 import logging
+from typing import TypeVar, Iterator, Protocol, Container, Iterable, Type, Self
 
 import numpy as np
 
@@ -175,6 +176,14 @@ class Index:
         self.cls = cls
 
 
+ArrayItemType = TypeVar("ArrayItemType")
+
+
+class ContainerInstance(Protocol[ArrayItemType]):
+    def __contains__(self, item: ArrayItemType) -> bool: ...
+    def __iter__(self) -> Iterator[ArrayItemType]: ...
+
+
 class MetaArray(type):
     def __new__(cls, name, bases, data):
         if "_itemtype" in data:  # specialized class
@@ -266,7 +275,7 @@ class Array(metaclass=MetaArray):
     _data_offset: int
 
     @classmethod
-    def mk_arrayclass(cls, itemtype, shape):
+    def mk_arrayclass(cls, itemtype: TypeVar, shape) -> Type[ContainerInstance[TypeVar] & Type[Self]]:
         if type(shape) in (int, slice):
             shape = (shape,)
         order = list(range(len(shape)))
@@ -478,13 +487,13 @@ class Array(metaclass=MetaArray):
             if not isinstance(value, buffer.context.nplike_array_type):
                 value = buffer.context.nparray_to_context_array(value)
             buffer.update_from_nplike(coffset, cls._itemtype._dtype, value)
-        elif isinstance(value, cls):
+        elif isinstance(value, cls) and not cls._has_refs:
             if value._size == info.size:
                 buffer.update_from_xbuffer(
                     offset, value._buffer, value._offset, value._size
                 )
             else:
-                raise ValueError("Value {value} not compatible size")
+                raise ValueError(f"Value {value} not compatible size")
         elif value is None:  # no value to initialize
             if is_scalar(cls._itemtype):
                 pass  # leave uninitialized

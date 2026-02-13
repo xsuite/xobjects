@@ -48,20 +48,11 @@ Field instance:
 import logging
 from typing import Callable, Optional
 
-from .typeutils import (
-    allocate_on_buffer,
-    dispatch_arg,
-    Info,
-    _to_slot_size,
-    _is_dynamic,
-    default_conf,
-)
-
-from .general import Print
-from .scalar import Int64
 from .array import Array
-from .context import Source, Arg, Kernel
-from .context_cpu import ContextCpu
+from .context import Source
+from .scalar import Int64
+from .typeutils import (Info, _to_slot_size, allocate_on_buffer, default_conf,
+                        dispatch_arg)
 
 log = logging.getLogger(__name__)
 
@@ -307,24 +298,28 @@ class Struct(metaclass=MetaStruct):
             buffer.update_from_xbuffer(
                 offset, value._buffer, value._offset, value._size
             )
-        else:  # value must be a dict, again potential disctructive
-            if info is None:
-                info = cls._inspect_args(value)
-            if cls._size is None:
-                Int64._to_buffer(buffer, offset, info.size)
-            if hasattr(
-                info, "_offsets"
-            ):  # if it has a least two dynamic fields
-                cls._set_offsets(buffer, offset, info._offsets)
-            extra = getattr(info, "extra", {})
-            for field in cls._fields:
-                fvalue = field.value_from_args(value)
-                if field.is_reference:
-                    foffset = offset + info._offsets[field.index]
-                else:
-                    foffset = offset + field.offset
-                finfo = extra.get(field.index)
-                field.ftype._to_buffer(buffer, foffset, fvalue, finfo)
+            return
+
+        if info is None:
+            info = cls._inspect_args(value)
+
+        if cls._size is None:
+            Int64._to_buffer(buffer, offset, info.size)
+
+        if hasattr(
+            info, "_offsets"
+        ):  # if it has at least two dynamic fields
+            cls._set_offsets(buffer, offset, info._offsets)
+
+        extra = getattr(info, "extra", {})
+        for field in cls._fields:
+            fvalue = field.value_from_args(value)
+            if field.is_reference:
+                foffset = offset + info._offsets[field.index]
+            else:
+                foffset = offset + field.offset
+            finfo = extra.get(field.index)
+            field.ftype._to_buffer(buffer, foffset, fvalue, finfo)
 
     def _update(self, value):
         # check if direct copy is possible

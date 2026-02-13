@@ -208,9 +208,13 @@ def gen_c_pointed(target: Arg, conf):
     size = gen_c_size_from_arg(target, conf)
     ret = gen_c_type_from_arg(target, conf)
 
-    if target.pointer or is_compound(target.atype) or is_string(target.atype):
+    if target.pointer or is_compound(target.atype):
         chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
         return f"({ret})(({chartype}) obj+offset)"
+
+    if is_string(target.atype):
+        chartype = gen_pointer(conf.get("chartype", "char") + "*", conf)
+        return f"({chartype}) obj+offset+8"  # first entry in the string is it's size
 
     rettype = gen_pointer(ret + "*", conf)
     if size == 1:

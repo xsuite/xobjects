@@ -164,7 +164,7 @@ def test_ref_c_api(test_context):
 
 
 @for_all_test_contexts
-def no_test_unionref(test_context):
+def test_unionref(test_context):
     arr = xo.Float64[:]([1, 2, 3], _context=test_context)
     buf = arr._buffer
     string = xo.String("Test", _buffer=buf)
@@ -185,14 +185,16 @@ def no_test_unionref(test_context):
 
 
 @for_all_test_contexts
-def no_test_array_of_unionrefs(test_context):
+def test_array_of_unionrefs(test_context):
     class MyStructA(xo.Struct):
         a = xo.Float64
 
     class MyStructB(xo.Struct):
         a = xo.Int32
 
-    Element = xo.Ref[MyStructA, MyStructB]
+    class Element(xo.UnionRef):
+        _reftypes = [MyStructA, MyStructB]
+
     ArrOfUnionRefs = Element[:]
 
     aoref = ArrOfUnionRefs(10, _context=test_context)
@@ -338,3 +340,46 @@ def test_has_refs():
         _ref = [xo.Float64, xo.Int32]
 
     assert MyUnion._has_refs
+
+
+def test_move_arrays_of_unionref():
+    class Circle(xo.Struct):
+        radius = xo.UInt64
+
+    class Rectangle(xo.Struct):
+        width = xo.UInt64
+        height = xo.UInt64
+
+    class Shape(xo.UnionRef):
+        _reftypes = [Circle, Rectangle]
+
+    class StructHasRef(xo.Struct):
+        shapes = Shape[:]
+
+    class NestedHasRef(xo.Struct):
+        padding = xo.UInt64
+        nested = StructHasRef
+
+    common_buffer = xo.context_default.new_buffer()
+
+    circle = Circle(radius=5, _buffer=common_buffer)
+    rectangle = Rectangle(width=6, height=7, _buffer=common_buffer)
+
+    has_ref = StructHasRef(shapes=[circle, rectangle, circle], _buffer=common_buffer)
+    circle.radius = 10
+
+    assert has_ref.shapes[0].radius == 10
+    assert has_ref.shapes[1].width == 6
+    assert has_ref.shapes[1].height == 7
+    assert has_ref.shapes[2].radius == 10
+
+    nested_has_ref = NestedHasRef(padding=42, nested=has_ref, _buffer=common_buffer)
+    assert nested_has_ref.nested.shapes[0].radius == 10
+    assert nested_has_ref.nested.shapes[1].width == 6
+    assert nested_has_ref.nested.shapes[1].height == 7
+    assert nested_has_ref.nested.shapes[2].radius == 10
+
+    # Check that no copies were made
+    assert nested_has_ref.nested.shapes[0]._offset == has_ref.shapes[0]._offset == circle._offset
+    assert nested_has_ref.nested.shapes[1]._offset == has_ref.shapes[1]._offset == rectangle._offset
+    assert nested_has_ref.nested.shapes[2]._offset == has_ref.shapes[2]._offset == circle._offset

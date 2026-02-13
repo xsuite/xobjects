@@ -72,7 +72,7 @@ def _patch_pyopencl_array(cl, cla, ctx):
     def copy_non_cont(src, dest, custom_itemsize=None, skip_typecheck=False):
         assert src.shape == dest.shape
 
-        # The case float -> complex just works (by using the src itemsize)
+        # The case float -> complex just works (by using the headers itemsize)
         if not (src.dtype == np.float64 and dest.dtype == np.complex128):
             if not skip_typecheck:
                 assert src.dtype == dest.dtype

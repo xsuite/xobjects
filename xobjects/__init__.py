@@ -19,6 +19,7 @@ from .array import Array
 from .string import String
 from .struct import Struct, Field
 from .ref import Ref, UnionRef
+from .union import Union
 
 from .context_cpu import ContextCpu
 from .context_pyopencl import ContextPyopencl

@@ -316,6 +316,12 @@ class ContextCpu(XContext):
             if _forbid_compile:
                 raise RuntimeError("Compilation is forbidden")
 
+            if os.environ.get('XOBJECTS_FORBID_COMPILE'):
+                raise RuntimeError(
+                    "Compilation is forbidden by the environment variable "
+                    "XOBJECTS_FORBID_COMPILE"
+                )
+
             so_file = self.compile_kernel(
                 module_name,
                 kernel_descriptions,

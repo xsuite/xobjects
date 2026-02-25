@@ -382,8 +382,9 @@ class ContextCpu(XContext):
         )
         out_kernels = {}
         for pyname, kernel_desc in kernel_descriptions.items():
+            c_name = kernel_desc.c_name or pyname
             out_kernels[pyname] = KernelCpu(
-                function=getattr(module.lib, kernel_desc.c_name),
+                function=getattr(module.lib, c_name),
                 description=kernel_desc,
                 ffi_interface=module.ffi,
                 context=self,

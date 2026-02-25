@@ -484,7 +484,7 @@ class Struct(metaclass=MetaStruct):
                     get_suitable_kernel,
                     XSK_PREBUILT_KERNELS_LOCATION,
                 )
-                kernel_info = get_suitable_kernel({}, ())
+                kernel_info = get_suitable_kernel({}, line_element_classes=(cls,))
             except ImportError:
                 kernel_info = None
 

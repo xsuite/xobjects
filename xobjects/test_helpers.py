@@ -5,6 +5,7 @@
 
 from functools import wraps
 from typing import Callable, Iterable, Union
+import os
 
 import pytest
 
@@ -105,3 +106,10 @@ def fix_random_seed(seed: int):
         return wrapper
 
     return decorator
+
+def skip_if_forbid_compile():
+    if os.environ.get('XOBJECTS_FORBID_COMPILE'):
+        pytest.skip(
+            "Compilation is forbidden by the environment variable "
+            "XOBJECTS_FORBID_COMPILE"
+        )

@@ -466,14 +466,15 @@ class ContextCpu(XContext):
             return Path(output_file)
         finally:
             # Clean temp files
-            files_to_remove = [
-                module_name + ".c",
-                module_name + ".o",
-            ]
+            if 'XOBJECTS_KEEP_BUILD_FILES' not in os.environ:
+                files_to_remove = [
+                    module_name + ".c",
+                    module_name + ".o",
+                ]
 
-            for ff in files_to_remove:
-                if os.path.exists(ff):
-                    os.remove(ff)
+                for ff in files_to_remove:
+                    if os.path.exists(ff):
+                        os.remove(ff)
 
     def _build_sources(
         self,

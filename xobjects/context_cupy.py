@@ -350,19 +350,24 @@ if _enabled:
             return cupy.ndarray.__invert__(self._as_cupy())
 
 
-cudaheader: List[SourceType] = [
-    """\
-typedef signed long long   int64_t;  //only_for_context cuda
+cudaheader: List[SourceType] = ["""\
 typedef signed int         int32_t;  //only_for_context cuda
 typedef signed short       int16_t;  //only_for_context cuda
 typedef signed char        int8_t;   //only_for_context cuda
-typedef unsigned long long uint64_t; //only_for_context cuda
 typedef unsigned int       uint32_t; //only_for_context cuda
 typedef unsigned short     uint16_t; //only_for_context cuda
 typedef unsigned char      uint8_t;  //only_for_context cuda
 
-"""
-]
+#if defined(__CUDACC__) || defined(__HIPCC_RTC__)
+typedef signed long long   int64_t;
+typedef unsigned long long uint64_t;
+#endif
+
+#ifndef NULL
+  #define NULL nullptr
+#endif
+
+"""]
 
 
 def nplike_to_cupy(arr):

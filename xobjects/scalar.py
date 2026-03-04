@@ -14,7 +14,6 @@ import numpy as np
 import logging
 from .typeutils import Info
 
-
 log = logging.getLogger(__name__)
 
 

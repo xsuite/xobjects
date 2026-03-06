@@ -87,8 +87,7 @@ def test_atomic(overload, ctype, test_context):
 
     class TestAtomic(xo.Struct):
         val = ctype
-        _extra_c_sources = [
-            f"""
+        _extra_c_sources = [f"""
             #include "xobjects/headers/common.h"
             #include "xobjects/headers/atomicadd.h"
 
@@ -101,8 +100,7 @@ def test_atomic(overload, ctype, test_context):
                     retvals[ii] = ret;
                 END_VECTORIZE;
             }}
-            """
-        ]
+            """]
 
     kernels = {
         "run_atomic_test": xo.Kernel(

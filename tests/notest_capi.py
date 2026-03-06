@@ -56,21 +56,16 @@ def test_gen_get():
     path = [Multipole.order]
 
     source, _ = capi.gen_method_get(Multipole, path, default_conf)
-    assert (
-        source
-        == """\
+    assert source == """\
 /*gpufun*/ int8_t Multipole_get_order(const Multipole/*restrict*/ obj){
   int64_t offset=0;
   offset+=8;
   return *((/*gpuglmem*/int8_t*) obj+offset);
 }"""
-    )
 
     path = [Multipole.field, Field_N, Field.skew]
     source, _ = capi.gen_method_get(Multipole, path, default_conf)
-    assert (
-        source
-        == """\
+    assert source == """\
 /*gpufun*/ double Multipole_get_field_skew(const Multipole/*restrict*/ obj, int64_t i0){
   int64_t offset=0;
   offset+=32;
@@ -78,7 +73,6 @@ def test_gen_get():
   offset+=8;
   return *(/*gpuglmem*/double*)((/*gpuglmem*/char*) obj+offset);
 }"""
-    )
 
 
 def test_gen_set():
@@ -86,15 +80,12 @@ def test_gen_set():
     path = [Multipole.order]
 
     source, _ = capi.gen_method_set(Multipole, path, default_conf)
-    assert (
-        source
-        == """\
+    assert source == """\
 /*gpufun*/ void Multipole_set_order(Multipole/*restrict*/ obj, int8_t value){
   int64_t offset=0;
   offset+=8;
   *((/*gpuglmem*/int8_t*) obj+offset)=value;
 }"""
-    )
 
 
 def test_gen_c_api():

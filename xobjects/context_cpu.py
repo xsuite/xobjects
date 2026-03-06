@@ -316,6 +316,12 @@ class ContextCpu(XContext):
             if _forbid_compile:
                 raise RuntimeError("Compilation is forbidden")
 
+            if os.environ.get('XOBJECTS_FORBID_COMPILE'):
+                raise RuntimeError(
+                    "Compilation is forbidden by the environment variable "
+                    "XOBJECTS_FORBID_COMPILE"
+                )
+
             so_file = self.compile_kernel(
                 module_name,
                 kernel_descriptions,
@@ -376,8 +382,9 @@ class ContextCpu(XContext):
         )
         out_kernels = {}
         for pyname, kernel_desc in kernel_descriptions.items():
+            c_name = kernel_desc.c_name or pyname
             out_kernels[pyname] = KernelCpu(
-                function=getattr(module.lib, kernel_desc.c_name),
+                function=getattr(module.lib, c_name),
                 description=kernel_desc,
                 ffi_interface=module.ffi,
                 context=self,
@@ -459,14 +466,15 @@ class ContextCpu(XContext):
             return Path(output_file)
         finally:
             # Clean temp files
-            files_to_remove = [
-                module_name + ".c",
-                module_name + ".o",
-            ]
+            if 'XOBJECTS_KEEP_BUILD_FILES' not in os.environ:
+                files_to_remove = [
+                    module_name + ".c",
+                    module_name + ".o",
+                ]
 
-            for ff in files_to_remove:
-                if os.path.exists(ff):
-                    os.remove(ff)
+                for ff in files_to_remove:
+                    if os.path.exists(ff):
+                        os.remove(ff)
 
     def _build_sources(
         self,

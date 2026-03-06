@@ -525,14 +525,12 @@ def gen_method_switch(cls, path, conf, method):
         for arg in kernel.args[1:]:
             targs.append(f"{arg.name}")
         targs = ",".join(targs)
-        lst.append(
-            f"""\
+        lst.append(f"""\
         #ifndef {refname.upper()}_SKIP_{atname.upper()}
         case {refname}_{atname}_t:
             return {atname}_{method.c_name}({targs});
             break;
-        #endif"""
-        )
+        #endif""")
     lst.append("  }")
     lst.append(f"  return{'' if method.ret is None else ' 0'};")
     lst.append("}")

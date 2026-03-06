@@ -101,8 +101,9 @@ DEF_ATOMIC_ADD(double  , f64)
 // -------------------------------------------
 #if defined(XO_CONTEXT_CUDA)
     // CUDA compiler may not have <stdint.h>, so define the types if needed.
-    #ifdef __CUDACC_RTC__
-        // NVRTC (CuPy RawModule default) can’t see <stdint.h>, so detect it via __CUDACC_RTC__
+    #if defined(__CUDACC_RTC__) || defined(__HIPCC_RTC__)
+        // NVRTC and HIPRTC (CuPy RawModule default) can’t see <stdint.h> 
+        // We detect via __CUDACC_RTC__ (Nvidia) or __HIPCC_RTC__ (ROCm)
         typedef signed char        int8_t;
         typedef short              int16_t;
         typedef int                int32_t;
@@ -111,6 +112,14 @@ DEF_ATOMIC_ADD(double  , f64)
         typedef unsigned short     uint16_t;
         typedef unsigned int       uint32_t;
         typedef unsigned long long uint64_t;
+    #elif defined(__HIPCC__) && !defined(__HIPCC_RTC__)
+        // ROCm-HIPCC compiler appears to have definitions for 64-bit int types
+        typedef signed char        int8_t;
+        typedef short              int16_t;
+        typedef int                int32_t;
+        typedef unsigned char      uint8_t;
+        typedef unsigned short     uint16_t;
+        typedef unsigned int       uint32_t;
     #else
         // Alternatively, NVCC path is fine with host headers
         #include <stdint.h>

@@ -45,6 +45,7 @@ Field instance:
 
 
 """
+
 import logging
 from typing import Callable, Optional
 
@@ -475,6 +476,32 @@ class Struct(metaclass=MetaStruct):
         extra_classes=(),
         extra_compile_args=(),
     ):
+
+        if context.allow_prebuilt_kernels:
+            _print_state = Print.suppress
+            Print.suppress = True
+            try:
+                from xsuite import (
+                    get_suitable_kernel,
+                    XSK_PREBUILT_KERNELS_LOCATION,
+                )
+                kernel_info = get_suitable_kernel(
+                    config={},
+                    tracker_element_classes=[],
+                    classes=list(extra_classes) + [cls],
+                )
+            except ImportError:
+                kernel_info = None
+
+            Print.suppress = _print_state
+            if kernel_info:
+                kernels = context.kernels_from_file(
+                    module_name=kernel_info['module_name'],
+                    containing_dir=XSK_PREBUILT_KERNELS_LOCATION,
+                    kernel_descriptions=cls._kernels,
+                )
+                context.kernels.update(kernels)
+
         if only_if_needed:
             all_found = True
             for kk, kernel_description in cls._kernels.items():

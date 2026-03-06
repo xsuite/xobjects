@@ -179,9 +179,7 @@ def test_array_get_shape(test_context, array_type):
             *out_nd = ARRAY_TYPE_nd(arr);
             ARRAY_TYPE_shape(arr, out_shape);
         }
-    """.replace(
-        "ARRAY_TYPE", array_type.__name__
-    )
+    """.replace("ARRAY_TYPE", array_type.__name__)
 
     kernels = {
         "get_nd_and_shape": xo.Kernel(

@@ -45,8 +45,7 @@ except ImportError:
 
 from ._patch_pyopencl_array import _patch_pyopencl_array
 
-openclheader: List[SourceType] = [
-    """\
+openclheader: List[SourceType] = ["""\
 #ifndef XOBJ_STDINT
 typedef long           int64_t;
 typedef int            int32_t;
@@ -60,8 +59,7 @@ typedef unsigned char  uint8_t;
 #ifndef NULL
 #define NULL 0L
 #endif
-"""
-]
+"""]
 
 if _enabled:
     # order of base classes matters as it defines which __setitem__ is used

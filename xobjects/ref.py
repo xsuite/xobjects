@@ -9,7 +9,6 @@ import numpy as np
 
 from .typeutils import Info, dispatch_arg, allocate_on_buffer, default_conf
 from .scalar import Int64
-from .array import Array
 
 log = logging.getLogger(__name__)
 
@@ -72,6 +71,8 @@ class Ref(metaclass=MetaRef):
         return Info(size=self._size)
 
     def __getitem__(self, shape):
+        from .array import Array
+
         return Array.mk_arrayclass(self, shape)
 
     def _gen_data_paths(self, base=None):
@@ -213,6 +214,8 @@ class MetaUnionRef(type):
                 Int64._array_to_buffer(buffer, offset, ref)
 
     def __getitem__(cls, shape):
+        from .array import Array
+
         return Array.mk_arrayclass(cls, shape)
 
     def _pre_init(cls, *arg, **kwargs):

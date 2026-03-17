@@ -15,6 +15,7 @@ from .typeutils import (
     _to_slot_size,
     default_conf,
 )
+from .ref import is_ref, is_unionref
 from .scalar import Int64, is_scalar
 
 log = logging.getLogger(__name__)
@@ -693,8 +694,6 @@ class Array(metaclass=MetaArray):
         raise NameError("`_to_json` has been removed. Use `_to_dict` instead.")
 
     def _to_dict(self):
-        from .ref import is_ref, is_unionref
-
         if hasattr(self._itemtype, "_dtype"):
             return self.to_nparray().tolist()
 

@@ -107,8 +107,9 @@ def fix_random_seed(seed: int):
 
     return decorator
 
+
 def skip_if_forbid_compile():
-    if os.environ.get('XOBJECTS_FORBID_COMPILE'):
+    if os.environ.get("XOBJECTS_FORBID_COMPILE"):
         pytest.skip(
             "Compilation is forbidden by the environment variable "
             "XOBJECTS_FORBID_COMPILE"

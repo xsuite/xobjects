@@ -709,7 +709,9 @@ class Array(metaclass=MetaArray):
             else:
                 vdata = v
 
-            if v is not None and (is_ref(self._itemtype) or is_unionref(self._itemtype)):
+            if v is not None and (
+                is_ref(self._itemtype) or is_unionref(self._itemtype)
+            ):
                 vdata = (v.__class__.__name__, vdata)
 
             out[*idx] = vdata

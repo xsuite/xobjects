@@ -485,6 +485,7 @@ class Struct(metaclass=MetaStruct):
                     get_suitable_kernel,
                     XSK_PREBUILT_KERNELS_LOCATION,
                 )
+
                 kernel_info = get_suitable_kernel(
                     config={},
                     tracker_element_classes=[],
@@ -496,7 +497,7 @@ class Struct(metaclass=MetaStruct):
             Print.suppress = _print_state
             if kernel_info:
                 kernels = context.kernels_from_file(
-                    module_name=kernel_info['module_name'],
+                    module_name=kernel_info["module_name"],
                     containing_dir=XSK_PREBUILT_KERNELS_LOCATION,
                     kernel_descriptions=cls._kernels,
                 )

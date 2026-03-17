@@ -10,3 +10,4 @@ cov_html
 .coverage
 .idea
 *.c
+**/.DS_Store

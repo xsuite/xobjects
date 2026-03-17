@@ -693,16 +693,28 @@ class Array(metaclass=MetaArray):
         raise NameError("`_to_json` has been removed. Use `_to_dict` instead.")
 
     def _to_dict(self):
-        out = []
-        for v in self:  # TODO does not support multidimensional arrays
+        from .ref import is_ref, is_unionref
+
+        if hasattr(self._itemtype, "_dtype"):
+            return self.to_nparray().tolist()
+
+        out = np.empty(dtype=object, shape=self._shape)
+
+        for idx in self._iter_index():
+            idx = idx if isinstance(idx, tuple) else (idx,)
+            v = self[*idx]
+
             if hasattr(v, "_to_dict"):
                 vdata = v._to_dict()
             else:
                 vdata = v
-            if self._has_refs and v is not None:
+
+            if v is not None and (is_ref(self._itemtype) or is_unionref(self._itemtype)):
                 vdata = (v.__class__.__name__, vdata)
-            out.append(vdata)
-        return out
+
+            out[*idx] = vdata
+
+        return out.tolist()
 
 
 def is_index(atype):

@@ -41,6 +41,50 @@ def test_to_dict_array():
     assert b[5].d == 1
 
 
+def test_to_dict_unionref_none_roundtrip():
+    class A(xo.Struct):
+        x = xo.Int64
+
+    class B(xo.Struct):
+        y = xo.Int64
+
+    class Uref(xo.UnionRef):
+        _reftypes = (A, B)
+
+    uref = Uref(None)
+
+    assert uref._to_dict() is None
+    rebuilt = Uref(uref._to_dict())
+    assert rebuilt.get() is None
+
+
+def test_to_dict_array_of_unionrefs_with_mixed_none_and_values():
+    class A(xo.Struct):
+        x = xo.Int64
+
+    class B(xo.Struct):
+        y = xo.Int64
+
+    class Uref(xo.UnionRef):
+        _reftypes = (A, B)
+
+    array_type = Uref[:]
+    items = array_type(4)
+    items[1] = A(x=5)
+    items[3] = B(y=9)
+
+    expected = [
+        None,
+        ("A", {"x": 5}),
+        None,
+        ("B", {"y": 9}),
+    ]
+
+    assert items._to_dict() == expected
+    rebuilt = array_type(items._to_dict())
+    assert rebuilt._to_dict() == expected
+
+
 def test_to_dict_array_multidimensional_static_shape():
     array_type = xo.Float64[2, 3]
     array = array_type([[1, 2, 3], [4, 5, 6]])

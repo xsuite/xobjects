@@ -301,6 +301,8 @@ class UnionRef(metaclass=MetaUnionRef):
 
     def _to_dict(self):
         v = self.get()
+        if v is None:
+            return None
         classname = v.__class__.__name__
         if hasattr(v, "_to_dict"):
             v = v._to_dict()

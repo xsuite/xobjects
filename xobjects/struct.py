@@ -63,6 +63,7 @@ from .scalar import Int64
 from .array import Array
 from .context import Source, Arg, Kernel
 from .context_cpu import ContextCpu
+from .ref import is_unionref
 
 log = logging.getLogger(__name__)
 
@@ -374,6 +375,15 @@ class Struct(metaclass=MetaStruct):
         out = {}
         for field in self._fields:
             v = field.__get__(self)
+            if is_unionref(field.ftype):
+                if v is None:
+                    out[field.name] = None
+                else:
+                    classname = v.__class__.__name__
+                    if hasattr(v, "_to_dict"):
+                        v = v._to_dict()
+                    out[field.name] = (classname, v)
+                continue
             if hasattr(v, "_to_dict"):
                 v = v._to_dict()
             out[field.name] = v

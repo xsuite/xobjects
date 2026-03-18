@@ -154,3 +154,122 @@ def test_to_dict_multidimensional_array_of_structs_with_refs():
     assert items._to_dict() == expected
     rebuilt = array_type(items._to_dict())
     assert rebuilt._to_dict() == expected
+
+
+def test_to_dict_struct_with_unionref_field():
+    class A(xo.Struct):
+        a = xo.Float64[:]
+        b = xo.Int64
+
+    class B(xo.Struct):
+        c = xo.Float64[:]
+        d = xo.Int64
+
+    class Uref(xo.UnionRef):
+        _reftypes = (A, B)
+
+    class Item(xo.Struct):
+        ref = Uref
+        weight = xo.Int64
+
+    item = Item(ref=("A", {"a": [1, 2], "b": 3}), weight=11)
+
+    expected = {
+        "ref": ("A", {"a": [1.0, 2.0], "b": 3}),
+        "weight": 11,
+    }
+
+    assert item._to_dict() == expected
+    rebuilt = Item(item._to_dict())
+    assert rebuilt._to_dict() == expected
+
+
+def test_to_dict_struct_containing_array_of_structs_with_unionref_fields():
+    class A(xo.Struct):
+        a = xo.Float64[:]
+        b = xo.Int64
+
+    class B(xo.Struct):
+        c = xo.Float64[:]
+        d = xo.Int64
+
+    class Uref(xo.UnionRef):
+        _reftypes = (A, B)
+
+    class Item(xo.Struct):
+        ref = Uref
+        weight = xo.Int64
+
+    class Container(xo.Struct):
+        items = Item[:]
+        tag = xo.Int64
+
+    container = Container(
+        items=[
+            {"ref": ("A", {"a": [1, 2], "b": 3}), "weight": 11},
+            {"ref": ("B", {"c": [4, 5], "d": 6}), "weight": 12},
+        ],
+        tag=99,
+    )
+
+    expected = {
+        "items": [
+            {"ref": ("A", {"a": [1.0, 2.0], "b": 3}), "weight": 11},
+            {"ref": ("B", {"c": [4.0, 5.0], "d": 6}), "weight": 12},
+        ],
+        "tag": 99,
+    }
+
+    assert container._to_dict() == expected
+    rebuilt = Container(container._to_dict())
+    assert rebuilt._to_dict() == expected
+
+
+def test_to_dict_struct_containing_multidimensional_array_of_structs_with_unionref_fields():
+    class A(xo.Struct):
+        a = xo.Float64[:]
+        b = xo.Int64
+
+    class B(xo.Struct):
+        c = xo.Float64[:]
+        d = xo.Int64
+
+    class Uref(xo.UnionRef):
+        _reftypes = (A, B)
+
+    class Item(xo.Struct):
+        ref = Uref
+        weight = xo.Int64
+
+    class Container(xo.Struct):
+        items = Item[:, :]
+
+    container = Container(
+        items=[
+            [
+                {"ref": ("A", {"a": [1, 2], "b": 3}), "weight": 11},
+                {"ref": ("B", {"c": [4, 5], "d": 6}), "weight": 12},
+            ],
+            [
+                {"ref": ("B", {"c": [7], "d": 8}), "weight": 13},
+                {"ref": ("A", {"a": [9, 10], "b": 14}), "weight": 15},
+            ],
+        ]
+    )
+
+    expected = {
+        "items": [
+            [
+                {"ref": ("A", {"a": [1.0, 2.0], "b": 3}), "weight": 11},
+                {"ref": ("B", {"c": [4.0, 5.0], "d": 6}), "weight": 12},
+            ],
+            [
+                {"ref": ("B", {"c": [7.0], "d": 8}), "weight": 13},
+                {"ref": ("A", {"a": [9.0, 10.0], "b": 14}), "weight": 15},
+            ],
+        ]
+    }
+
+    assert container._to_dict() == expected
+    rebuilt = Container(container._to_dict())
+    assert rebuilt._to_dict() == expected

@@ -88,7 +88,7 @@ class JEncoder(json.JSONEncoder):
             return obj.tolist()
         elif np.issubdtype(type(obj), np.integer):
             return int(obj)
-        elif isinstance(obj, np.bool):
+        elif isinstance(obj, (np.bool_)):
             return bool(obj)
         else:
             return json.JSONEncoder.default(self, obj)

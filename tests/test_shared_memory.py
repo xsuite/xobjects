@@ -35,8 +35,7 @@ def test_shared_memory():
 
         class TestElement(xo.HybridClass):
             _xofields = {}
-            _extra_c_sources = [
-                """
+            _extra_c_sources = ["""
                 __global__ void test_shared_memory(const double* input_arr, double* result, const int n) {
                   // simple kernel to test shared memory
                   // reduction with an array of 4 doubles using 2 blocks each 2 threads
@@ -47,7 +46,7 @@ def test_shared_memory():
                   unsigned int gid = blockIdx.x*blockDim.x + threadIdx.x;  // global thread ID: 0,1,2,3
 
                   // init shared memory with chunk of input array
-                  extern __shared__ double sdata[2];
+                  extern __shared__ double sdata[];
                   sdata[tid] = input_arr[gid];
                   __syncthreads();
 
@@ -59,8 +58,7 @@ def test_shared_memory():
                     atomicAdd(&result[tid], sdata[tid]);
                   }
                 }
-                """
-            ]
+                """]
             _kernels = _test_shared_memory_kernels
 
             def __init__(

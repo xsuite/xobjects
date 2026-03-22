@@ -216,15 +216,13 @@ def test_kernels_save_load_with_classes(tmp_path, mocker):
             "x": xo.Float64,
             "y": xo.Float64,
         }
-        _extra_c_sources = [
-            """
+        _extra_c_sources = ["""
             /*gpufun*/ double myfun(TestClassData tc){
                 double x = TestClassData_get_x(tc);
                 double y = TestClassData_get_y(tc);
                 return x * y;
             }
-        """
-        ]
+        """]
         _kernels = {
             "myfun": xo.Kernel(
                 args=[

@@ -799,6 +799,8 @@ class KernelCpu:
 
     def to_function_arg(self, arg, value):
         if arg.pointer:
+            if value is None:
+                return self.ffi_interface.NULL
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 if hasattr(value, "dtype"):  # nparray
                     slice_first_elem = value[tuple(value.ndim * [slice(0, 1)])]

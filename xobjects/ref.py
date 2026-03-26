@@ -183,7 +183,9 @@ class MetaUnionRef(type):
         else:
             if value is None:
                 xobj = None
-            elif isinstance(value, tuple):
+            elif isinstance(
+                value, (tuple, list)
+            ):  # accept list as it might be coming from JSON
                 if len(value) == 0:
                     xobj = None
                     typeid = None

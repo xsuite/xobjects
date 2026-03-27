@@ -46,6 +46,7 @@ Field instance:
 
 """
 
+import copy
 import logging
 from typing import Callable, Optional
 
@@ -66,6 +67,18 @@ from .context_cpu import ContextCpu
 from .ref import is_unionref
 
 log = logging.getLogger(__name__)
+
+
+class ThisClass:  # Place holder
+    pass
+
+
+def _resolve_kernel_arg_type(owner, atype):
+    if atype is ThisClass:
+        return owner
+    if hasattr(atype, "_XoStruct"):
+        return atype._XoStruct
+    return atype
 
 
 class Field:
@@ -266,7 +279,26 @@ class MetaStruct(type):
         if "_kernels" not in data.keys():
             data["_kernels"] = {}
 
-        return type.__new__(cls, name, bases, data)
+        new_class = type.__new__(cls, name, bases, data)
+        resolved_kernels = {}
+        for kernel_name, kernel in (new_class._kernels or {}).items():
+            resolved_kernel = copy.copy(kernel)
+            resolved_kernel.args = []
+            for arg in kernel.args:
+                resolved_arg = copy.copy(arg)
+                resolved_arg.atype = _resolve_kernel_arg_type(
+                    new_class, resolved_arg.atype
+                )
+                resolved_kernel.args.append(resolved_arg)
+            if isinstance(kernel.ret, Arg):
+                resolved_ret = copy.copy(kernel.ret)
+                resolved_ret.atype = _resolve_kernel_arg_type(
+                    new_class, resolved_ret.atype
+                )
+                resolved_kernel.ret = resolved_ret
+            resolved_kernels[kernel_name] = resolved_kernel
+        new_class._kernels = resolved_kernels
+        return new_class
 
     def __getitem__(cls, shape):
         return Array.mk_arrayclass(cls, shape)

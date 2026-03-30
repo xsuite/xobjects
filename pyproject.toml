@@ -44,7 +44,7 @@ include = '\.pyi?$'
 [project.entry-points.xobjects]
 include = "xobjects"
 
-[pytest]
+[tool.pytest]
 markers = [
     "context_dependent: marks test as one that depends on the execution context",
 ]

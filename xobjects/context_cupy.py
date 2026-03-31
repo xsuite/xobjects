@@ -661,6 +661,8 @@ class KernelCupy(object):
 
     def to_function_arg(self, arg, value):
         if arg.pointer:
+            if value is None:
+                return 0
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 if hasattr(value, "dtype"):  # nparray
                     assert isinstance(value, cupy.ndarray)

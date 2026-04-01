@@ -28,6 +28,8 @@ Documentation = "https://xsuite.readthedocs.io/"
 
 [project.optional-dependencies]
 tests = ["pytest", "pytest-mock"]
+sparse = ["pyklu"]
+sparseGPU = ["nvmath-python"]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -491,6 +491,8 @@ class KernelPyopencl(object):
 
     def to_function_arg(self, arg, value):
         if arg.pointer:
+            if value is None:
+                return None
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 if isinstance(value, cl.Buffer):
                     return value

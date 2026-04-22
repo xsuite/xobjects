@@ -45,6 +45,45 @@ double my_mul(const int n, const double* x1,
 
 
 @for_all_test_contexts
+def test_kernel_pointer_none_maps_to_null(test_context):
+    src_code = """
+    #include "xobjects/headers/common.h"
+
+    GPUKERN void ptr_is_null(
+        GPUGLMEM const double* x,
+        GPUGLMEM double* out
+    ) {
+        VECTORIZE_OVER(tid, 1)
+            out[tid] = x == NULL ? 1.0 : 0.0;
+        END_VECTORIZE
+    }
+    """
+
+    kernel_descriptions = {
+        "ptr_is_null": xo.Kernel(
+            args=[
+                xo.Arg(xo.Float64, pointer=True, const=True, name="x"),
+                xo.Arg(xo.Float64, pointer=True, name="out"),
+            ],
+            n_threads=1,
+        )
+    }
+
+    test_context.add_kernels(
+        sources=[src_code],
+        kernels=kernel_descriptions,
+        save_source_as=None,
+        compile=True,
+    )
+
+    out_dev = test_context.zeros(1, dtype=np.float64)
+    test_context.kernels.ptr_is_null(x=None, out=out_dev)
+    out_host = test_context.nparray_from_context_array(out_dev)
+
+    assert out_host[0] == 1.0
+
+
+@for_all_test_contexts
 def test_kernels(test_context):
     src_code = """
     /*gpufun*/

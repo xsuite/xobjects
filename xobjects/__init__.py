@@ -17,7 +17,7 @@ from .scalar import (
 )
 from .array import Array
 from .string import String
-from .struct import Struct, Field
+from .struct import Struct, Field, ThisClass
 from .ref import Ref, UnionRef
 
 from .context_cpu import ContextCpu
@@ -30,7 +30,7 @@ from .specialize_source import specialize_source
 
 from .typeutils import context_default, get_a_buffer
 
-from .hybrid_class import JEncoder, HybridClass, MetaHybridClass, ThisClass
+from .hybrid_class import JEncoder, HybridClass, MetaHybridClass
 
 from .linkedarray import BypassLinked
 

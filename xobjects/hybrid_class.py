@@ -127,8 +127,11 @@ class MetaHybridClass(type):
 
         # Take xofields from data['_xofields'] or from bases
         xofields = _build_xofields_dict(bases, data)
+        xostruct_data = xofields.copy()
+        if "_kernels" in data.keys():
+            xostruct_data["_kernels"] = data["_kernels"]
 
-        _XoStruct = type(_XoStruct_name, (Struct,), xofields)
+        _XoStruct = type(_XoStruct_name, (Struct,), xostruct_data)
 
         if "_rename" in data.keys():
             rename = data["_rename"]
@@ -184,14 +187,7 @@ class MetaHybridClass(type):
             new_class._XoStruct._depends_on.extend(data["_depends_on"])
 
         if "_kernels" in data.keys():
-            kernels = data["_kernels"].copy()
-            for nn, kk in kernels.items():
-                for aa in kk.args:
-                    if aa.atype is ThisClass:
-                        aa.atype = new_class._XoStruct
-                    if isclass(aa.atype) and issubclass(aa.atype, HybridClass):
-                        aa.atype = aa.atype._XoStruct
-            new_class._XoStruct._kernels.update(kernels)
+            new_class._kernels = new_class._XoStruct._kernels
 
         for ii, tt in enumerate(new_class._XoStruct._depends_on):
             if isclass(tt) and issubclass(tt, HybridClass):
@@ -422,7 +418,3 @@ class HybridClass(metaclass=MetaHybridClass):
                 vvrepr = repr(vv)
             args.append(f"{fname}={vvrepr}")
         return f'{type(self).__name__}({", ".join(args)})'
-
-
-class ThisClass:  # Place holder
-    pass

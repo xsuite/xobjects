@@ -316,7 +316,7 @@ class ContextCpu(XContext):
             if _forbid_compile:
                 raise RuntimeError("Compilation is forbidden")
 
-            if os.environ.get('XOBJECTS_FORBID_COMPILE'):
+            if os.environ.get("XOBJECTS_FORBID_COMPILE"):
                 raise RuntimeError(
                     "Compilation is forbidden by the environment variable "
                     "XOBJECTS_FORBID_COMPILE"
@@ -466,7 +466,7 @@ class ContextCpu(XContext):
             return Path(output_file)
         finally:
             # Clean temp files
-            if 'XOBJECTS_KEEP_BUILD_FILES' not in os.environ:
+            if "XOBJECTS_KEEP_BUILD_FILES" not in os.environ:
                 files_to_remove = [
                     module_name + ".c",
                     module_name + ".o",
@@ -799,6 +799,8 @@ class KernelCpu:
 
     def to_function_arg(self, arg, value):
         if arg.pointer:
+            if value is None:
+                return self.ffi_interface.NULL
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 if hasattr(value, "dtype"):  # nparray
                     slice_first_elem = value[tuple(value.ndim * [slice(0, 1)])]

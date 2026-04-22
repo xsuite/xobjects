@@ -701,7 +701,7 @@ class Array(metaclass=MetaArray):
 
         for idx in self._iter_index():
             idx = idx if isinstance(idx, tuple) else (idx,)
-            v = self[*idx]
+            v = self[idx]
 
             if hasattr(v, "_to_dict"):
                 vdata = v._to_dict()
@@ -713,7 +713,7 @@ class Array(metaclass=MetaArray):
             ):
                 vdata = (v.__class__.__name__, vdata)
 
-            out[*idx] = vdata
+            out[idx] = vdata
 
         return out.tolist()
 

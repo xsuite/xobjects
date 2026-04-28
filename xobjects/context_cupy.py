@@ -466,6 +466,10 @@ class ContextCupy(XContext):
             *extra_compile_args,
             *include_flags,
             "-DXO_CONTEXT_CUDA",
+            # Skip heavy optimizations (e.g. involving cloning),
+            # which for us don't translate to a lot of runtime gains,
+            # but consume a lot of compile time and memory:
+            "--Ofast-compile=min",
         )
 
         module = cupy.RawModule(

@@ -4,6 +4,7 @@
 # ########################################### #
 
 import logging
+import warnings
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -32,6 +33,7 @@ try:
     import cupyx.scipy.special
     import cupyx.scipy.stats
     from cupyx.scipy import fftpack as cufftp
+    from cupy_backends.cuda.libs import nvrtc
 
     _enabled = True
 except ImportError:
@@ -40,6 +42,7 @@ except ImportError:
         message=("cupy is not installed. " "ContextCupy is not available!")
     )
     cufftp = cupy
+    nvrtc = None
     _enabled = False
 
 if _enabled:
@@ -466,11 +469,13 @@ class ContextCupy(XContext):
             *extra_compile_args,
             *include_flags,
             "-DXO_CONTEXT_CUDA",
-            # Skip heavy optimizations (e.g. involving cloning),
-            # which for us don't translate to a lot of runtime gains,
-            # but consume a lot of compile time and memory:
-            "--Ofast-compile=min",
         )
+
+        if nvrtc and nvrtc.getVersion() >= (12, 9):
+            # If supported, skip prohibitively heavy optimisations (e.g.
+            # involving cloning). This it at the expense of <20%
+            # runtime performance, but gain of a lot of compile time and memory.
+            extra_compile_args += ("--Ofast-compile=min",)
 
         module = cupy.RawModule(
             code=specialized_source, options=extra_compile_args

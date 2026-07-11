@@ -333,6 +333,7 @@ class ContextCpu(XContext):
         extra_classes=(),
         extra_headers=(),
         compile=True,  # noqa
+        compiler_language="c",
     ) -> Dict[Tuple[str, tuple], "KernelCpu"]:
         extra_compile_args += ("-O3", "-Wno-unused-function")
         extra_link_args += ("-O3",)
@@ -386,6 +387,7 @@ class ContextCpu(XContext):
                 extra_compile_args,
                 extra_link_args,
                 containing_dir=containing_dir,
+                compiler_language=compiler_language,
             )
 
             try:
@@ -456,6 +458,7 @@ class ContextCpu(XContext):
         extra_compile_args,
         extra_link_args,
         containing_dir=".",
+        compiler_language="c",
     ) -> Path:
         ffi_interface = cffi.FFI()
         ffi_interface.cdef(cdefs)
@@ -484,9 +487,11 @@ class ContextCpu(XContext):
                 }
                 """
 
-        # Compile
-        xtr_compile_args = ["-std=c99", "-DXO_CONTEXT_CPU"]
-        xtr_link_args = ["-std=c99", "-DXO_CONTEXT_CPU"]
+        # Compile (Default is C99). compiler_language="c++" builds the TU as C++17
+        # (need to link header-only C++ dependencies, i.e. the TPSA library).
+        std_flag = "-std=c++17" if compiler_language == "c++" else "-std=c99"
+        xtr_compile_args = [std_flag, "-DXO_CONTEXT_CPU"]
+        xtr_link_args = [std_flag, "-DXO_CONTEXT_CPU"]
         xtr_compile_args += extra_compile_args
         xtr_link_args += extra_link_args
 
@@ -520,8 +525,7 @@ class ContextCpu(XContext):
             include_dirs=[path.as_posix() for path in extra_include_paths],
             libraries=list(extra_libraries),
             library_dirs=[path.as_posix() for path in extra_library_paths],
-            extra_compile_args=xtr_compile_args,
-            extra_link_args=xtr_link_args,
+            source_extension=".cpp" if compiler_language == "c++" else ".c",
         )
 
         try:
@@ -535,10 +539,11 @@ class ContextCpu(XContext):
                 _print("Done compiling ContextCpu kernels.")
             return Path(output_file)
         finally:
-            # Clean temp files
+            # Clean temp files (the generated source has the language's extension).
             if "XOBJECTS_KEEP_BUILD_FILES" not in os.environ:
+                src_ext = ".cpp" if compiler_language == "c++" else ".c"
                 files_to_remove = [
-                    module_name + ".c",
+                    module_name + src_ext,
                     module_name + ".o",
                 ]
 

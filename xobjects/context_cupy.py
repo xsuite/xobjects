@@ -4,6 +4,7 @@
 # ########################################### #
 
 import logging
+import warnings
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -33,6 +34,7 @@ try:
     import cupyx.scipy.special
     import cupyx.scipy.stats
     from cupyx.scipy import fftpack as cufftp
+    from cupy_backends.cuda.libs import nvrtc
 
     _enabled = True
 except ImportError:
@@ -41,6 +43,7 @@ except ImportError:
         message=("cupy is not installed. " "ContextCupy is not available!")
     )
     cufftp = cupy
+    nvrtc = None
     _enabled = False
 
 if _enabled:
@@ -474,6 +477,12 @@ class ContextCupy(XContext):
             "-DXO_CONTEXT_CUDA",
         )
 
+        if nvrtc and nvrtc.getVersion() >= (12, 9):
+            # If supported, skip prohibitively heavy optimisations (e.g.
+            # involving cloning). This it at the expense of <20%
+            # runtime performance, but gain of a lot of compile time and memory.
+            extra_compile_args += ("--Ofast-compile=min",)
+
         module = cupy.RawModule(
             code=specialized_source, options=extra_compile_args
         )
@@ -667,6 +676,8 @@ class KernelCupy(object):
 
     def to_function_arg(self, arg, value):
         if arg.pointer:
+            if value is None:
+                return 0
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 if hasattr(value, "dtype"):  # nparray
                     assert isinstance(value, cupy.ndarray)

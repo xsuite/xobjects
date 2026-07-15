@@ -46,6 +46,7 @@ Field instance:
 
 """
 
+import copy
 import logging
 from typing import Callable, Optional
 
@@ -63,8 +64,21 @@ from .scalar import Int64
 from .array import Array
 from .context import Source, Arg, Kernel
 from .context_cpu import ContextCpu
+from .ref import is_unionref
 
 log = logging.getLogger(__name__)
+
+
+class ThisClass:  # Place holder
+    pass
+
+
+def _resolve_kernel_arg_type(owner, atype):
+    if atype is ThisClass:
+        return owner
+    if hasattr(atype, "_XoStruct"):
+        return atype._XoStruct
+    return atype
 
 
 class Field:
@@ -265,7 +279,26 @@ class MetaStruct(type):
         if "_kernels" not in data.keys():
             data["_kernels"] = {}
 
-        return type.__new__(cls, name, bases, data)
+        new_class = type.__new__(cls, name, bases, data)
+        resolved_kernels = {}
+        for kernel_name, kernel in (new_class._kernels or {}).items():
+            resolved_kernel = copy.copy(kernel)
+            resolved_kernel.args = []
+            for arg in kernel.args:
+                resolved_arg = copy.copy(arg)
+                resolved_arg.atype = _resolve_kernel_arg_type(
+                    new_class, resolved_arg.atype
+                )
+                resolved_kernel.args.append(resolved_arg)
+            if isinstance(kernel.ret, Arg):
+                resolved_ret = copy.copy(kernel.ret)
+                resolved_ret.atype = _resolve_kernel_arg_type(
+                    new_class, resolved_ret.atype
+                )
+                resolved_kernel.ret = resolved_ret
+            resolved_kernels[kernel_name] = resolved_kernel
+        new_class._kernels = resolved_kernels
+        return new_class
 
     def __getitem__(cls, shape):
         return Array.mk_arrayclass(cls, shape)
@@ -374,6 +407,15 @@ class Struct(metaclass=MetaStruct):
         out = {}
         for field in self._fields:
             v = field.__get__(self)
+            if is_unionref(field.ftype):
+                if v is None:
+                    out[field.name] = None
+                else:
+                    classname = v.__class__.__name__
+                    if hasattr(v, "_to_dict"):
+                        v = v._to_dict()
+                    out[field.name] = (classname, v)
+                continue
             if hasattr(v, "_to_dict"):
                 v = v._to_dict()
             out[field.name] = v
@@ -476,27 +518,40 @@ class Struct(metaclass=MetaStruct):
         extra_classes=(),
         extra_compile_args=(),
     ):
-
         if context.allow_prebuilt_kernels:
             _print_state = Print.suppress
             Print.suppress = True
             try:
-                from xsuite import (
-                    get_suitable_kernel,
-                    XSK_PREBUILT_KERNELS_LOCATION,
-                )
-                kernel_info = get_suitable_kernel(
-                    config={},
-                    tracker_element_classes=[],
-                    classes=list(extra_classes) + [cls],
-                )
-            except ImportError:
-                kernel_info = None
+                try:
+                    from xsuite import (
+                        get_suitable_kernel,
+                        XSK_PREBUILT_KERNELS_LOCATION,
+                    )
 
-            Print.suppress = _print_state
+                    kernel_info = get_suitable_kernel(
+                        config={},
+                        tracker_element_classes=[],
+                        classes=list(extra_classes) + [cls],
+                        context=context,
+                    )
+                except ImportError as err:
+                    from . import context_cpu
+
+                    if not context_cpu.require_prebuilt_kernel(
+                            context, classes=list(extra_classes) + [cls]):
+                        kernel_info = None
+                    else:
+                        raise ImportError(
+                            'Xsuite is required to load prebuilt kernels but could '
+                            'not be imported. Please install it with '
+                            f'`pip install xsuite`. '
+                            f'{context_cpu.no_prebuilt_kernel_jit_message()}'
+                        ) from err
+            finally:
+                Print.suppress = _print_state
             if kernel_info:
                 kernels = context.kernels_from_file(
-                    module_name=kernel_info['module_name'],
+                    module_name=kernel_info["module_name"],
                     containing_dir=XSK_PREBUILT_KERNELS_LOCATION,
                     kernel_descriptions=cls._kernels,
                 )

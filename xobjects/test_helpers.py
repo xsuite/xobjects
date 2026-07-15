@@ -108,8 +108,40 @@ def fix_random_seed(seed: int):
 
     return decorator
 
+
+def allow_no_prebuilt_kernels(test_function=None, *, skip_when_forbid_compile=True):
+    """Allow JIT compilation for tests that intentionally compile kernels.
+
+    By default, the wrapped test is skipped when compilation is forbidden by
+    ``XOBJECTS_FORBID_COMPILE``. Use ``skip_when_forbid_compile=False`` when
+    the test has more specific ``skip_if_forbid_compile()`` guards inside the
+    test.
+    """
+
+    def decorator(test_function):
+        @wraps(test_function)
+        def wrapper(*args, **kwargs):
+            if skip_when_forbid_compile:
+                skip_if_forbid_compile()
+            old_value = os.environ.get("XSUITE_ALLOW_NO_PREBUILT_KERNELS")
+            os.environ["XSUITE_ALLOW_NO_PREBUILT_KERNELS"] = "1"
+            try:
+                return test_function(*args, **kwargs)
+            finally:
+                if old_value is None:
+                    del os.environ["XSUITE_ALLOW_NO_PREBUILT_KERNELS"]
+                else:
+                    os.environ["XSUITE_ALLOW_NO_PREBUILT_KERNELS"] = old_value
+
+        return wrapper
+
+    if test_function is None:
+        return decorator
+    return decorator(test_function)
+
+
 def skip_if_forbid_compile():
-    if os.environ.get('XOBJECTS_FORBID_COMPILE'):
+    if os.environ.get("XOBJECTS_FORBID_COMPILE"):
         pytest.skip(
             "Compilation is forbidden by the environment variable "
             "XOBJECTS_FORBID_COMPILE"

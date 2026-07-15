@@ -19,6 +19,60 @@ import scipy as sp
 
 _forbid_compile = False
 _suppress_warnings = False
+allow_no_prebuilt_kernel = False
+
+
+def _class_allows_no_prebuilt_kernel(cls):
+    return (
+        getattr(cls, 'allow_no_prebuilt_kernel', False)
+        or getattr(getattr(cls, '_DressingClass', None),
+                   'allow_no_prebuilt_kernel', False)
+        or getattr(getattr(cls, '_XoStruct', None),
+                   'allow_no_prebuilt_kernel', False)
+    )
+
+
+def allow_no_prebuilt_kernel_enabled(context=None, classes=()):
+    if classes is None:
+        classes = ()
+    elif isinstance(classes, type):
+        classes = (classes,)
+
+    if os.environ.get('XSUITE_ALLOW_NO_PREBUILT_KERNELS') is not None:
+        return True
+    if allow_no_prebuilt_kernel:
+        return True
+    if any(_class_allows_no_prebuilt_kernel(cls) for cls in classes):
+        return True
+    return getattr(context, 'allow_no_prebuilt_kernel', False)
+
+
+def _is_serial_cpu_context(context):
+    if context is None or not hasattr(context, 'openmp_enabled'):
+        return False
+    return context.openmp_enabled is False
+
+
+def require_prebuilt_kernel(context=None, classes=()):
+    return (
+        not allow_no_prebuilt_kernel_enabled(context, classes=classes)
+        and _is_serial_cpu_context(context)
+    )
+
+
+def no_prebuilt_kernel_jit_message():
+    return (
+        'To allow just-in-time compilation instead, as in older Xsuite '
+        'versions, set the environment variable '
+        '`XSUITE_ALLOW_NO_PREBUILT_KERNELS`, set '
+        '`xobjects.context_cpu.allow_no_prebuilt_kernel = True`, or set '
+        '`context.allow_no_prebuilt_kernel = True`. Classes that require '
+        'just-in-time compilation can also define '
+        '`allow_no_prebuilt_kernel = True` as a class attribute. Using '
+        'just-in-time compilation instead of prebuilt kernels may require '
+        'lengthy compilation whenever a different kernel is needed.'
+    )
+
 
 from .context import (
     Kernel,
@@ -150,8 +204,7 @@ class ContextCpu(XContext):
         """
         super().__init__()
         self.omp_num_threads = omp_num_threads
-        if omp_num_threads == 0:
-            self.allow_prebuilt_kernels = True
+        self.allow_prebuilt_kernels = True
 
     def __str__(self):
         if not self.openmp_enabled:
@@ -316,7 +369,7 @@ class ContextCpu(XContext):
             if _forbid_compile:
                 raise RuntimeError("Compilation is forbidden")
 
-            if os.environ.get('XOBJECTS_FORBID_COMPILE'):
+            if os.environ.get("XOBJECTS_FORBID_COMPILE"):
                 raise RuntimeError(
                     "Compilation is forbidden by the environment variable "
                     "XOBJECTS_FORBID_COMPILE"
@@ -415,8 +468,18 @@ class ContextCpu(XContext):
                 log.debug(f"cffi def {pyname} {signature}")
 
         if self.openmp_enabled:
-            ffi_interface.cdef("void omp_set_num_threads(int);")
-            ffi_interface.cdef("int omp_get_max_threads();")
+            # The wrapper is needed to ensure that the omp functions are linked
+            ffi_interface.cdef("void xo_omp_set_num_threads(int);")
+            ffi_interface.cdef("int xo_omp_get_max_threads();")
+            specialized_source += """
+                void xo_omp_set_num_threads(int num_threads) {
+                    omp_set_num_threads(num_threads);
+                }
+
+                int xo_omp_get_max_threads(void) {
+                    return omp_get_max_threads();
+                }
+                """
 
         # Compile
         xtr_compile_args = ["-std=c99", "-DXO_CONTEXT_CPU"]
@@ -466,7 +529,7 @@ class ContextCpu(XContext):
             return Path(output_file)
         finally:
             # Clean temp files
-            if 'XOBJECTS_KEEP_BUILD_FILES' not in os.environ:
+            if "XOBJECTS_KEEP_BUILD_FILES" not in os.environ:
                 files_to_remove = [
                     module_name + ".c",
                     module_name + ".o",
@@ -528,8 +591,8 @@ class ContextCpu(XContext):
         spec.loader.exec_module(module)
 
         if self.openmp_enabled:
-            self.omp_set_num_threads = module.lib.omp_set_num_threads
-            self.omp_get_max_threads = module.lib.omp_get_max_threads
+            self.omp_set_num_threads = module.lib.xo_omp_set_num_threads
+            self.omp_get_max_threads = module.lib.xo_omp_get_max_threads
 
         return module
 
@@ -768,10 +831,8 @@ class BufferNumpy(XBuffer):
         value = nplike_to_numpy(value)
         if dest_dtype != value.dtype:
             value = value.astype(dtype=dest_dtype)  # make a copy
-        src = value.view("int8")
-        self.buffer[offset : offset + src.nbytes] = value.flatten().view(
-            "int8"
-        )
+        src = value.flatten().view("int8")
+        self.buffer[offset : offset + src.nbytes] = src
 
     def to_bytearray(self, offset, nbytes):
         """copy in byte array: used in update_from_xbuffer"""
@@ -799,6 +860,8 @@ class KernelCpu:
 
     def to_function_arg(self, arg, value):
         if arg.pointer:
+            if value is None:
+                return self.ffi_interface.NULL
             if hasattr(arg.atype, "_dtype"):  # it is numerical scalar
                 if hasattr(value, "dtype"):  # nparray
                     slice_first_elem = value[tuple(value.ndim * [slice(0, 1)])]

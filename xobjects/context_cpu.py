@@ -334,7 +334,12 @@ class ContextCpu(XContext):
         extra_headers=(),
         compile=True,  # noqa
         compiler_language="c",
+        extra_source_files=None,
     ) -> Dict[Tuple[str, tuple], "KernelCpu"]:
+        # extra_source_files: additional source files compiled as separate translation
+        # units and linked into the module (cffi's set_source(sources=...)), as opposed
+        # to `sources`, which are concatenated into the single generated translation unit.
+        # Use this when a source must not share a TU with the rest (e.g. to avoid symbol/ADL clashes).
         extra_compile_args += ("-O3", "-Wno-unused-function")
         extra_link_args += ("-O3",)
 
@@ -388,6 +393,7 @@ class ContextCpu(XContext):
                 extra_link_args,
                 containing_dir=containing_dir,
                 compiler_language=compiler_language,
+                extra_source_files=extra_source_files,
             )
 
             try:
@@ -459,6 +465,7 @@ class ContextCpu(XContext):
         extra_link_args,
         containing_dir=".",
         compiler_language="c",
+        extra_source_files=(),
     ) -> Path:
         ffi_interface = cffi.FFI()
         ffi_interface.cdef(cdefs)
@@ -526,6 +533,9 @@ class ContextCpu(XContext):
             libraries=list(extra_libraries),
             library_dirs=[path.as_posix() for path in extra_library_paths],
             source_extension=".cpp" if compiler_language == "c++" else ".c",
+            sources=list(extra_source_files),
+            extra_compile_args=xtr_compile_args,
+            extra_link_args=xtr_link_args,
         )
 
         try:

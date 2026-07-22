@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import warnings
 from typing import Dict, List, Tuple, Literal
 
 import numpy as np
@@ -356,7 +357,8 @@ if _enabled:
             return cupy.ndarray.__invert__(self._as_cupy())
 
 
-cudaheader: List[SourceType] = ["""\
+cudaheader: List[SourceType] = [
+    """\
 typedef signed int         int32_t;  //only_for_context cuda
 typedef signed short       int16_t;  //only_for_context cuda
 typedef signed char        int8_t;   //only_for_context cuda
@@ -373,7 +375,8 @@ typedef unsigned long long uint64_t;
   #define NULL nullptr
 #endif
 
-"""]
+"""
+]
 
 
 def nplike_to_cupy(arr):
@@ -488,11 +491,22 @@ class ContextCupy(XContext):
         if self.backend == "nvrtc":
             # NVRTC (default): add NVRTC-specific flags
             nvrtc_args = (*extra_compile_args,)
+            fast_compile = not os.environ.get("XO_CUDA_NO_FAST_COMPILE")
             if nvrtc and nvrtc.getVersion() >= (12, 9):
                 # If supported, skip prohibitively heavy optimisations (e.g.
                 # involving cloning). This it at the expense of <20%
                 # runtime performance, but gain of a lot of compile time and memory.
-                nvrtc_args += ("--Ofast-compile=min",)
+                if fast_compile:
+                    warnings.warn(
+                        "Expensive compile optimisations are currently disabled to improve compile-time "
+                        "performance. To re-enable them, set the XO_CUDA_NO_FAST_COMPILE environment variable."
+                    )
+                    nvrtc_args += ("--Ofast-compile=min",)
+            elif fast_compile:
+                warnings.warn(
+                    "Detected nvrtc version < 12.9, which does not support compile-time optimisation tuning. "
+                    "Compilation time and memory usage might be high: if this is a problem, please update CUDA nvrtc."
+                )
 
             module = cupy.RawModule(
                 code=specialized_source, options=nvrtc_args

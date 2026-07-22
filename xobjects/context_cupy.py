@@ -29,6 +29,14 @@ from .specialize_source import specialize_source
 
 log = logging.getLogger(__name__)
 
+no_fast_compile = False
+"""Disable NVRTC fast compile tuning when building CUDA kernels.
+
+When set to ``True``, ``ContextCupy`` does not pass ``--Ofast-compile=min``
+to NVRTC. The ``XO_CUDA_NO_FAST_COMPILE`` environment variable provides the
+same behavior.
+"""
+
 try:
     import cupy
     import cupyx.scipy
@@ -357,8 +365,7 @@ if _enabled:
             return cupy.ndarray.__invert__(self._as_cupy())
 
 
-cudaheader: List[SourceType] = [
-    """\
+cudaheader: List[SourceType] = ["""\
 typedef signed int         int32_t;  //only_for_context cuda
 typedef signed short       int16_t;  //only_for_context cuda
 typedef signed char        int8_t;   //only_for_context cuda
@@ -375,8 +382,7 @@ typedef unsigned long long uint64_t;
   #define NULL nullptr
 #endif
 
-"""
-]
+"""]
 
 
 def nplike_to_cupy(arr):
@@ -387,6 +393,13 @@ class ContextCupy(XContext):
     """
     Creates a Cupy Context object, that allows performing the computations
     on nVidia GPUs.
+
+    The module-level flag ``xobjects.context_cupy.no_fast_compile`` controls
+    whether NVRTC fast compile tuning is disabled. By default it is ``False``,
+    so CUDA kernels built with NVRTC >= 12.9 use ``--Ofast-compile=min`` to
+    reduce compilation time and memory usage, at the cost of some runtime
+    performance. Set it to ``True`` to disable this option. The environment
+    variable ``XO_CUDA_NO_FAST_COMPILE`` also disables it.
 
     Args:
         default_block_size (int):  CUDA thread size that is used by default
@@ -491,16 +504,14 @@ class ContextCupy(XContext):
         if self.backend == "nvrtc":
             # NVRTC (default): add NVRTC-specific flags
             nvrtc_args = (*extra_compile_args,)
-            fast_compile = not os.environ.get("XO_CUDA_NO_FAST_COMPILE")
+            fast_compile = not (
+                no_fast_compile or os.environ.get("XO_CUDA_NO_FAST_COMPILE")
+            )
             if nvrtc and nvrtc.getVersion() >= (12, 9):
                 # If supported, skip prohibitively heavy optimisations (e.g.
                 # involving cloning). This it at the expense of <20%
                 # runtime performance, but gain of a lot of compile time and memory.
                 if fast_compile:
-                    warnings.warn(
-                        "Expensive compile optimisations are currently disabled to improve compile-time "
-                        "performance. To re-enable them, set the XO_CUDA_NO_FAST_COMPILE environment variable."
-                    )
                     nvrtc_args += ("--Ofast-compile=min",)
             elif fast_compile:
                 warnings.warn(

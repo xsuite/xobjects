@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import warnings
 from typing import Dict, List, Tuple, Literal
 
 import numpy as np
@@ -27,6 +28,14 @@ from .linkedarray import BaseLinkedArray
 from .specialize_source import specialize_source
 
 log = logging.getLogger(__name__)
+
+no_fast_compile = False
+"""Disable NVRTC fast compile tuning when building CUDA kernels.
+
+When set to ``True``, ``ContextCupy`` does not pass ``--Ofast-compile=min``
+to NVRTC. The ``XO_CUDA_NO_FAST_COMPILE`` environment variable provides the
+same behavior.
+"""
 
 try:
     import cupy
@@ -385,6 +394,13 @@ class ContextCupy(XContext):
     Creates a Cupy Context object, that allows performing the computations
     on nVidia GPUs.
 
+    The module-level flag ``xobjects.context_cupy.no_fast_compile`` controls
+    whether NVRTC fast compile tuning is disabled. By default it is ``False``,
+    so CUDA kernels built with NVRTC >= 12.9 use ``--Ofast-compile=min`` to
+    reduce compilation time and memory usage, at the cost of some runtime
+    performance. Set it to ``True`` to disable this option. The environment
+    variable ``XO_CUDA_NO_FAST_COMPILE`` also disables it.
+
     Args:
         default_block_size (int):  CUDA thread size that is used by default
             for kernel execution in case a block size is not specified
@@ -477,8 +493,15 @@ class ContextCupy(XContext):
             with open(save_source_as, "w") as fid:
                 fid.write(specialized_source)
 
-        extra_include_paths = self.get_installed_c_source_paths()
-        include_flags = [f"-I{path}" for path in extra_include_paths]
+        (
+            # TODO: how to deal with CUDA libraries?
+            extra_include_paths,
+            _,
+            _,
+        ) = self.get_installed_c_source_and_library_paths()
+        include_flags = [
+            f"-I{path.as_posix()}" for path in extra_include_paths
+        ]
         extra_compile_args = (
             *extra_compile_args,
             *include_flags,
@@ -488,11 +511,20 @@ class ContextCupy(XContext):
         if self.backend == "nvrtc":
             # NVRTC (default): add NVRTC-specific flags
             nvrtc_args = (*extra_compile_args,)
+            fast_compile = not (
+                no_fast_compile or os.environ.get("XO_CUDA_NO_FAST_COMPILE")
+            )
             if nvrtc and nvrtc.getVersion() >= (12, 9):
                 # If supported, skip prohibitively heavy optimisations (e.g.
                 # involving cloning). This it at the expense of <20%
                 # runtime performance, but gain of a lot of compile time and memory.
-                nvrtc_args += ("--Ofast-compile=min",)
+                if fast_compile:
+                    nvrtc_args += ("--Ofast-compile=min",)
+            elif fast_compile:
+                warnings.warn(
+                    "Detected nvrtc version < 12.9, which does not support compile-time optimisation tuning. "
+                    "Compilation time and memory usage might be high: if this is a problem, please update CUDA nvrtc."
+                )
 
             module = cupy.RawModule(
                 code=specialized_source, options=nvrtc_args

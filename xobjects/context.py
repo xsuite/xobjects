@@ -354,25 +354,75 @@ class XContext(ABC):
     ) -> Dict[Tuple[str, tuple], KernelType]:
         pass
 
-    def get_installed_c_source_paths(self) -> List[str]:
-        """Returns a list of include paths registered in dependent packages.
+    def get_installed_c_source_and_library_paths(
+        self,
+    ) -> tuple[set[Path], set[str], set[Path]]:
+        """Returns a list of C paths registered in dependent packages.
 
-        In a package that depends on xobjects, you can register C source paths
-        using the entry point `xobjects.c_sources`. A path to the directory
-        containing the specified module will be added to the include path when
-        building kernels. For example, the following will allow to write
-        ``#include <xtrack/path/to/some/header.h>`` in kernel sources:
+        In a package that depends on xobjects, you can register C source and
+        library paths using the entry point `xobjects.build_info`. These paths
+        will be added to the C include path and the library path when building
+        kernels. For example, the following will allow to write
+        ``#include <xcoll/path/to/some/header.h>`` in kernel sources, and
+        allow to use functions from the library ``xcoll/lib/libFlukaIO.a``:
 
          .. code-block:: toml
             [project.entry-points.xobjects]
-            include = "xtrack"
+            build_info = "xcoll._xobjects:get_build_info"
+
+        and in the file ``xcoll/_xobjects.py``:
+
+         .. code-block:: python
+            from ..general import _pkg_root
+            def get_build_info():
+                return {
+                    "include_dirs": [_pkg_root.parent],
+                    "libraries": ["FlukaIO"],
+                    "library_dirs": [_pkg_root / "lib"],
+                }
         """
-        sources = []
+        sources = set()
+        libs = set()
+        lib_paths = set()
+
+        # Old entry point for backward compatibility
         for ep in entry_points(group="xobjects", name="include"):
             module = ep.load()
             path = Path(module.__file__).parents[1]
-            sources.append(str(path))
-        return sources
+            sources.add(path)
+
+        # New entry point
+        for ep in entry_points(group="xobjects", name="build_info"):
+            get_build_info = ep.load()
+            info = get_build_info()
+            include_dirs = info.get("include_dirs", [])
+            if not hasattr(include_dirs, "__iter__") or isinstance(
+                include_dirs, str
+            ):
+                include_dirs = [include_dirs]
+            include_dirs = [
+                Path(dd).expanduser().resolve() for dd in include_dirs
+            ]
+            sources.update(include_dirs)
+
+            library_dirs = info.get("library_dirs", [])
+            if not hasattr(library_dirs, "__iter__") or isinstance(
+                library_dirs, str
+            ):
+                library_dirs = [library_dirs]
+            library_dirs = [
+                Path(dd).expanduser().resolve() for dd in library_dirs
+            ]
+            lib_paths.update(library_dirs)
+
+            libraries = info.get("libraries", [])
+            if not hasattr(libraries, "__iter__") or isinstance(
+                libraries, str
+            ):
+                libraries = [libraries]
+            libs.update(libraries)
+
+        return sources, libs, lib_paths
 
     @abstractmethod
     def nparray_to_context_array(self, arr, copy=False):

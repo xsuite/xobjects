@@ -356,7 +356,8 @@ if _enabled:
             return cupy.ndarray.__invert__(self._as_cupy())
 
 
-cudaheader: List[SourceType] = ["""\
+cudaheader: List[SourceType] = [
+    """\
 typedef signed int         int32_t;  //only_for_context cuda
 typedef signed short       int16_t;  //only_for_context cuda
 typedef signed char        int8_t;   //only_for_context cuda
@@ -373,7 +374,8 @@ typedef unsigned long long uint64_t;
   #define NULL nullptr
 #endif
 
-"""]
+"""
+]
 
 
 def nplike_to_cupy(arr):
@@ -477,8 +479,15 @@ class ContextCupy(XContext):
             with open(save_source_as, "w") as fid:
                 fid.write(specialized_source)
 
-        extra_include_paths = self.get_installed_c_source_paths()
-        include_flags = [f"-I{path}" for path in extra_include_paths]
+        (
+            # TODO: how to deal with CUDA libraries?
+            extra_include_paths,
+            _,
+            _,
+        ) = self.get_installed_c_source_and_library_paths()
+        include_flags = [
+            f"-I{path.as_posix()}" for path in extra_include_paths
+        ]
         extra_compile_args = (
             *extra_compile_args,
             *include_flags,

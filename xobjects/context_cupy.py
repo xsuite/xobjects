@@ -29,7 +29,12 @@ try:
     import cupy
     import cupyx.scipy
     import cupyx.scipy.interpolate
-    import cupyx.scipy.signal
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            'ignore',
+            message=r'cupyx\.jit\.rawkernel is experimental\.',
+            category=FutureWarning)
+        import cupyx.scipy.signal
     import cupyx.scipy.special
     import cupyx.scipy.stats
     from cupyx.scipy import fftpack as cufftp

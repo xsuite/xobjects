@@ -538,14 +538,15 @@ class Struct(metaclass=MetaStruct):
                     from . import context_cpu
 
                     if not context_cpu.require_prebuilt_kernel(
-                            context, classes=list(extra_classes) + [cls]):
+                        context, classes=list(extra_classes) + [cls]
+                    ):
                         kernel_info = None
                     else:
                         raise ImportError(
-                            'Xsuite is required to load prebuilt kernels but could '
-                            'not be imported. Please install it with '
-                            f'`pip install xsuite`. '
-                            f'{context_cpu.no_prebuilt_kernel_jit_message()}'
+                            "Xsuite is required to load prebuilt kernels but could "
+                            "not be imported. Please install it with "
+                            f"`pip install xsuite`. "
+                            f"{context_cpu.no_prebuilt_kernel_jit_message()}"
                         ) from err
             finally:
                 Print.suppress = _print_state

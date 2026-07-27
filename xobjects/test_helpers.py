@@ -108,7 +108,9 @@ def fix_random_seed(seed: int):
     return decorator
 
 
-def allow_no_prebuilt_kernels(test_function=None, *, skip_when_forbid_compile=True):
+def allow_no_prebuilt_kernels(
+    test_function=None, *, skip_when_forbid_compile=True
+):
     """Allow JIT compilation for tests that intentionally compile kernels.
 
     By default, the wrapped test is skipped when compilation is forbidden by

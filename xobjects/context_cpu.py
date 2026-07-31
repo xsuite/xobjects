@@ -340,6 +340,7 @@ class ContextCpu(XContext):
         # units and linked into the module (cffi's set_source(sources=...)), as opposed
         # to `sources`, which are concatenated into the single generated translation unit.
         # Use this when a source must not share a TU with the rest (e.g. to avoid symbol/ADL clashes).
+        extra_source_files = extra_source_files or ()
         extra_compile_args += ("-O3", "-Wno-unused-function")
         extra_link_args += ("-O3",)
 

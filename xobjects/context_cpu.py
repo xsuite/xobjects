@@ -183,7 +183,6 @@ class ContextCpu(XContext):
 
     Returns:
          ContextCpu: platform object.
-
     """
 
     _cffi_verbose = False

@@ -273,6 +273,11 @@ class ContextCpu(XContext):
                 code. Default is ```None```.
             extra_compile_args: Extra arguments to be passed to the compiler.
             extra_link_args: Extra arguments to be passed to the linker.
+            extra_include_dirs: Extra include directories passed to cffi.
+            extra_libraries: Extra libraries passed to cffi.
+            extra_library_dirs: Extra library directories passed to cffi.
+            preload_libraries: Shared libraries to load before importing the
+                compiled kernel module.
             extra_cdef: Extra C definitions to be passed to cffi.
             extra_classes: Extra xobjects classes whose API is needed.
             extra_headers: Extra headers to be added to the source code.
@@ -473,7 +478,15 @@ class ContextCpu(XContext):
         Import a compiled module `module_name` located in `containing_dir`
         (by default it is the current working directory), and add the kernels
         from the module, as defined in `kernel_descriptions`, to the context.
-        Returns the path to the loaded so file.
+
+        Args:
+            module_name: Compiled extension module name.
+            kernel_descriptions: Mapping from Python names to Kernel objects.
+            containing_dir: Directory containing the compiled module.
+            preload_libraries: Shared libraries to load before module import.
+
+        Returns:
+            Mapping from Python kernel names to KernelCpu objects.
         """
         module = self._load_kernel_module(
             name=module_name,
@@ -655,6 +668,11 @@ class ContextCpu(XContext):
     ):
         """
         Load a kernel from a stored shared object file.
+
+        Args:
+            name: Compiled extension module name.
+            containing_dir: Directory containing the shared object.
+            preload_libraries: Shared libraries to load before module import.
         """
         so_path = _so_for_module_name(name, containing_dir)
         _preload_shared_libraries(preload_libraries)

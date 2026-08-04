@@ -18,7 +18,11 @@ from .general import _print
 import numpy as np
 import scipy as sp
 
-_PRELOADED_SHARED_LIBRARIES = {}
+_forbid_compile = False
+_suppress_warnings = False
+allow_no_prebuilt_kernel = False
+
+_preloaded_shared_libs_cache = {}
 
 
 def _deduplicate_paths(seq):
@@ -26,19 +30,14 @@ def _deduplicate_paths(seq):
 
 
 def _preload_shared_libraries(paths):
-    mode = getattr(os, "RTLD_GLOBAL", 0)
-    if hasattr(os, "RTLD_NOW"):
-        mode |= os.RTLD_NOW
+    # Make symbols visible to later kernel imports, and load now,
+    # not lazily: potential failure will be immediate and clearer.
+    mode = os.RTLD_GLOBAL | os.RTLD_NOW
 
     for path in paths:
         key = str(Path(path).expanduser().resolve())
-        if key not in _PRELOADED_SHARED_LIBRARIES:
-            _PRELOADED_SHARED_LIBRARIES[key] = ctypes.CDLL(key, mode=mode)
-
-
-_forbid_compile = False
-_suppress_warnings = False
-allow_no_prebuilt_kernel = False
+        if key not in _preloaded_shared_libs_cache:
+            _preloaded_shared_libs_cache[key] = ctypes.CDLL(key, mode=mode)
 
 
 def _class_allows_no_prebuilt_kernel(cls):

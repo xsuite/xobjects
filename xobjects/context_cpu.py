@@ -3,6 +3,7 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 
+import ctypes
 import importlib.util
 import logging
 import os
@@ -16,6 +17,32 @@ from .general import _print
 
 import numpy as np
 import scipy as sp
+
+_PRELOADED_SHARED_LIBRARIES = {}
+
+
+def _deduplicate(seq):
+    out = []
+    seen = set()
+    for item in seq:
+        key = Path(item).as_posix() if isinstance(item, (str, Path)) else item
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(item)
+    return out
+
+
+def _preload_shared_libraries(paths):
+    mode = getattr(os, "RTLD_GLOBAL", 0)
+    if hasattr(os, "RTLD_NOW"):
+        mode |= os.RTLD_NOW
+
+    for path in paths:
+        key = str(Path(path).expanduser().resolve())
+        if key not in _PRELOADED_SHARED_LIBRARIES:
+            _PRELOADED_SHARED_LIBRARIES[key] = ctypes.CDLL(key, mode=mode)
+
 
 _forbid_compile = False
 _suppress_warnings = False
@@ -226,6 +253,10 @@ class ContextCpu(XContext):
         save_source_as=None,
         extra_compile_args: Sequence[str] = (),
         extra_link_args: Sequence[str] = (),
+        extra_include_dirs: Sequence[str] = (),
+        extra_libraries: Sequence[str] = (),
+        extra_library_dirs: Sequence[str] = (),
+        preload_libraries: Sequence[str] = (),
         extra_cdef="",
         extra_classes=(),
         extra_headers=(),
@@ -310,6 +341,10 @@ class ContextCpu(XContext):
             save_source_as=save_source_as,
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
+            extra_include_dirs=extra_include_dirs,
+            extra_libraries=extra_libraries,
+            extra_library_dirs=extra_library_dirs,
+            preload_libraries=preload_libraries,
             extra_cdef=extra_cdef,
             extra_classes=extra_classes,
             extra_headers=extra_headers,
@@ -328,6 +363,10 @@ class ContextCpu(XContext):
         save_source_as=None,
         extra_compile_args=(),
         extra_link_args=(),
+        extra_include_dirs=(),
+        extra_libraries=(),
+        extra_library_dirs=(),
+        preload_libraries=(),
         extra_cdef="",
         extra_classes=(),
         extra_headers=(),
@@ -394,6 +433,9 @@ class ContextCpu(XContext):
                 containing_dir=containing_dir,
                 compiler_language=compiler_language,
                 extra_source_files=extra_source_files,
+                extra_include_dirs=extra_include_dirs,
+                extra_libraries=extra_libraries,
+                extra_library_dirs=extra_library_dirs,
             )
 
             try:
@@ -402,6 +444,7 @@ class ContextCpu(XContext):
                     module_name,
                     kernel_descriptions,
                     containing_dir=containing_dir,
+                    preload_libraries=preload_libraries,
                 )
             finally:
                 # Whether loaded successfully or not, delete the so
@@ -433,6 +476,7 @@ class ContextCpu(XContext):
         module_name: str,
         kernel_descriptions: Dict[str, Kernel],
         containing_dir=".",
+        preload_libraries=(),
     ) -> Dict[Tuple[str, tuple], "KernelCpu"]:
         """
         Import a compiled module `module_name` located in `containing_dir`
@@ -443,6 +487,7 @@ class ContextCpu(XContext):
         module = self._load_kernel_module(
             name=module_name,
             containing_dir=containing_dir,
+            preload_libraries=preload_libraries,
         )
         out_kernels = {}
         for pyname, kernel_desc in kernel_descriptions.items():
@@ -466,6 +511,9 @@ class ContextCpu(XContext):
         containing_dir=".",
         compiler_language="c",
         extra_source_files=(),
+        extra_include_dirs=(),
+        extra_libraries=(),
+        extra_library_dirs=(),
     ) -> Path:
         ffi_interface = cffi.FFI()
         ffi_interface.cdef(cdefs)
@@ -512,10 +560,17 @@ class ContextCpu(XContext):
             xtr_link_args.append("-DXO_CONTEXT_CPU_SERIAL")
 
         (
-            extra_include_paths,
-            extra_libraries,
-            extra_library_paths,
+            installed_include_paths,
+            installed_libraries,
+            installed_library_paths,
         ) = self.get_installed_c_source_and_library_paths()
+        include_paths = _deduplicate(
+            [*installed_include_paths, *extra_include_dirs]
+        )
+        libraries = _deduplicate([*installed_libraries, *extra_libraries])
+        library_paths = _deduplicate(
+            [*installed_library_paths, *extra_library_dirs]
+        )
 
         if os.name == "nt":  # windows
             # TODO: to be handled properly
@@ -529,9 +584,9 @@ class ContextCpu(XContext):
         ffi_interface.set_source(
             module_name,
             specialized_source,
-            include_dirs=[path.as_posix() for path in extra_include_paths],
-            libraries=list(extra_libraries),
-            library_dirs=[path.as_posix() for path in extra_library_paths],
+            include_dirs=[Path(path).as_posix() for path in include_paths],
+            libraries=list(libraries),
+            library_dirs=[Path(path).as_posix() for path in library_paths],
             source_extension=".cpp" if compiler_language == "c++" else ".c",
             sources=list(extra_source_files),
             extra_compile_args=xtr_compile_args,
@@ -602,11 +657,13 @@ class ContextCpu(XContext):
         self,
         name: str,
         containing_dir=".",
+        preload_libraries=(),
     ):
         """
         Load a kernel from a stored shared object file.
         """
         so_path = _so_for_module_name(name, containing_dir)
+        _preload_shared_libraries(preload_libraries)
         # Import the compiled module
         spec = importlib.util.spec_from_file_location(name, so_path)
         module = importlib.util.module_from_spec(spec)

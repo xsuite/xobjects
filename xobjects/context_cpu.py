@@ -21,16 +21,8 @@ import scipy as sp
 _PRELOADED_SHARED_LIBRARIES = {}
 
 
-def _deduplicate(seq):
-    out = []
-    seen = set()
-    for item in seq:
-        key = Path(item).as_posix() if isinstance(item, (str, Path)) else item
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(item)
-    return out
+def _deduplicate_paths(seq):
+    return list(set(Path(item).as_posix() for item in seq))
 
 
 def _preload_shared_libraries(paths):
@@ -564,11 +556,14 @@ class ContextCpu(XContext):
             installed_libraries,
             installed_library_paths,
         ) = self.get_installed_c_source_and_library_paths()
-        include_paths = _deduplicate(
+
+        include_paths = _deduplicate_paths(
             [*installed_include_paths, *extra_include_dirs]
         )
-        libraries = _deduplicate([*installed_libraries, *extra_libraries])
-        library_paths = _deduplicate(
+        libraries = _deduplicate_paths(
+            [*installed_libraries, *extra_libraries]
+        )
+        library_paths = _deduplicate_paths(
             [*installed_library_paths, *extra_library_dirs]
         )
 

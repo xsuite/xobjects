@@ -108,16 +108,16 @@ def gen_c_arg_from_arg(arg: Arg, conf):
     gpu_memory_qualifier = conf.get("gpumem", "")
     cpu_restrict_qualifier = conf.get("cpurestrict", "")
     if arg is None:
-        c_declaration = "void"
+        c_type = "void"
     else:
-        c_declaration = arg.atype._c_type
+        c_type = arg.atype._c_type
         if arg.pointer:
-            c_declaration = f"{gpu_memory_qualifier}{c_declaration}*{cpu_restrict_qualifier}"
+            c_type = f"{gpu_memory_qualifier}{c_type}*{cpu_restrict_qualifier}"
         elif is_compound(arg.atype):
-            c_declaration = f"{c_declaration}{cpu_restrict_qualifier}"
+            c_type = f"{c_type}{cpu_restrict_qualifier}"
         if arg.const:
-            c_declaration = "const " + c_declaration
-    return f"{c_declaration} {arg.name}"
+            c_type = "const " + c_type
+    return f"{c_type} {arg.name}"
 
 
 def gen_c_size_from_arg(arg: Arg, conf):

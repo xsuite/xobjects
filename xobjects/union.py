@@ -106,14 +106,14 @@ class Union(metaclass=MetaUnion):
             raise ValueError(f"{value} has wrong number of arguments")
 
     @classmethod
-    def _from_buffer(cls, buffer, offset=0):
+    def _from_buffer(cls, buffer, offset=0, container=None):
         self = object.__new__(cls)
         self._buffer = buffer
         self._offset = offset
         return self
 
     @classmethod
-    def _to_buffer(cls, buffer, offset, value, info=None):
+    def _to_buffer(cls, buffer, offset, value, info=None, container=None):
         if info is None:
             info = cls._inspect_args(value)
         Int64._to_buffer(buffer, offset, info.typeid)

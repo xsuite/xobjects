@@ -961,8 +961,8 @@ class FFTCpu(object):
                 direction="FFTW_BACKWARD",
                 flags=("FFTW_MEASURE",),
             )
-            print(f"fftw simd_aligned={self.fftw.simd_aligned}")
-            print(f"ifftw simd_aligned={self.fftw.simd_aligned}")
+            _print(f"fftw simd_aligned={self.fftw.simd_aligned}")
+            _print(f"ifftw simd_aligned={self.fftw.simd_aligned}")
         else:
             # I perform one fft to have numpy cache the plan
             _ = np.fft.ifftn(np.fft.fftn(data, axes=axes), axes=axes)

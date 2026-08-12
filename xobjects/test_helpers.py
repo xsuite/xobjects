@@ -147,5 +147,6 @@ def skip_if_forbid_compile():
     if settings.cffi_forbid_compile:
         pytest.skip(
             "CFFI compilation is forbidden by "
-            "xobjects.settings.cffi_forbid_compile."
+            "xobjects.settings.cffi_forbid_compile or equivalently the "
+            "environment variable XSUITE_CFFI_FORBID_COMPILE."
         )

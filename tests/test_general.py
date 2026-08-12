@@ -40,7 +40,7 @@ def test_python_setting_overrides_environment_default(capsys):
 
 
 def test_invalid_print_mode_setting():
-    with pytest.raises(ValueError, match='expected.*print.*suppress'):
+    with pytest.raises(ValueError, match='XSUITE_PRINT_MODE.*print.*suppress'):
         xo.settings.print_mode = 'invalid'
 
 
@@ -173,6 +173,8 @@ def test_invalid_boolean_environment_value():
 
     assert completed.returncode != 0
     assert 'Invalid boolean value' in completed.stderr
+    assert 'xobjects.settings.cffi_forbid_compile' in completed.stderr
+    assert 'XSUITE_CFFI_FORBID_COMPILE' in completed.stderr
 
 
 def test_runtime_settings_environment_defaults():
@@ -236,8 +238,12 @@ def test_default_context_setting():
 
 def test_cffi_forbid_compile_setting():
     with xo.settings.override(cffi_forbid_compile=True):
-        with pytest.raises(RuntimeError, match='CFFI compilation is forbidden'):
+        with pytest.raises(RuntimeError) as err:
             xo.ContextCpu().build_kernels({})
+
+    message = str(err.value)
+    assert 'xobjects.settings.cffi_forbid_compile' in message
+    assert 'XSUITE_CFFI_FORBID_COMPILE' in message
 
 
 def test_allow_kernel_compilation_decorator_restores_state(monkeypatch):

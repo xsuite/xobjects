@@ -66,9 +66,9 @@ def require_prebuilt_kernel(context=None, classes=()):
 def kernel_compilation_help_message():
     return (
         "To allow just-in-time compilation instead, as in older Xsuite "
-        "versions, set the environment variable "
-        "`XSUITE_ALLOW_KERNEL_COMPILATION=1`, set "
-        "`xobjects.settings.allow_kernel_compilation = True`, or set "
+        "versions, set `xobjects.settings.allow_kernel_compilation = True`, "
+        "or equivalently set the environment variable "
+        "`XSUITE_ALLOW_KERNEL_COMPILATION=1`, or set "
         "`context.allow_kernel_compilation = True`. Classes that require "
         "just-in-time compilation can also define "
         "`allow_kernel_compilation = True` as a class attribute. Using "
@@ -372,7 +372,8 @@ class ContextCpu(XContext):
             if settings.cffi_forbid_compile:
                 raise RuntimeError(
                     "CFFI compilation is forbidden by "
-                    "xobjects.settings.cffi_forbid_compile."
+                    "xobjects.settings.cffi_forbid_compile or equivalently "
+                    "the environment variable XSUITE_CFFI_FORBID_COMPILE."
                 )
 
             so_file = self.compile_kernel(

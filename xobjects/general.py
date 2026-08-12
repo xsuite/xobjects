@@ -11,7 +11,8 @@ from .settings import settings
 class Print:
     """Configurable wrapper around :func:`print` used by Xsuite.
 
-    The behavior is controlled by ``xobjects.settings.print_mode``.
+    The behavior is controlled by ``xobjects.settings.print_mode``, or
+    equivalently the environment variable ``XSUITE_PRINT_MODE``.
     """
 
     def __call__(self, *args, **kwargs):

@@ -777,7 +777,8 @@ def get_test_contexts():
 
 def get_user_context():
     """
-    Get the context specified by ``xobjects.settings.default_context``.
+    Get the context specified by ``xobjects.settings.default_context``, or
+    equivalently the environment variable ``XSUITE_DEFAULT_CONTEXT``.
 
     Examples:
        ContextPyopencl:0.0  -> ContextPyopencl(device="0.0")

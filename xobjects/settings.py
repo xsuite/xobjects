@@ -14,10 +14,13 @@ class Settings:
     ``yes``/``no``, and ``on``/``off``, case-insensitively.
 
     For example, to let Xsuite compile a kernel when no compatible prebuilt
-    kernel is available::
+    kernel is available, either assign the Python setting::
 
         import xtrack as xt
         xt.settings.allow_kernel_compilation = True
+
+    or equivalently set the environment variable
+    ``XSUITE_ALLOW_KERNEL_COMPILATION=1`` before starting Python.
 
     ============================== ========================================= =================== ===============================
     Python setting                 Environment variable                      Default             Accepted values
@@ -79,8 +82,9 @@ class Settings:
                          if environment_parser else environment_value)
             except (TypeError, ValueError) as err:
                 raise ValueError(
-                    f'Invalid value for environment variable '
-                    f'{environment_variable}: {err}') from err
+                    f'Invalid value for '
+                    f'{self._setting_description(name, definition)}: '
+                    f'{err}') from err
         self._set(name, value)
 
     def _set(self, name, value):
@@ -91,14 +95,15 @@ class Settings:
 
         choices = definition['choices']
         value_type = definition['value_type']
+        setting_description = self._setting_description(name, definition)
         if value_type is not None and not isinstance(value, value_type):
             raise TypeError(
-                f'Invalid value {value!r} for setting {name!r}; '
+                f'Invalid value {value!r} for {setting_description}; '
                 f'expected {self._type_name(value_type)}.')
         if choices is not None and value not in choices:
             expected = ', '.join(repr(choice) for choice in choices)
             raise ValueError(
-                f'Invalid value {value!r} for setting {name!r}; '
+                f'Invalid value {value!r} for {setting_description}; '
                 f'expected one of {expected}.')
 
         self._values[name] = value
@@ -123,16 +128,18 @@ class Settings:
 
         # Validate every value before changing any setting.
         for name, value in kwargs.items():
-            value_type = self._definitions[name]['value_type']
+            definition = self._definitions[name]
+            setting_description = self._setting_description(name, definition)
+            value_type = definition['value_type']
             if value_type is not None and not isinstance(value, value_type):
                 raise TypeError(
-                    f'Invalid value {value!r} for setting {name!r}; '
+                    f'Invalid value {value!r} for {setting_description}; '
                     f'expected {self._type_name(value_type)}.')
-            choices = self._definitions[name]['choices']
+            choices = definition['choices']
             if choices is not None and value not in choices:
                 expected = ', '.join(repr(choice) for choice in choices)
                 raise ValueError(
-                    f'Invalid value {value!r} for setting {name!r}; '
+                    f'Invalid value {value!r} for {setting_description}; '
                     f'expected one of {expected}.')
 
         try:
@@ -156,6 +163,17 @@ class Settings:
         if isinstance(value_type, tuple):
             return ' or '.join(tt.__name__ for tt in value_type)
         return value_type.__name__
+
+    @staticmethod
+    def _setting_description(name, definition):
+        description = f'Python setting xobjects.settings.{name}'
+        environment_variable = definition['environment_variable']
+        if environment_variable is not None:
+            description += (
+                f' or equivalently the environment variable '
+                f'{environment_variable}'
+            )
+        return description
 
 
 def _parse_boolean(value):

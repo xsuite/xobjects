@@ -395,9 +395,9 @@ class ContextCupy(XContext):
     ``xobjects.settings.cuda_fast_compile`` controls whether NVRTC fast compile
     tuning is enabled. By default it is ``True``, so CUDA kernels built with
     NVRTC >= 12.9 use ``--Ofast-compile=min`` to reduce compilation time and
-    memory usage, at the cost of some runtime performance. Set it to ``False``
-    to disable this option. The environment variable
-    ``XSUITE_CUDA_FAST_COMPILE=0`` also disables it.
+    memory usage, at the cost of some runtime performance. Set
+    ``xobjects.settings.cuda_fast_compile = False``, or equivalently the
+    environment variable ``XSUITE_CUDA_FAST_COMPILE=0``, to disable it.
 
     Args:
         default_block_size (int):  CUDA thread size that is used by default
@@ -558,8 +558,11 @@ class ContextCupy(XContext):
             return found
 
         raise RuntimeError(
-            "clang++ for the CUDA context not found. Either install clang so that 'clang++' is on PATH,"
-            "or set xobjects.settings.cuda_compiler to the desired clang++ executable."
+            "clang++ for the CUDA context not found. Either install clang so "
+            "that 'clang++' is on PATH, or set "
+            "xobjects.settings.cuda_compiler, or equivalently the environment "
+            "variable XSUITE_CUDA_COMPILER, to the desired clang++ "
+            "executable."
         )
 
     def _build_module_with_clang(self, source, extra_compile_args=()):

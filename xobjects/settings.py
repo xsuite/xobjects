@@ -27,10 +27,6 @@ class Settings:
         Values: ``False`` (default), ``True``
         Reports why a prebuilt kernel was selected or rejected.
 
-    ``default_context`` — ``XSUITE_DEFAULT_CONTEXT``
-        Values: ``ContextCpu`` (default), context specification
-        Selects the context returned by ``get_user_context()``.
-
     ``cffi_forbid_compile`` — ``XSUITE_CFFI_FORBID_COMPILE``
         Values: ``False`` (default), ``True``
         Prevents CFFI from compiling CPU kernels.
@@ -267,12 +263,6 @@ settings._register(
     choices=(False, True),
     environment_parser=_parse_boolean,
     value_type=bool,
-)
-settings._register(
-    'default_context',
-    default='ContextCpu',
-    environment_variable='XSUITE_DEFAULT_CONTEXT',
-    value_type=str,
 )
 settings._register(
     'cffi_forbid_compile',

@@ -62,7 +62,6 @@ def test_settings_are_discoverable():
         'allow_kernel_compilation',
         'force_kernel_compilation',
         'show_kernel_diagnostics',
-        'default_context',
         'cffi_forbid_compile',
         'cffi_keep_build_files',
         'cuda_backend',
@@ -183,7 +182,6 @@ def test_runtime_settings_environment_defaults():
         'XSUITE_PROGRESS_INDICATOR': 'text',
         'XSUITE_FORCE_KERNEL_COMPILATION': 'yes',
         'XSUITE_SHOW_KERNEL_DIAGNOSTICS': 'on',
-        'XSUITE_DEFAULT_CONTEXT': 'ContextCpu:auto',
         'XSUITE_CFFI_FORBID_COMPILE': 'true',
         'XSUITE_CFFI_KEEP_BUILD_FILES': '1',
         'XSUITE_CUDA_BACKEND': 'clang',
@@ -195,7 +193,6 @@ def test_runtime_settings_environment_defaults():
         'assert xo.settings.progress_indicator == "text"; '
         'assert xo.settings.force_kernel_compilation is True; '
         'assert xo.settings.show_kernel_diagnostics is True; '
-        'assert xo.settings.default_context == "ContextCpu:auto"; '
         'assert xo.settings.cffi_forbid_compile is True; '
         'assert xo.settings.cffi_keep_build_files is True; '
         'assert xo.settings.cuda_backend == "clang"; '
@@ -229,9 +226,9 @@ def test_kernel_compilation_settings(allow, force, compilation_allowed):
             xo.ContextCpu()) is compilation_allowed
 
 
-def test_default_context_setting():
-    with xo.settings.override(default_context='ContextCpu:auto'):
-        context = xo.get_user_context()
+def test_user_context_environment_variable(monkeypatch):
+    monkeypatch.setenv('XOBJECTS_USER_CONTEXT', 'ContextCpu:auto')
+    context = xo.get_user_context()
 
     assert context.openmp_enabled
 

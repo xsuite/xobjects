@@ -777,8 +777,8 @@ def get_test_contexts():
 
 def get_user_context():
     """
-    Get the context specified by ``xobjects.settings.default_context``, or
-    equivalently the environment variable ``XSUITE_DEFAULT_CONTEXT``.
+    Get the context specified by the environment variable
+    ``XOBJECTS_USER_CONTEXT``. If it is not set, use ``ContextCpu()``.
 
     Examples:
        ContextPyopencl:0.0  -> ContextPyopencl(device="0.0")
@@ -789,6 +789,7 @@ def get_user_context():
        ContextCpu:auto      -> ContextCpu(omp_num_threads='auto')
        ContextCupy:0        -> ContextCupy(device=0)
     """
-    import xobjects as xo
+    import os
 
-    return get_context_from_string(xo.settings.default_context)
+    ctxstr = os.environ.get("XOBJECTS_USER_CONTEXT")
+    return get_context_from_string(ctxstr)

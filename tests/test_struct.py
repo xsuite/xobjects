@@ -6,7 +6,11 @@ import cffi
 import numpy as np
 
 import xobjects as xo
-from xobjects.test_helpers import for_all_test_contexts, requires_context
+from xobjects.test_helpers import (
+    allow_kernel_compilation,
+    for_all_test_contexts,
+    requires_context,
+)
 
 
 def test_static_struct_def():
@@ -299,6 +303,7 @@ double mult_four(MyStruct stru) {
 
 
 @requires_context("ContextCpu")
+@allow_kernel_compilation
 def test_compile_kernels_only_if_needed(tmp_path, mocker):
     """Test the use case of xtrack.
 
@@ -348,6 +353,7 @@ def test_compile_kernels_only_if_needed(tmp_path, mocker):
 
 
 @requires_context("ContextCpu")
+@allow_kernel_compilation
 def test_thisclass_placeholder_on_struct():
     test_context = xo.ContextCpu()
 

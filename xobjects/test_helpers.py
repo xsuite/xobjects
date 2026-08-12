@@ -5,7 +5,6 @@
 
 from functools import wraps
 from typing import Callable, Iterable, Union
-import os
 
 import pytest
 
@@ -125,16 +124,8 @@ def allow_kernel_compilation(
         def wrapper(*args, **kwargs):
             if skip_when_forbid_compile:
                 skip_if_forbid_compile()
-            old_value = os.environ.get("XSUITE_ALLOW_KERNEL_COMPILATION")
-            os.environ["XSUITE_ALLOW_KERNEL_COMPILATION"] = "1"
-            try:
-                with settings.override(allow_kernel_compilation=True):
-                    return test_function(*args, **kwargs)
-            finally:
-                if old_value is None:
-                    del os.environ["XSUITE_ALLOW_KERNEL_COMPILATION"]
-                else:
-                    os.environ["XSUITE_ALLOW_KERNEL_COMPILATION"] = old_value
+            with settings.override(allow_kernel_compilation=True):
+                return test_function(*args, **kwargs)
 
         return wrapper
 

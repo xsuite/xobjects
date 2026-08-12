@@ -243,24 +243,11 @@ def test_cffi_forbid_compile_setting():
     assert 'XSUITE_CFFI_FORBID_COMPILE' in message
 
 
-def test_allow_kernel_compilation_decorator_restores_state(monkeypatch):
-    monkeypatch.delenv('XSUITE_ALLOW_KERNEL_COMPILATION', raising=False)
-
+def test_allow_kernel_compilation_decorator_restores_state():
     @allow_kernel_compilation(skip_when_forbid_compile=False)
     def decorated():
         assert xo.settings.allow_kernel_compilation is True
-        assert os.environ['XSUITE_ALLOW_KERNEL_COMPILATION'] == '1'
-        subprocess.run(
-            [
-                sys.executable,
-                '-c',
-                ('import xobjects as xo; assert '
-                 'xo.settings.allow_kernel_compilation is True'),
-            ],
-            check=True,
-        )
 
     with xo.settings.override(allow_kernel_compilation=False):
         decorated()
         assert xo.settings.allow_kernel_compilation is False
-        assert 'XSUITE_ALLOW_KERNEL_COMPILATION' not in os.environ

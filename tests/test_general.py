@@ -233,6 +233,19 @@ def test_user_context_environment_variable(monkeypatch):
     assert context.openmp_enabled
 
 
+def test_test_contexts_environment_variable(monkeypatch):
+    monkeypatch.setenv(
+        'XOBJECTS_TEST_CONTEXTS',
+        'ContextCpu;ContextCpu:auto',
+    )
+
+    contexts = list(xo.context.get_test_contexts())
+
+    assert len(contexts) == 2
+    assert contexts[0].openmp_enabled is False
+    assert contexts[1].openmp_enabled is True
+
+
 def test_cffi_forbid_compile_setting():
     with xo.settings.override(cffi_forbid_compile=True):
         with pytest.raises(RuntimeError) as err:

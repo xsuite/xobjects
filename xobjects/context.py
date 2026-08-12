@@ -753,7 +753,7 @@ def get_test_contexts():
     import os
     import xobjects as xo
 
-    ctxstr = os.environ.get("XSUITE_TEST_CONTEXTS")
+    ctxstr = os.environ.get("XOBJECTS_TEST_CONTEXTS")
     if ctxstr is None:
         yield xo.ContextCpu()
         yield xo.ContextCpu(omp_num_threads="auto")

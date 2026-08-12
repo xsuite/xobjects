@@ -10,6 +10,7 @@ import os
 import pytest
 
 from .context import get_context_from_string, get_test_contexts
+from .settings import settings
 
 
 def _for_all_test_contexts_excluding(
@@ -127,7 +128,8 @@ def allow_no_prebuilt_kernels(
             old_value = os.environ.get("XSUITE_ALLOW_NO_PREBUILT_KERNELS")
             os.environ["XSUITE_ALLOW_NO_PREBUILT_KERNELS"] = "1"
             try:
-                return test_function(*args, **kwargs)
+                with settings.override(allow_no_prebuilt_kernels=True):
+                    return test_function(*args, **kwargs)
             finally:
                 if old_value is None:
                     del os.environ["XSUITE_ALLOW_NO_PREBUILT_KERNELS"]

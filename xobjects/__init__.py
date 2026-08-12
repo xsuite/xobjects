@@ -35,6 +35,7 @@ from .hybrid_class import JEncoder, HybridClass, MetaHybridClass
 from .linkedarray import BypassLinked
 
 from .general import _print
+from .settings import settings
 
 from .general import assert_allclose
 

@@ -2,35 +2,27 @@
 # This file is part of the Xobjects Package.  #
 # Copyright (c) CERN, 2024.                   #
 # ########################################### #
-import os
-
 from numpy.testing import assert_allclose as np_assert_allclose
 import numpy as np
+
+from .settings import settings
 
 
 class Print:
     """Configurable wrapper around :func:`print` used by Xsuite.
 
-    Set ``mode`` to ``'print'`` or ``'suppress'``. The
-    ``XSUITE_PRINT_MODE`` environment variable takes precedence over
-    ``mode``. The legacy ``suppress`` attribute remains supported as a hard
-    override.
+    The behavior is controlled by ``xobjects.settings.print_mode``. The legacy
+    ``suppress`` attribute remains supported as a hard override.
     """
 
     suppress = False
-    mode = 'print'
 
     def __call__(self, *args, **kwargs):
         if self.suppress:
             return
 
-        mode = os.environ.get('XSUITE_PRINT_MODE', self.mode)
-        if mode == 'suppress':
+        if settings.print_mode == 'suppress':
             return
-        if mode != 'print':
-            raise ValueError(
-                f'Invalid print mode {mode!r}; expected "print" or '
-                '"suppress".')
 
         print(*args, **kwargs)
 

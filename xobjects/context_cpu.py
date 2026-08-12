@@ -13,6 +13,7 @@ from typing import Callable, Dict, List, Sequence, Tuple
 import weakref
 
 from .general import _print
+from .settings import settings
 
 import numpy as np
 import scipy as sp
@@ -42,7 +43,7 @@ def allow_no_prebuilt_kernel_enabled(context=None, classes=()):
     elif isinstance(classes, type):
         classes = (classes,)
 
-    if os.environ.get("XSUITE_ALLOW_NO_PREBUILT_KERNELS") is not None:
+    if settings.allow_no_prebuilt_kernels:
         return True
     if allow_no_prebuilt_kernel:
         return True
@@ -68,6 +69,7 @@ def no_prebuilt_kernel_jit_message():
         "To allow just-in-time compilation instead, as in older Xsuite "
         "versions, set the environment variable "
         "`XSUITE_ALLOW_NO_PREBUILT_KERNELS`, set "
+        "`xobjects.settings.allow_no_prebuilt_kernels = True`, set "
         "`xobjects.context_cpu.allow_no_prebuilt_kernel = True`, or set "
         "`context.allow_no_prebuilt_kernel = True`. Classes that require "
         "just-in-time compilation can also define "

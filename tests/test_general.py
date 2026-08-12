@@ -6,7 +6,7 @@ import pytest
 
 import xobjects as xo
 from xobjects.general import Print
-from xobjects.test_helpers import allow_no_prebuilt_kernels
+from xobjects.test_helpers import allow_kernel_compilation
 
 
 def test_print_mode_default(capsys):
@@ -39,15 +39,6 @@ def test_python_setting_overrides_environment_default(capsys):
     assert capsys.readouterr().out == 'visible\n'
 
 
-def test_legacy_suppress_overrides_mode(capsys):
-    printer = Print()
-    printer.suppress = True
-
-    printer('hidden')
-
-    assert capsys.readouterr().out == ''
-
-
 def test_invalid_print_mode_setting():
     with pytest.raises(ValueError, match='expected.*print.*suppress'):
         xo.settings.print_mode = 'invalid'
@@ -65,9 +56,24 @@ def test_settings_override_restores_value_after_error():
 
 
 def test_settings_are_discoverable():
-    assert 'print_mode' in dir(xo.settings)
-    assert 'allow_no_prebuilt_kernels' in dir(xo.settings)
-    assert 'print_mode=' in repr(xo.settings)
+    expected_settings = {
+        'print_mode',
+        'progress_indicator',
+        'allow_kernel_compilation',
+        'force_kernel_compilation',
+        'show_kernel_diagnostics',
+        'default_context',
+        'cffi_forbid_compile',
+        'cffi_keep_build_files',
+        'cuda_backend',
+        'cuda_fast_compile',
+        'cuda_compiler',
+    }
+
+    assert expected_settings <= set(dir(xo.settings))
+    for name in expected_settings:
+        assert f'{name}=' in repr(xo.settings)
+        assert name in type(xo.settings).__doc__
 
 
 def test_print_mode_environment_variable_is_startup_default():
@@ -118,14 +124,15 @@ def test_environment_change_after_import_does_not_override_python_setting(
     assert capsys.readouterr().out == 'visible\n'
 
 
-def test_allow_no_prebuilt_kernels_environment_is_startup_default():
+@pytest.mark.parametrize('value', ['1', 'true', 'YES', 'on'])
+def test_boolean_environment_true_values(value):
     environment = os.environ.copy()
-    environment['XSUITE_ALLOW_NO_PREBUILT_KERNELS'] = '1'
+    environment['XSUITE_ALLOW_KERNEL_COMPILATION'] = value
     code = (
         'import xobjects as xo; '
-        'assert xo.settings.allow_no_prebuilt_kernels is True; '
-        'xo.settings.allow_no_prebuilt_kernels = False; '
-        'assert xo.settings.allow_no_prebuilt_kernels is False')
+        'assert xo.settings.allow_kernel_compilation is True; '
+        'xo.settings.allow_kernel_compilation = False; '
+        'assert xo.settings.allow_kernel_compilation is False')
 
     subprocess.run(
         [sys.executable, '-c', code],
@@ -136,24 +143,121 @@ def test_allow_no_prebuilt_kernels_environment_is_startup_default():
     )
 
 
-def test_allow_no_prebuilt_kernels_decorator_restores_state(monkeypatch):
-    monkeypatch.delenv('XSUITE_ALLOW_NO_PREBUILT_KERNELS', raising=False)
+@pytest.mark.parametrize('value', ['0', 'false', 'NO', 'off'])
+def test_boolean_environment_false_values(value):
+    environment = os.environ.copy()
+    environment['XSUITE_FORCE_KERNEL_COMPILATION'] = value
+    code = (
+        'import xobjects as xo; '
+        'assert xo.settings.force_kernel_compilation is False')
 
-    @allow_no_prebuilt_kernels(skip_when_forbid_compile=False)
+    subprocess.run(
+        [sys.executable, '-c', code],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+
+def test_invalid_boolean_environment_value():
+    environment = os.environ.copy()
+    environment['XSUITE_CFFI_FORBID_COMPILE'] = 'sometimes'
+
+    completed = subprocess.run(
+        [sys.executable, '-c', 'import xobjects'],
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode != 0
+    assert 'Invalid boolean value' in completed.stderr
+
+
+def test_runtime_settings_environment_defaults():
+    environment = os.environ.copy()
+    environment.update({
+        'XSUITE_PROGRESS_INDICATOR': 'text',
+        'XSUITE_FORCE_KERNEL_COMPILATION': 'yes',
+        'XSUITE_SHOW_KERNEL_DIAGNOSTICS': 'on',
+        'XSUITE_DEFAULT_CONTEXT': 'ContextCpu:auto',
+        'XSUITE_CFFI_FORBID_COMPILE': 'true',
+        'XSUITE_CFFI_KEEP_BUILD_FILES': '1',
+        'XSUITE_CUDA_BACKEND': 'clang',
+        'XSUITE_CUDA_FAST_COMPILE': 'false',
+        'XSUITE_CUDA_COMPILER': '/path/to/clang++',
+    })
+    code = (
+        'import xobjects as xo; '
+        'assert xo.settings.progress_indicator == "text"; '
+        'assert xo.settings.force_kernel_compilation is True; '
+        'assert xo.settings.show_kernel_diagnostics is True; '
+        'assert xo.settings.default_context == "ContextCpu:auto"; '
+        'assert xo.settings.cffi_forbid_compile is True; '
+        'assert xo.settings.cffi_keep_build_files is True; '
+        'assert xo.settings.cuda_backend == "clang"; '
+        'assert xo.settings.cuda_fast_compile is False; '
+        'assert xo.settings.cuda_compiler == "/path/to/clang++"')
+
+    subprocess.run(
+        [sys.executable, '-c', code],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+
+@pytest.mark.parametrize(
+    'allow, force, compilation_allowed',
+    [
+        (False, False, False),
+        (True, False, True),
+        (False, True, True),
+        (True, True, True),
+    ],
+)
+def test_kernel_compilation_settings(allow, force, compilation_allowed):
+    with xo.settings.override(
+        allow_kernel_compilation=allow,
+        force_kernel_compilation=force,
+    ):
+        assert xo.context_cpu.kernel_compilation_allowed(
+            xo.ContextCpu()) is compilation_allowed
+
+
+def test_default_context_setting():
+    with xo.settings.override(default_context='ContextCpu:auto'):
+        context = xo.get_user_context()
+
+    assert context.openmp_enabled
+
+
+def test_cffi_forbid_compile_setting():
+    with xo.settings.override(cffi_forbid_compile=True):
+        with pytest.raises(RuntimeError, match='CFFI compilation is forbidden'):
+            xo.ContextCpu().build_kernels({})
+
+
+def test_allow_kernel_compilation_decorator_restores_state(monkeypatch):
+    monkeypatch.delenv('XSUITE_ALLOW_KERNEL_COMPILATION', raising=False)
+
+    @allow_kernel_compilation(skip_when_forbid_compile=False)
     def decorated():
-        assert xo.settings.allow_no_prebuilt_kernels is True
-        assert os.environ['XSUITE_ALLOW_NO_PREBUILT_KERNELS'] == '1'
+        assert xo.settings.allow_kernel_compilation is True
+        assert os.environ['XSUITE_ALLOW_KERNEL_COMPILATION'] == '1'
         subprocess.run(
             [
                 sys.executable,
                 '-c',
                 ('import xobjects as xo; assert '
-                 'xo.settings.allow_no_prebuilt_kernels is True'),
+                 'xo.settings.allow_kernel_compilation is True'),
             ],
             check=True,
         )
 
-    with xo.settings.override(allow_no_prebuilt_kernels=False):
+    with xo.settings.override(allow_kernel_compilation=False):
         decorated()
-        assert xo.settings.allow_no_prebuilt_kernels is False
-        assert 'XSUITE_ALLOW_NO_PREBUILT_KERNELS' not in os.environ
+        assert xo.settings.allow_kernel_compilation is False
+        assert 'XSUITE_ALLOW_KERNEL_COMPILATION' not in os.environ

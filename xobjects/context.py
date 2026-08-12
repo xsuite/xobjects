@@ -207,6 +207,7 @@ class ModuleNotAvailable(object):
 class XContext(ABC):
     minimum_alignment = 1
     allow_prebuilt_kernels = False
+    allow_kernel_compilation = False
 
     def __init__(self):
         self._kernels = KernelDict()
@@ -752,7 +753,7 @@ def get_test_contexts():
     import os
     import xobjects as xo
 
-    ctxstr = os.environ.get("XOBJECTS_TEST_CONTEXTS")
+    ctxstr = os.environ.get("XSUITE_TEST_CONTEXTS")
     if ctxstr is None:
         yield xo.ContextCpu()
         yield xo.ContextCpu(omp_num_threads="auto")
@@ -776,8 +777,7 @@ def get_test_contexts():
 
 def get_user_context():
     """
-    Get the context specfied by the enviroment variable XOBJECTS_USER_CONTEXT.
-    If not present use ContextCpu().
+    Get the context specified by ``xobjects.settings.default_context``.
 
     Examples:
        ContextPyopencl:0.0  -> ContextPyopencl(device="0.0")
@@ -788,7 +788,6 @@ def get_user_context():
        ContextCpu:auto      -> ContextCpu(omp_num_threads='auto')
        ContextCupy:0        -> ContextCupy(device=0)
     """
-    import os
+    import xobjects as xo
 
-    ctxstr = os.environ.get("XOBJECTS_USER_CONTEXT")
-    return get_context_from_string(ctxstr)
+    return get_context_from_string(xo.settings.default_context)

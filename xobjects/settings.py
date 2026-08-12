@@ -3,7 +3,48 @@ from contextlib import contextmanager
 
 
 class Settings:
-    """Process-wide settings shared by the Xsuite packages."""
+    """Process-wide settings shared by the Xsuite packages.
+
+    The same object is exposed as ``xobjects.settings`` and
+    ``xtrack.settings``. Environment variables provide the initial values when
+    Xobjects is imported. Assignments made in Python take precedence after
+    import and can be applied temporarily with :meth:`override`.
+
+    Boolean environment variables accept ``1``/``0``, ``true``/``false``,
+    ``yes``/``no``, and ``on``/``off``, case-insensitively.
+
+    For example, to let Xsuite compile a kernel when no compatible prebuilt
+    kernel is available::
+
+        import xtrack as xt
+        xt.settings.allow_kernel_compilation = True
+
+    ============================== ========================================= =================== ===============================
+    Python setting                 Environment variable                      Default             Accepted values
+    ============================== ========================================= =================== ===============================
+    ``print_mode``                 ``XSUITE_PRINT_MODE``                     ``'print'``         ``'print'``, ``'suppress'``
+    ``progress_indicator``         ``XSUITE_PROGRESS_INDICATOR``             ``'tqdm'``          ``'tqdm'``, ``'text'``,
+                                                                                                 ``'suppress'``
+    ``allow_kernel_compilation``   ``XSUITE_ALLOW_KERNEL_COMPILATION``       ``False``           boolean
+    ``force_kernel_compilation``   ``XSUITE_FORCE_KERNEL_COMPILATION``       ``False``           boolean
+    ``show_kernel_diagnostics``    ``XSUITE_SHOW_KERNEL_DIAGNOSTICS``        ``False``           boolean
+    ``default_context``            ``XSUITE_DEFAULT_CONTEXT``                ``'ContextCpu'``    context specification
+    ``cffi_forbid_compile``        ``XSUITE_CFFI_FORBID_COMPILE``            ``False``           boolean
+    ``cffi_keep_build_files``      ``XSUITE_CFFI_KEEP_BUILD_FILES``          ``False``           boolean
+    ``cuda_backend``               ``XSUITE_CUDA_BACKEND``                   ``'nvrtc'``          ``'nvrtc'``, ``'clang'``
+    ``cuda_fast_compile``          ``XSUITE_CUDA_FAST_COMPILE``              ``True``            boolean
+    ``cuda_compiler``              ``XSUITE_CUDA_COMPILER``                  ``None``            executable path or ``None``
+    ============================== ========================================= =================== ===============================
+
+    ``force_kernel_compilation=True`` skips prebuilt-kernel lookup and takes
+    precedence over ``allow_kernel_compilation``. When forcing is disabled,
+    ``allow_kernel_compilation=True`` permits compilation only if a compatible
+    prebuilt kernel is unavailable. Compilation can also be enabled for one
+    context or element class by setting its ``allow_kernel_compilation``
+    attribute to ``True``. The legacy class attribute
+    ``allow_no_prebuilt_kernel`` is temporarily recognized for compatibility
+    with packages that have not migrated yet.
+    """
 
     def __init__(self):
         object.__setattr__(self, '_definitions', {})
@@ -17,8 +58,7 @@ class Settings:
         environment_variable=None,
         choices=None,
         environment_parser=None,
-        on_change=None,
-        getter=None,
+        value_type=None,
     ):
         if name in self._definitions:
             raise ValueError(f'Setting {name!r} is already registered.')
@@ -26,8 +66,7 @@ class Settings:
         definition = {
             'environment_variable': environment_variable,
             'choices': choices,
-            'on_change': on_change,
-            'getter': getter,
+            'value_type': value_type,
         }
         self._definitions[name] = definition
 
@@ -35,8 +74,13 @@ class Settings:
         if (environment_variable is not None
                 and environment_variable in os.environ):
             environment_value = os.environ[environment_variable]
-            value = (environment_parser(environment_value)
-                     if environment_parser else environment_value)
+            try:
+                value = (environment_parser(environment_value)
+                         if environment_parser else environment_value)
+            except (TypeError, ValueError) as err:
+                raise ValueError(
+                    f'Invalid value for environment variable '
+                    f'{environment_variable}: {err}') from err
         self._set(name, value)
 
     def _set(self, name, value):
@@ -46,6 +90,11 @@ class Settings:
             raise AttributeError(f'Unknown Xsuite setting {name!r}.') from err
 
         choices = definition['choices']
+        value_type = definition['value_type']
+        if value_type is not None and not isinstance(value, value_type):
+            raise TypeError(
+                f'Invalid value {value!r} for setting {name!r}; '
+                f'expected {self._type_name(value_type)}.')
         if choices is not None and value not in choices:
             expected = ', '.join(repr(choice) for choice in choices)
             raise ValueError(
@@ -53,17 +102,12 @@ class Settings:
                 f'expected one of {expected}.')
 
         self._values[name] = value
-        on_change = definition['on_change']
-        if on_change is not None:
-            on_change(value)
 
     def __getattr__(self, name):
         try:
-            definition = self._definitions[name]
+            return self._values[name]
         except KeyError as err:
             raise AttributeError(f'Unknown Xsuite setting {name!r}.') from err
-        getter = definition['getter']
-        return getter() if getter is not None else self._values[name]
 
     def __setattr__(self, name, value):
         self._set(name, value)
@@ -79,6 +123,11 @@ class Settings:
 
         # Validate every value before changing any setting.
         for name, value in kwargs.items():
+            value_type = self._definitions[name]['value_type']
+            if value_type is not None and not isinstance(value, value_type):
+                raise TypeError(
+                    f'Invalid value {value!r} for setting {name!r}; '
+                    f'expected {self._type_name(value_type)}.')
             choices = self._definitions[name]['choices']
             if choices is not None and value not in choices:
                 expected = ', '.join(repr(choice) for choice in choices)
@@ -102,6 +151,32 @@ class Settings:
     def __dir__(self):
         return sorted(set(super().__dir__()) | set(self._definitions))
 
+    @staticmethod
+    def _type_name(value_type):
+        if isinstance(value_type, tuple):
+            return ' or '.join(tt.__name__ for tt in value_type)
+        return value_type.__name__
+
+
+def _parse_boolean(value):
+    normalized = value.strip().lower()
+    if normalized in ('1', 'true', 'yes', 'on'):
+        return True
+    if normalized in ('0', 'false', 'no', 'off'):
+        return False
+    raise ValueError(
+        f'Invalid boolean value {value!r}; expected one of 1, 0, true, '
+        'false, yes, no, on, or off.')
+
+
+def _parse_choice(value):
+    return value.strip().lower()
+
+
+def _parse_optional_string(value):
+    value = value.strip()
+    return value if value else None
+
 
 settings = Settings()
 settings._register(
@@ -109,11 +184,80 @@ settings._register(
     default='print',
     environment_variable='XSUITE_PRINT_MODE',
     choices=('print', 'suppress'),
+    environment_parser=_parse_choice,
 )
 settings._register(
-    'allow_no_prebuilt_kernels',
+    'progress_indicator',
+    default='tqdm',
+    environment_variable='XSUITE_PROGRESS_INDICATOR',
+    choices=('tqdm', 'text', 'suppress'),
+    environment_parser=_parse_choice,
+)
+settings._register(
+    'allow_kernel_compilation',
     default=False,
-    environment_variable='XSUITE_ALLOW_NO_PREBUILT_KERNELS',
+    environment_variable='XSUITE_ALLOW_KERNEL_COMPILATION',
     choices=(False, True),
-    environment_parser=lambda value: True,
+    environment_parser=_parse_boolean,
+    value_type=bool,
+)
+settings._register(
+    'force_kernel_compilation',
+    default=False,
+    environment_variable='XSUITE_FORCE_KERNEL_COMPILATION',
+    choices=(False, True),
+    environment_parser=_parse_boolean,
+    value_type=bool,
+)
+settings._register(
+    'show_kernel_diagnostics',
+    default=False,
+    environment_variable='XSUITE_SHOW_KERNEL_DIAGNOSTICS',
+    choices=(False, True),
+    environment_parser=_parse_boolean,
+    value_type=bool,
+)
+settings._register(
+    'default_context',
+    default='ContextCpu',
+    environment_variable='XSUITE_DEFAULT_CONTEXT',
+    value_type=str,
+)
+settings._register(
+    'cffi_forbid_compile',
+    default=False,
+    environment_variable='XSUITE_CFFI_FORBID_COMPILE',
+    choices=(False, True),
+    environment_parser=_parse_boolean,
+    value_type=bool,
+)
+settings._register(
+    'cffi_keep_build_files',
+    default=False,
+    environment_variable='XSUITE_CFFI_KEEP_BUILD_FILES',
+    choices=(False, True),
+    environment_parser=_parse_boolean,
+    value_type=bool,
+)
+settings._register(
+    'cuda_backend',
+    default='nvrtc',
+    environment_variable='XSUITE_CUDA_BACKEND',
+    choices=('nvrtc', 'clang'),
+    environment_parser=_parse_choice,
+)
+settings._register(
+    'cuda_fast_compile',
+    default=True,
+    environment_variable='XSUITE_CUDA_FAST_COMPILE',
+    choices=(False, True),
+    environment_parser=_parse_boolean,
+    value_type=bool,
+)
+settings._register(
+    'cuda_compiler',
+    default=None,
+    environment_variable='XSUITE_CUDA_COMPILER',
+    environment_parser=_parse_optional_string,
+    value_type=(str, type(None)),
 )

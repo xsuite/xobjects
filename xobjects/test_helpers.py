@@ -109,13 +109,13 @@ def fix_random_seed(seed: int):
     return decorator
 
 
-def allow_no_prebuilt_kernels(
+def allow_kernel_compilation(
     test_function=None, *, skip_when_forbid_compile=True
 ):
     """Allow JIT compilation for tests that intentionally compile kernels.
 
     By default, the wrapped test is skipped when compilation is forbidden by
-    ``XOBJECTS_FORBID_COMPILE``. Use ``skip_when_forbid_compile=False`` when
+    ``XSUITE_CFFI_FORBID_COMPILE``. Use ``skip_when_forbid_compile=False`` when
     the test has more specific ``skip_if_forbid_compile()`` guards inside the
     test.
     """
@@ -125,16 +125,16 @@ def allow_no_prebuilt_kernels(
         def wrapper(*args, **kwargs):
             if skip_when_forbid_compile:
                 skip_if_forbid_compile()
-            old_value = os.environ.get("XSUITE_ALLOW_NO_PREBUILT_KERNELS")
-            os.environ["XSUITE_ALLOW_NO_PREBUILT_KERNELS"] = "1"
+            old_value = os.environ.get("XSUITE_ALLOW_KERNEL_COMPILATION")
+            os.environ["XSUITE_ALLOW_KERNEL_COMPILATION"] = "1"
             try:
-                with settings.override(allow_no_prebuilt_kernels=True):
+                with settings.override(allow_kernel_compilation=True):
                     return test_function(*args, **kwargs)
             finally:
                 if old_value is None:
-                    del os.environ["XSUITE_ALLOW_NO_PREBUILT_KERNELS"]
+                    del os.environ["XSUITE_ALLOW_KERNEL_COMPILATION"]
                 else:
-                    os.environ["XSUITE_ALLOW_NO_PREBUILT_KERNELS"] = old_value
+                    os.environ["XSUITE_ALLOW_KERNEL_COMPILATION"] = old_value
 
         return wrapper
 
@@ -144,8 +144,8 @@ def allow_no_prebuilt_kernels(
 
 
 def skip_if_forbid_compile():
-    if os.environ.get("XOBJECTS_FORBID_COMPILE"):
+    if settings.cffi_forbid_compile:
         pytest.skip(
-            "Compilation is forbidden by the environment variable "
-            "XOBJECTS_FORBID_COMPILE"
+            "CFFI compilation is forbidden by "
+            "xobjects.settings.cffi_forbid_compile."
         )

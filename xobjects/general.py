@@ -11,16 +11,10 @@ from .settings import settings
 class Print:
     """Configurable wrapper around :func:`print` used by Xsuite.
 
-    The behavior is controlled by ``xobjects.settings.print_mode``. The legacy
-    ``suppress`` attribute remains supported as a hard override.
+    The behavior is controlled by ``xobjects.settings.print_mode``.
     """
 
-    suppress = False
-
     def __call__(self, *args, **kwargs):
-        if self.suppress:
-            return
-
         if settings.print_mode == 'suppress':
             return
 

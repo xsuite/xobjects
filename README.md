@@ -48,7 +48,7 @@ pytest tests
 
 Some tests and examples need optional GPU dependencies or a configured GPU
 runtime. CPU-only development can still run the regular test subset that does
-not require those contexts. Which tests are run is specified by the `XOBJECTS_TEST_CONTEXTS` flag. By default all contexts supported by the system are used, but this can be narrowed down, e.g. only the CPU serial and OpenMP tests will be run if `XOBJECTS_TEST_CONTEXTS=ContextCpu;ContextCpu:auto` is set.
+not require those contexts. Which tests are run is specified by the `XSUITE_TEST_CONTEXTS` flag. By default all contexts supported by the system are used, but this can be narrowed down, e.g. only the CPU serial and OpenMP tests will be run if `XSUITE_TEST_CONTEXTS=ContextCpu;ContextCpu:auto` is set.
 
 ## Contributing
 

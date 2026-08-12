@@ -18,38 +18,37 @@ from .settings import settings
 import numpy as np
 import scipy as sp
 
-_forbid_compile = False
 _suppress_warnings = False
-allow_no_prebuilt_kernel = False
 
 
-def _class_allows_no_prebuilt_kernel(cls):
-    return (
-        getattr(cls, "allow_no_prebuilt_kernel", False)
-        or getattr(
-            getattr(cls, "_DressingClass", None),
-            "allow_no_prebuilt_kernel",
-            False,
-        )
-        or getattr(
-            getattr(cls, "_XoStruct", None), "allow_no_prebuilt_kernel", False
-        )
-    )
+def _class_allows_kernel_compilation(cls):
+    for candidate in (
+        cls,
+        getattr(cls, "_DressingClass", None),
+        getattr(cls, "_XoStruct", None),
+    ):
+        if candidate is None:
+            continue
+        if getattr(candidate, "allow_kernel_compilation", False):
+            return True
+        # Compatibility with classes from packages that have not migrated yet.
+        if getattr(candidate, "allow_no_prebuilt_kernel", False):
+            return True
+    return False
 
 
-def allow_no_prebuilt_kernel_enabled(context=None, classes=()):
+def kernel_compilation_allowed(context=None, classes=()):
     if classes is None:
         classes = ()
     elif isinstance(classes, type):
         classes = (classes,)
 
-    if settings.allow_no_prebuilt_kernels:
+    if (settings.allow_kernel_compilation
+            or settings.force_kernel_compilation):
         return True
-    if allow_no_prebuilt_kernel:
+    if any(_class_allows_kernel_compilation(cls) for cls in classes):
         return True
-    if any(_class_allows_no_prebuilt_kernel(cls) for cls in classes):
-        return True
-    return getattr(context, "allow_no_prebuilt_kernel", False)
+    return getattr(context, "allow_kernel_compilation", False)
 
 
 def _is_serial_cpu_context(context):
@@ -59,21 +58,20 @@ def _is_serial_cpu_context(context):
 
 
 def require_prebuilt_kernel(context=None, classes=()):
-    return not allow_no_prebuilt_kernel_enabled(
+    return not kernel_compilation_allowed(
         context, classes=classes
     ) and _is_serial_cpu_context(context)
 
 
-def no_prebuilt_kernel_jit_message():
+def kernel_compilation_help_message():
     return (
         "To allow just-in-time compilation instead, as in older Xsuite "
         "versions, set the environment variable "
-        "`XSUITE_ALLOW_NO_PREBUILT_KERNELS`, set "
-        "`xobjects.settings.allow_no_prebuilt_kernels = True`, set "
-        "`xobjects.context_cpu.allow_no_prebuilt_kernel = True`, or set "
-        "`context.allow_no_prebuilt_kernel = True`. Classes that require "
+        "`XSUITE_ALLOW_KERNEL_COMPILATION=1`, set "
+        "`xobjects.settings.allow_kernel_compilation = True`, or set "
+        "`context.allow_kernel_compilation = True`. Classes that require "
         "just-in-time compilation can also define "
-        "`allow_no_prebuilt_kernel = True` as a class attribute. Using "
+        "`allow_kernel_compilation = True` as a class attribute. Using "
         "just-in-time compilation instead of prebuilt kernels may require "
         "lengthy compilation whenever a different kernel is needed."
     )
@@ -371,13 +369,10 @@ class ContextCpu(XContext):
             cdefs = "\n".join(cls._gen_c_decl({}) for cls in classes)
             cdefs += "\n" + extra_cdef
 
-            if _forbid_compile:
-                raise RuntimeError("Compilation is forbidden")
-
-            if os.environ.get("XOBJECTS_FORBID_COMPILE"):
+            if settings.cffi_forbid_compile:
                 raise RuntimeError(
-                    "Compilation is forbidden by the environment variable "
-                    "XOBJECTS_FORBID_COMPILE"
+                    "CFFI compilation is forbidden by "
+                    "xobjects.settings.cffi_forbid_compile."
                 )
 
             so_file = self.compile_kernel(
@@ -538,7 +533,7 @@ class ContextCpu(XContext):
             return Path(output_file)
         finally:
             # Clean temp files
-            if "XOBJECTS_KEEP_BUILD_FILES" not in os.environ:
+            if not settings.cffi_keep_build_files:
                 files_to_remove = [
                     module_name + ".c",
                     module_name + ".o",

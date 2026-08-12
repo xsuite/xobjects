@@ -9,11 +9,12 @@ class Settings:
 
     ``print_mode`` — ``XSUITE_PRINT_MODE``
         Values: ``print`` (default), ``suppress``
-        Controls informational output produced by Xsuite.
+        Controls informational output produced by Xsuite. Suppressing it also
+        suppresses progress indicators.
 
     ``progress_indicator`` — ``XSUITE_PROGRESS_INDICATOR``
         Values: ``tqdm`` (default), ``text``, ``suppress``
-        Selects how progress is displayed.
+        Selects how progress is displayed when printing is enabled.
 
     ``allow_kernel_compilation`` — ``XSUITE_ALLOW_KERNEL_COMPILATION``
         Values: ``False`` (default), ``True``

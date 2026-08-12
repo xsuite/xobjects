@@ -9,8 +9,7 @@ class Settings:
 
     ``print_mode`` — ``XSUITE_PRINT_MODE``
         Values: ``print`` (default), ``suppress``
-        Controls informational output produced by Xsuite. Suppressing it also
-        suppresses progress indicators.
+        Controls informational output produced by Xsuite.
 
     ``progress_indicator`` — ``XSUITE_PROGRESS_INDICATOR``
         Values: ``tqdm`` (default), ``text``, ``suppress``

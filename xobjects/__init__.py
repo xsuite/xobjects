@@ -16,6 +16,7 @@ from .scalar import (
     UInt8,
 )
 from .array import Array
+from .raw_union import RawUnion
 from .string import String
 from .struct import Struct, Field, ThisClass
 from .ref import Ref, UnionRef

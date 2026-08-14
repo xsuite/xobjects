@@ -9,6 +9,7 @@ from .scalar import UInt32, Int64, Void, is_scalar
 from .struct import is_field, is_struct
 from .array import is_index, is_array
 from .ref import is_unionref, is_ref
+from .raw_union import is_raw_union
 from .string import is_string
 
 
@@ -476,6 +477,36 @@ def gen_method_getp(cls, path, conf):
     return "\n".join(code_lines), kernel
 
 
+def gen_method_get_raw_union_member(cls, path, member_name, member_type, conf):
+    """Generate a C getter for one named RawUnion member view."""
+    type_name = cls._c_type
+    field_names = []
+    index_count = 0
+    for part in path:
+        if is_field(part):
+            field_names.append(part.name)
+        elif is_index(part):
+            index_count += len(part.cls._shape)
+
+    return_arg = Arg(member_type)
+    function_name_parts = [type_name, "get"]
+    if field_names:
+        function_name_parts.append("_".join(field_names))
+    function_name_parts.append(member_name)
+    args = [Arg(cls, pointer=False, const=True, name="obj")]
+    for index_arg in range(index_count):
+        args.append(Arg(Int64, name=f"i{index_arg}"))
+    kernel = Kernel(args, c_name="_".join(function_name_parts), ret=return_arg)
+    declaration = gen_c_decl_from_kernel(kernel, conf)
+
+    code_lines = [declaration + "{"]
+    code_lines.append(gen_method_offset(path, conf))
+    target_expr = gen_c_pointed(return_arg, conf)
+    code_lines.append(f"  return {target_expr};")
+    code_lines.append("}")
+    return "\n".join(code_lines), kernel
+
+
 def gen_method_len(cls, path, conf):
     """Generate a C method returning the total array length.
 
@@ -855,6 +886,14 @@ def methods_from_path(cls, path, conf):
     if is_scalar(target_type):
         generated_methods.append(gen_method_get(cls, path, conf))
         generated_methods.append(gen_method_set(cls, path, conf))
+
+    if is_raw_union(target_type):
+        for member_name, member_type in target_type._members.items():
+            generated_methods.append(
+                gen_method_get_raw_union_member(
+                    cls, path, member_name, member_type, conf
+                )
+            )
 
     if is_type(target_type):
         generated_methods.append(gen_method_getp(cls, path, conf))

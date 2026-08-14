@@ -80,6 +80,14 @@ class Settings:
 
     Equivalently, set ``XSUITE_ALLOW_KERNEL_COMPILATION=1`` before starting
     Python.
+
+    Settings can also be overridden temporarily; their previous values are
+    restored when leaving the context:
+
+    >>> xt.settings.print_mode = 'print'
+    >>> with xt.settings.override(print_mode='suppress'):
+    ...     print(xt.settings.print_mode)  # suppress
+    >>> print(xt.settings.print_mode)  # print
     """
 
     def __init__(self):

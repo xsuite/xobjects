@@ -207,6 +207,7 @@ class ModuleNotAvailable(object):
 class XContext(ABC):
     minimum_alignment = 1
     allow_prebuilt_kernels = False
+    allow_kernel_compilation = False
 
     def __init__(self):
         self._kernels = KernelDict()
@@ -776,8 +777,8 @@ def get_test_contexts():
 
 def get_user_context():
     """
-    Get the context specfied by the enviroment variable XOBJECTS_USER_CONTEXT.
-    If not present use ContextCpu().
+    Get the context specified by the environment variable
+    ``XOBJECTS_USER_CONTEXT``. If it is not set, use ``ContextCpu()``.
 
     Examples:
        ContextPyopencl:0.0  -> ContextPyopencl(device="0.0")

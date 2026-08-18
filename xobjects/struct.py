@@ -59,7 +59,7 @@ from .typeutils import (
     default_conf,
 )
 
-from .general import Print
+from .settings import settings
 from .scalar import Int64
 from .array import Array
 from .context import Source, Arg, Kernel
@@ -522,14 +522,15 @@ class Struct(metaclass=MetaStruct):
         extra_classes=(),
         extra_compile_args=(),
     ):
-        if context.allow_prebuilt_kernels:
-            _print_state = Print.suppress
-            Print.suppress = True
-            try:
+        if (
+            context.allow_prebuilt_kernels
+            and not settings.force_kernel_compilation
+        ):
+            with settings.override(print_mode="suppress"):
                 try:
                     from xsuite import (
                         get_suitable_kernel,
-                        XSK_PREBUILT_KERNELS_LOCATION,
+                        PREBUILT_KERNELS_LOCATION,
                     )
 
                     kernel_info = get_suitable_kernel(
@@ -550,14 +551,12 @@ class Struct(metaclass=MetaStruct):
                             "Xsuite is required to load prebuilt kernels but could "
                             "not be imported. Please install it with "
                             f"`pip install xsuite`. "
-                            f"{context_cpu.no_prebuilt_kernel_jit_message()}"
+                            f"{context_cpu.kernel_compilation_help_message()}"
                         ) from err
-            finally:
-                Print.suppress = _print_state
             if kernel_info:
                 kernels = context.kernels_from_file(
                     module_name=kernel_info["module_name"],
-                    containing_dir=XSK_PREBUILT_KERNELS_LOCATION,
+                    containing_dir=PREBUILT_KERNELS_LOCATION,
                     kernel_descriptions=cls._kernels,
                 )
                 context.kernels.update(kernels)

@@ -5,13 +5,21 @@
 from numpy.testing import assert_allclose as np_assert_allclose
 import numpy as np
 
+from .settings import settings
+
 
 class Print:
-    suppress = False
+    """Configurable wrapper around :func:`print` used by Xsuite.
+
+    The behavior is controlled by ``xobjects.settings.print_mode``, or
+    equivalently the environment variable ``XSUITE_PRINT_MODE``.
+    """
 
     def __call__(self, *args, **kwargs):
-        if not self.suppress:
-            print(*args, **kwargs)
+        if settings.print_mode == 'suppress':
+            return
+
+        print(*args, **kwargs)
 
 
 _print = Print()

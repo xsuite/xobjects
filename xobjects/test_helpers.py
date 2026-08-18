@@ -5,11 +5,11 @@
 
 from functools import wraps
 from typing import Callable, Iterable, Union
-import os
 
 import pytest
 
 from .context import get_context_from_string, get_test_contexts
+from .settings import settings
 
 
 def _for_all_test_contexts_excluding(
@@ -108,13 +108,13 @@ def fix_random_seed(seed: int):
     return decorator
 
 
-def allow_no_prebuilt_kernels(
+def allow_kernel_compilation(
     test_function=None, *, skip_when_forbid_compile=True
 ):
     """Allow JIT compilation for tests that intentionally compile kernels.
 
     By default, the wrapped test is skipped when compilation is forbidden by
-    ``XOBJECTS_FORBID_COMPILE``. Use ``skip_when_forbid_compile=False`` when
+    ``XSUITE_CFFI_FORBID_COMPILE``. Use ``skip_when_forbid_compile=False`` when
     the test has more specific ``skip_if_forbid_compile()`` guards inside the
     test.
     """
@@ -124,15 +124,8 @@ def allow_no_prebuilt_kernels(
         def wrapper(*args, **kwargs):
             if skip_when_forbid_compile:
                 skip_if_forbid_compile()
-            old_value = os.environ.get("XSUITE_ALLOW_NO_PREBUILT_KERNELS")
-            os.environ["XSUITE_ALLOW_NO_PREBUILT_KERNELS"] = "1"
-            try:
+            with settings.override(allow_kernel_compilation=True):
                 return test_function(*args, **kwargs)
-            finally:
-                if old_value is None:
-                    del os.environ["XSUITE_ALLOW_NO_PREBUILT_KERNELS"]
-                else:
-                    os.environ["XSUITE_ALLOW_NO_PREBUILT_KERNELS"] = old_value
 
         return wrapper
 
@@ -142,8 +135,9 @@ def allow_no_prebuilt_kernels(
 
 
 def skip_if_forbid_compile():
-    if os.environ.get("XOBJECTS_FORBID_COMPILE"):
+    if settings.cffi_forbid_compile:
         pytest.skip(
-            "Compilation is forbidden by the environment variable "
-            "XOBJECTS_FORBID_COMPILE"
+            "CFFI compilation is forbidden by "
+            "xobjects.settings.cffi_forbid_compile or equivalently the "
+            "environment variable XSUITE_CFFI_FORBID_COMPILE."
         )

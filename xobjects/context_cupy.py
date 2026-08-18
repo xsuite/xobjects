@@ -25,17 +25,10 @@ from .context import (
     sources_from_classes,
 )
 from .linkedarray import BaseLinkedArray
+from .settings import settings
 from .specialize_source import specialize_source
 
 log = logging.getLogger(__name__)
-
-no_fast_compile = False
-"""Disable NVRTC fast compile tuning when building CUDA kernels.
-
-When set to ``True``, ``ContextCupy`` does not pass ``--Ofast-compile=min``
-to NVRTC. The ``XO_CUDA_NO_FAST_COMPILE`` environment variable provides the
-same behavior.
-"""
 
 try:
     import cupy
@@ -401,12 +394,12 @@ class ContextCupy(XContext):
     Creates a Cupy Context object, that allows performing the computations
     on nVidia GPUs.
 
-    The module-level flag ``xobjects.context_cupy.no_fast_compile`` controls
-    whether NVRTC fast compile tuning is disabled. By default it is ``False``,
-    so CUDA kernels built with NVRTC >= 12.9 use ``--Ofast-compile=min`` to
-    reduce compilation time and memory usage, at the cost of some runtime
-    performance. Set it to ``True`` to disable this option. The environment
-    variable ``XO_CUDA_NO_FAST_COMPILE`` also disables it.
+    ``xobjects.settings.cuda_fast_compile`` controls whether NVRTC fast compile
+    tuning is enabled. By default it is ``True``, so CUDA kernels built with
+    NVRTC >= 12.9 use ``--Ofast-compile=min`` to reduce compilation time and
+    memory usage, at the cost of some runtime performance. Set
+    ``xobjects.settings.cuda_fast_compile = False``, or equivalently the
+    environment variable ``XSUITE_CUDA_FAST_COMPILE=0``, to disable it.
 
     Args:
         default_block_size (int):  CUDA thread size that is used by default
@@ -441,8 +434,8 @@ class ContextCupy(XContext):
         self.default_block_size = default_block_size
         self.default_shared_mem_size_bytes = default_shared_mem_size_bytes
 
-        if not backend:
-            backend = os.environ.get("XO_CUDA_BACKEND", "nvrtc")
+        if backend is None:
+            backend = settings.cuda_backend
 
         if backend not in ["nvrtc", "clang"]:
             raise ValueError(
@@ -518,9 +511,7 @@ class ContextCupy(XContext):
         if self.backend == "nvrtc":
             # NVRTC (default): add NVRTC-specific flags
             nvrtc_args = (*extra_compile_args,)
-            fast_compile = not (
-                no_fast_compile or os.environ.get("XO_CUDA_NO_FAST_COMPILE")
-            )
+            fast_compile = settings.cuda_fast_compile
             if nvrtc and nvrtc.getVersion() >= (12, 9):
                 # If supported, skip prohibitively heavy optimisations (e.g.
                 # involving cloning). This it at the expense of <20%
@@ -560,7 +551,7 @@ class ContextCupy(XContext):
         return out_kernels
 
     def _find_clang(self):
-        override = os.environ.get("XO_CUDA_CLANG")
+        override = settings.cuda_compiler
         if override:
             return override
 
@@ -569,8 +560,11 @@ class ContextCupy(XContext):
             return found
 
         raise RuntimeError(
-            "clang++ for the CUDA context not found. Either install clang so that 'clang++' is on PATH,"
-            "or set the XO_CUDA_CLANG variable to the desired clang++ executable."
+            "clang++ for the CUDA context not found. Either install clang so "
+            "that 'clang++' is on PATH, or set "
+            "xobjects.settings.cuda_compiler, or equivalently the environment "
+            "variable XSUITE_CUDA_COMPILER, to the desired clang++ "
+            "executable."
         )
 
     def _build_module_with_clang(self, source, extra_compile_args=()):

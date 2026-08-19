@@ -91,8 +91,8 @@ class Settings:
     """
 
     def __init__(self):
-        object.__setattr__(self, '_definitions', {})
-        object.__setattr__(self, '_values', {})
+        object.__setattr__(self, "_definitions", {})
+        object.__setattr__(self, "_values", {})
 
     def _register(
         self,
@@ -105,47 +105,55 @@ class Settings:
         value_type=None,
     ):
         if name in self._definitions:
-            raise ValueError(f'Setting {name!r} is already registered.')
+            raise ValueError(f"Setting {name!r} is already registered.")
 
         definition = {
-            'environment_variable': environment_variable,
-            'choices': choices,
-            'value_type': value_type,
+            "environment_variable": environment_variable,
+            "choices": choices,
+            "value_type": value_type,
         }
         self._definitions[name] = definition
 
         value = default
-        if (environment_variable is not None
-                and environment_variable in os.environ):
+        if (
+            environment_variable is not None
+            and environment_variable in os.environ
+        ):
             environment_value = os.environ[environment_variable]
             try:
-                value = (environment_parser(environment_value)
-                         if environment_parser else environment_value)
+                value = (
+                    environment_parser(environment_value)
+                    if environment_parser
+                    else environment_value
+                )
             except (TypeError, ValueError) as err:
                 raise ValueError(
-                    f'Invalid value for '
-                    f'{self._setting_description(name, definition)}: '
-                    f'{err}') from err
+                    f"Invalid value for "
+                    f"{self._setting_description(name, definition)}: "
+                    f"{err}"
+                ) from err
         self._set(name, value)
 
     def _set(self, name, value):
         try:
             definition = self._definitions[name]
         except KeyError as err:
-            raise AttributeError(f'Unknown Xsuite setting {name!r}.') from err
+            raise AttributeError(f"Unknown Xsuite setting {name!r}.") from err
 
-        choices = definition['choices']
-        value_type = definition['value_type']
+        choices = definition["choices"]
+        value_type = definition["value_type"]
         setting_description = self._setting_description(name, definition)
         if value_type is not None and not isinstance(value, value_type):
             raise TypeError(
-                f'Invalid value {value!r} for {setting_description}; '
-                f'expected {self._type_name(value_type)}.')
+                f"Invalid value {value!r} for {setting_description}; "
+                f"expected {self._type_name(value_type)}."
+            )
         if choices is not None and value not in choices:
-            expected = ', '.join(repr(choice) for choice in choices)
+            expected = ", ".join(repr(choice) for choice in choices)
             raise ValueError(
-                f'Invalid value {value!r} for {setting_description}; '
-                f'expected one of {expected}.')
+                f"Invalid value {value!r} for {setting_description}; "
+                f"expected one of {expected}."
+            )
 
         self._values[name] = value
 
@@ -153,7 +161,7 @@ class Settings:
         try:
             return self._values[name]
         except KeyError as err:
-            raise AttributeError(f'Unknown Xsuite setting {name!r}.') from err
+            raise AttributeError(f"Unknown Xsuite setting {name!r}.") from err
 
     def __setattr__(self, name, value):
         self._set(name, value)
@@ -164,24 +172,26 @@ class Settings:
         previous = {}
         for name, value in kwargs.items():
             if name not in self._definitions:
-                raise AttributeError(f'Unknown Xsuite setting {name!r}.')
+                raise AttributeError(f"Unknown Xsuite setting {name!r}.")
             previous[name] = getattr(self, name)
 
         # Validate every value before changing any setting.
         for name, value in kwargs.items():
             definition = self._definitions[name]
             setting_description = self._setting_description(name, definition)
-            value_type = definition['value_type']
+            value_type = definition["value_type"]
             if value_type is not None and not isinstance(value, value_type):
                 raise TypeError(
-                    f'Invalid value {value!r} for {setting_description}; '
-                    f'expected {self._type_name(value_type)}.')
-            choices = definition['choices']
+                    f"Invalid value {value!r} for {setting_description}; "
+                    f"expected {self._type_name(value_type)}."
+                )
+            choices = definition["choices"]
             if choices is not None and value not in choices:
-                expected = ', '.join(repr(choice) for choice in choices)
+                expected = ", ".join(repr(choice) for choice in choices)
                 raise ValueError(
-                    f'Invalid value {value!r} for {setting_description}; '
-                    f'expected one of {expected}.')
+                    f"Invalid value {value!r} for {setting_description}; "
+                    f"expected one of {expected}."
+                )
 
         try:
             for name, value in kwargs.items():
@@ -192,9 +202,10 @@ class Settings:
                 self._set(name, value)
 
     def __repr__(self):
-        values = ', '.join(
-            f'{name}={getattr(self, name)!r}' for name in self._values)
-        return f'Settings({values})'
+        values = ", ".join(
+            f"{name}={getattr(self, name)!r}" for name in self._values
+        )
+        return f"Settings({values})"
 
     def __dir__(self):
         return sorted(set(super().__dir__()) | set(self._definitions))
@@ -202,30 +213,31 @@ class Settings:
     @staticmethod
     def _type_name(value_type):
         if isinstance(value_type, tuple):
-            return ' or '.join(tt.__name__ for tt in value_type)
+            return " or ".join(tt.__name__ for tt in value_type)
         return value_type.__name__
 
     @staticmethod
     def _setting_description(name, definition):
-        description = f'Python setting xobjects.settings.{name}'
-        environment_variable = definition['environment_variable']
+        description = f"Python setting xobjects.settings.{name}"
+        environment_variable = definition["environment_variable"]
         if environment_variable is not None:
             description += (
-                f' or equivalently the environment variable '
-                f'{environment_variable}'
+                f" or equivalently the environment variable "
+                f"{environment_variable}"
             )
         return description
 
 
 def _parse_boolean(value):
     normalized = value.strip().lower()
-    if normalized in ('1', 'true', 'yes', 'on'):
+    if normalized in ("1", "true", "yes", "on"):
         return True
-    if normalized in ('0', 'false', 'no', 'off'):
+    if normalized in ("0", "false", "no", "off"):
         return False
     raise ValueError(
-        f'Invalid boolean value {value!r}; expected one of 1, 0, true, '
-        'false, yes, no, on, or off.')
+        f"Invalid boolean value {value!r}; expected one of 1, 0, true, "
+        "false, yes, no, on, or off."
+    )
 
 
 def _parse_choice(value):
@@ -239,78 +251,78 @@ def _parse_optional_string(value):
 
 settings = Settings()
 settings._register(
-    'print_mode',
-    default='print',
-    environment_variable='XSUITE_PRINT_MODE',
-    choices=('print', 'suppress'),
+    "print_mode",
+    default="print",
+    environment_variable="XSUITE_PRINT_MODE",
+    choices=("print", "suppress"),
     environment_parser=_parse_choice,
 )
 settings._register(
-    'progress_indicator',
-    default='tqdm',
-    environment_variable='XSUITE_PROGRESS_INDICATOR',
-    choices=('tqdm', 'text', 'suppress'),
+    "progress_indicator",
+    default="tqdm",
+    environment_variable="XSUITE_PROGRESS_INDICATOR",
+    choices=("tqdm", "text", "suppress"),
     environment_parser=_parse_choice,
 )
 settings._register(
-    'allow_kernel_compilation',
+    "allow_kernel_compilation",
     default=False,
-    environment_variable='XSUITE_ALLOW_KERNEL_COMPILATION',
+    environment_variable="XSUITE_ALLOW_KERNEL_COMPILATION",
     choices=(False, True),
     environment_parser=_parse_boolean,
     value_type=bool,
 )
 settings._register(
-    'force_kernel_compilation',
+    "force_kernel_compilation",
     default=False,
-    environment_variable='XSUITE_FORCE_KERNEL_COMPILATION',
+    environment_variable="XSUITE_FORCE_KERNEL_COMPILATION",
     choices=(False, True),
     environment_parser=_parse_boolean,
     value_type=bool,
 )
 settings._register(
-    'show_kernel_diagnostics',
+    "show_kernel_diagnostics",
     default=False,
-    environment_variable='XSUITE_SHOW_KERNEL_DIAGNOSTICS',
+    environment_variable="XSUITE_SHOW_KERNEL_DIAGNOSTICS",
     choices=(False, True),
     environment_parser=_parse_boolean,
     value_type=bool,
 )
 settings._register(
-    'cffi_forbid_compile',
+    "cffi_forbid_compile",
     default=False,
-    environment_variable='XSUITE_CFFI_FORBID_COMPILE',
+    environment_variable="XSUITE_CFFI_FORBID_COMPILE",
     choices=(False, True),
     environment_parser=_parse_boolean,
     value_type=bool,
 )
 settings._register(
-    'cffi_keep_build_files',
+    "cffi_keep_build_files",
     default=False,
-    environment_variable='XSUITE_CFFI_KEEP_BUILD_FILES',
+    environment_variable="XSUITE_CFFI_KEEP_BUILD_FILES",
     choices=(False, True),
     environment_parser=_parse_boolean,
     value_type=bool,
 )
 settings._register(
-    'cuda_backend',
-    default='nvrtc',
-    environment_variable='XSUITE_CUDA_BACKEND',
-    choices=('nvrtc', 'clang'),
+    "cuda_backend",
+    default="nvrtc",
+    environment_variable="XSUITE_CUDA_BACKEND",
+    choices=("nvrtc", "clang"),
     environment_parser=_parse_choice,
 )
 settings._register(
-    'cuda_fast_compile',
+    "cuda_fast_compile",
     default=True,
-    environment_variable='XSUITE_CUDA_FAST_COMPILE',
+    environment_variable="XSUITE_CUDA_FAST_COMPILE",
     choices=(False, True),
     environment_parser=_parse_boolean,
     value_type=bool,
 )
 settings._register(
-    'cuda_compiler',
+    "cuda_compiler",
     default=None,
-    environment_variable='XSUITE_CUDA_COMPILER',
+    environment_variable="XSUITE_CUDA_COMPILER",
     environment_parser=_parse_optional_string,
     value_type=(str, type(None)),
 )

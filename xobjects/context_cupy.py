@@ -23,6 +23,7 @@ from .context import (
     classes_from_kernels,
     sort_classes,
     sources_from_classes,
+    ModuleNotAvailableError,
 )
 from .linkedarray import BaseLinkedArray
 from .settings import settings
@@ -424,6 +425,11 @@ class ContextCupy(XContext):
         device=None,
         backend: Literal[None, "nvrtc", "clang"] = None,
     ):
+        if not _enabled:
+            raise ModuleNotAvailableError(
+                "cupy is not installed. " "ContextCupy is not available!"
+                )
+        
         if device is not None:
             cupy.cuda.Device(device).use()
 

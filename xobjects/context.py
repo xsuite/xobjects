@@ -203,6 +203,10 @@ class ModuleNotAvailable(object):
     def __getattr__(self, attr):
         raise NameError(self.message)
 
+class ModuleNotAvailableError(ModuleNotFoundError):
+    """Raised when an optional dependency is missing."""
+    pass
+
 
 class XContext(ABC):
     minimum_alignment = 1

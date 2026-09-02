@@ -16,7 +16,7 @@ class Print:
     """
 
     def __call__(self, *args, **kwargs):
-        if settings.print_mode == 'suppress':
+        if settings.print_mode == "suppress":
             return
 
         print(*args, **kwargs)

@@ -113,7 +113,7 @@ def classes_from_kernels(kernels):
     classes = set()
     for _, kernel in kernels.items():
         classes.update(kernel.get_classes())
-    return classes
+    return sorted(classes, key=lambda cls: cls.__name__)
 
 
 def _concatenate_sources(sources, apply_to_source=()):
@@ -357,7 +357,7 @@ class XContext(ABC):
 
     def get_installed_c_source_and_library_paths(
         self,
-    ) -> tuple[set[Path], set[str], set[Path]]:
+    ) -> tuple[list[Path], list[str], list[Path]]:
         """Returns a list of C paths registered in dependent packages.
 
         In a package that depends on xobjects, you can register C source and
@@ -423,7 +423,7 @@ class XContext(ABC):
                 libraries = [libraries]
             libs.update(libraries)
 
-        return sources, libs, lib_paths
+        return sorted(sources), sorted(libs), sorted(lib_paths)
 
     @abstractmethod
     def nparray_to_context_array(self, arr, copy=False):

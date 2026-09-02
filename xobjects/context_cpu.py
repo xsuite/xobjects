@@ -25,7 +25,7 @@ _preloaded_shared_libs_cache = {}
 
 
 def _deduplicate_paths(seq):
-    return list(set(Path(item).as_posix() for item in seq))
+    return list(dict.fromkeys(Path(item).as_posix() for item in seq))
 
 
 def _preload_shared_libraries(paths):

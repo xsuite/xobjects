@@ -3,6 +3,7 @@
 # Copyright (c) CERN, 2021.                   #
 # ########################################### #
 
+from hashlib import new
 import json
 from inspect import isclass
 
@@ -215,10 +216,16 @@ class HybridClass(metaclass=MetaHybridClass):
                 "references to other objects."
             )
 
+        old_context = self._context
+
         self._xobject = self._xobject.__class__(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
         )
         self._reinit_from_xobject(_xobject=self._xobject)
+
+        new_context = self._context
+        if new_context is not old_context:
+            self._on_context_change(old_context, new_context)
 
     @property
     def _move_to(self):
@@ -256,6 +263,7 @@ class HybridClass(metaclass=MetaHybridClass):
 
         if _xobject is not None:
             self._reinit_from_xobject(_xobject=_xobject)
+            self._on_context_change(None, self._context)
             return
 
         # Handle dressed inputs
@@ -276,6 +284,8 @@ class HybridClass(metaclass=MetaHybridClass):
         # dress what can be dressed
         # (for example in case object is initialized from dict)
         self._reinit_from_xobject(_xobject=self._xobject)
+
+        self._on_context_change(None, self._context)
 
     def __init__(self, _xobject=None, **kwargs):
         self.xoinitialize(_xobject=_xobject, **kwargs)
@@ -342,8 +352,9 @@ class HybridClass(metaclass=MetaHybridClass):
         )
 
     def copy(self, _context=None, _buffer=None, _offset=None):
+        old_context = self._xobject._buffer.context
         if _context is None and _buffer is None:
-            _context = self._xobject._buffer.context
+            _context = old_context
         # This makes a copy of the xobject
         new_xobject = self._XoStruct(
             self._xobject, _context=_context, _buffer=_buffer, _offset=_offset
@@ -356,6 +367,10 @@ class HybridClass(metaclass=MetaHybridClass):
             if hasattr(vv, "copy"):
                 new.__dict__[kk] = vv.copy()
         new._xobject = new_xobject
+
+        new_context = new._context
+        if new_context is not old_context:
+            new._on_context_change(old_context, new_context)
         return new
 
     @property
@@ -378,6 +393,7 @@ class HybridClass(metaclass=MetaHybridClass):
             buffer=state[0], offset=state[1]
         )
         self._reinit_from_xobject(_xobject=self._xobject)
+        self._on_context_change(None, self._context)
 
     @property
     def XoStruct(self):
@@ -424,3 +440,18 @@ class HybridClass(metaclass=MetaHybridClass):
                 vvrepr = repr(vv)
             args.append(f"{fname}={vvrepr}")
         return f'{type(self).__name__}({", ".join(args)})'
+
+    def _on_context_change(self, old_context, new_context):
+        """Hook called after the backing xobject changes context.
+        It may inspect the backing Xobject/context, but should not assume that
+        arbitrary pure-Python subclass state has already been initialised.
+
+        Parameters
+        ----------
+        old_context : XContext or None
+            Previous context. None when the object is first initialised
+            or reconstructed.
+        new_context : XContext
+            Context containing the object's current backing xobject.
+        """
+        pass

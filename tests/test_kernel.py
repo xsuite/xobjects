@@ -4,6 +4,7 @@
 # ########################################### #
 
 import cffi
+import pickle
 import pytest
 import sysconfig
 from pathlib import Path
@@ -14,7 +15,8 @@ import xobjects as xo
 from xobjects.test_helpers import for_all_test_contexts, requires_context
 
 
-def test_kernel_cpu():
+@pytest.mark.parametrize('pickle_context', [False, True])
+def test_kernel_cpu(pickle_context):
     ctx = xo.ContextCpu()
     src_code = r"""
 double my_mul(const int n, const double* x1,
@@ -44,6 +46,13 @@ double my_mul(const int n, const double* x1,
     y = ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2)
 
     assert y == 285.0
+
+    if pickle_context:
+        restored = pickle.loads(pickle.dumps(ctx))
+        assert not restored.kernels
+        assert ctx.kernels.my_mul(n=len(a1), x1=a1, x2=a2) == 285.0
+        restored.add_kernels(sources=[src_code], kernels=kernel_descriptions)
+        assert restored.kernels.my_mul(n=len(a1), x1=a1, x2=a2) == 285.0
 
 
 @for_all_test_contexts

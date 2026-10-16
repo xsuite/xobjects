@@ -96,6 +96,7 @@ def kernel_compilation_help_message():
 
 from .context import (
     Kernel,
+    KernelDict,
     ModuleNotAvailable,
     SourceType,
     XBuffer,
@@ -821,6 +822,7 @@ class ContextCpu(XContext):
 
     def __setstate__(self, state):
         self.__dict__.update(state)
+        self._kernels = KernelDict(self._kernels)
         self._buffers = weakref.WeakSet()
 
 

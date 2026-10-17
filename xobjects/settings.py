@@ -51,6 +51,11 @@ class Settings:
         Values: ``None`` (default), executable path
         Selects the clang++ executable used by the CUDA clang backend.
 
+    ``cuda_compute_capability`` — ``XSUITE_CUDA_COMPUTE_CAPABILITY``
+        Values: ``None`` (default), integer compute capability such as ``90``
+        Selects the CUDA virtual architecture used for PTX compilation.
+        If unset, the compute capability is inferred from the active GPU.
+
     Notes
     -----
     The same object is exposed as ``xobjects.settings`` and
@@ -249,6 +254,13 @@ def _parse_optional_string(value):
     return value if value else None
 
 
+def _parse_optional_int(value):
+    value = value.strip()
+    if not value:
+        return None
+    return int(value)
+
+
 settings = Settings()
 settings._register(
     "print_mode",
@@ -325,4 +337,11 @@ settings._register(
     environment_variable="XSUITE_CUDA_COMPILER",
     environment_parser=_parse_optional_string,
     value_type=(str, type(None)),
+)
+settings._register(
+    "cuda_compute_capability",
+    default=None,
+    environment_variable="XSUITE_CUDA_COMPUTE_CAPABILITY",
+    environment_parser=_parse_optional_int,
+    value_type=(int, type(None)),
 )

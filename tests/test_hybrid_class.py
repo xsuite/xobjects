@@ -427,3 +427,96 @@ def test_to_dict_python_vars():
     assert all(td3.a == td2.a)
     assert td3.b == td2.b
     assert td3.c == td2.c
+
+
+def test_on_context_change():
+    class TestClass(xo.HybridClass):
+        _xofields = {
+            "value": xo.Float64,
+        }
+
+        def __init__(self, **kwargs):
+            self.context_changes = []
+            super().__init__(**kwargs)
+
+        def _on_context_change(self, old_context, new_context):
+            self.context_changes.append((old_context, new_context))
+
+    context0 = xo.ContextCpu()
+    context1 = xo.ContextCpu(omp_num_threads="auto")
+
+    # Initial construction
+    obj = TestClass(value=3.0, _context=context0)
+
+    assert obj._context is context0
+    assert obj.context_changes == [
+        (None, context0),
+    ]
+
+    # Move to a different context
+    obj.move(_context=context1)
+
+    assert obj._context is context1
+    assert obj.context_changes == [
+        (None, context0),
+        (context0, context1),
+    ]
+
+    # Moving within the same context should not trigger the hook
+    buffer1 = context1.new_buffer()
+    obj.move(_buffer=buffer1)
+
+    assert obj._context is context1
+    assert obj.context_changes == [
+        (None, context0),
+        (context0, context1),
+    ]
+
+    # Copy to another context. The hook must run on the copy,
+    # without modifying the source object's history.
+    copied = obj.copy(_context=context0)
+
+    assert copied is not obj
+    assert copied._context is context0
+
+    assert obj.context_changes == [
+        (None, context0),
+        (context0, context1),
+    ]
+
+    assert copied.context_changes == [
+        (None, context0),
+        (context0, context1),
+        (context1, context0),
+    ]
+
+    # A copy in the same context should not add another event.
+    copied_same_context = obj.copy()
+
+    assert copied_same_context._context is context1
+    assert copied_same_context.context_changes == [
+        (None, context0),
+        (context0, context1),
+    ]
+
+
+def test_on_context_change_with_direct_xoinitialize():
+    class TestClass(xo.HybridClass):
+        _xofields = {
+            "value": xo.Float64,
+        }
+
+        def __init__(self, **kwargs):
+            self.context_changes = []
+            self.xoinitialize(**kwargs)
+
+        def _on_context_change(self, old_context, new_context):
+            self.context_changes.append((old_context, new_context))
+
+    context = xo.ContextCpu()
+
+    obj = TestClass(value=3.0, _context=context)
+
+    assert obj.context_changes == [
+        (None, context),
+    ]

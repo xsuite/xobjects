@@ -10,6 +10,7 @@ import numpy as np
 from .struct import Struct
 from .typeutils import context_default
 from .ref import Ref
+from .raw_union import RawUnion
 
 
 class _FieldOfDressed:
@@ -297,7 +298,12 @@ class HybridClass(metaclass=MetaHybridClass):
                 defaults[field.name] = dft
                 continue
             try:
-                defaults[field.name] = field.get_default()
+                default = field.get_default()
+                if isinstance(default, RawUnion):
+                    # A raw union can expose a scalar when read as a field.
+                    default = type(default)._from_buffer(
+                        default._buffer, default._offset)
+                defaults[field.name] = default
             except (TypeError, ValueError):
                 # The above can fail with different error types
                 # if a field type is dynamic.

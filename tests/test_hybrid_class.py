@@ -332,6 +332,28 @@ def test_to_json_defaults():
     assert b_dict == {}
 
 
+def test_to_dict_scalar_raw_union_defaults():
+    class ScalarUnion(xo.RawUnion):
+        scalar = xo.Float64
+        bits = xo.UInt64
+
+        @classmethod
+        def _from_buffer(cls, buffer, offset=0, container=None):
+            return xo.Float64._from_buffer(buffer, offset)
+
+    class A(xo.HybridClass):
+        _xofields = {
+            "a": ScalarUnion,
+            "b": xo.Field(ScalarUnion, default=2.5),
+            "c": xo.Field(ScalarUnion, default_factory=lambda: 3.5),
+        }
+
+    assert A().to_dict() == {"__class__": "A"}
+    values = {"__class__": "A", "a": 1.5, "b": 0.0, "c": 0.0}
+    for copy_to_cpu in (True, False):
+        assert A.from_dict(values).to_dict(copy_to_cpu=copy_to_cpu) == values
+
+
 def test_to_dict_python_vars():
     class TD(xo.HybridClass):
         _xofields = {

@@ -15,7 +15,7 @@ import xobjects as xo
 from xobjects.test_helpers import for_all_test_contexts, requires_context
 
 
-@pytest.mark.parametrize('pickle_context', [False, True])
+@pytest.mark.parametrize("pickle_context", [False, True])
 def test_kernel_cpu(pickle_context):
     ctx = xo.ContextCpu()
     src_code = r"""

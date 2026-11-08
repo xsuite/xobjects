@@ -302,7 +302,8 @@ class HybridClass(metaclass=MetaHybridClass):
                 if isinstance(default, RawUnion):
                     # A raw union can expose a scalar when read as a field.
                     default = type(default)._from_buffer(
-                        default._buffer, default._offset)
+                        default._buffer, default._offset
+                    )
                 defaults[field.name] = default
             except (TypeError, ValueError):
                 # The above can fail with different error types

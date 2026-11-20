@@ -405,8 +405,8 @@ class ContextCupy(XContext):
 
     On ROCm/HIP, ``xobjects.settings.rocm_fast_kernels`` (environment variable
     ``XSUITE_ROCM_FAST_KERNELS=1``) force-inlines all device functions. This
-    makes large tracking kernels ~20% faster with unchanged results, at the
-    cost of much slower compilation. It is disabled by default.
+    makes tracking kernels significantly faster with unchanged results, at the
+    cost of much slower compilation. It is disabled by default. 
 
     Args:
         default_block_size (int):
@@ -562,9 +562,8 @@ class ContextCupy(XContext):
 
             if cupy.cuda.runtime.is_hip:
                 # Without __launch_bounds__, HIP assumes kernels may be
-                # launched with up to 1024 threads per block, which on CDNA
-                # (wave64) caps each lane at 128 registers (e.g. 64 VGPR +
-                # 64 AGPR on gfx908) and makes large kernels
+                # launched with up to 1024 threads per block, which
+                # caps each lane at 128 registers and makes large kernels
                 # spill heavily to scratch memory (~2x slower than
                 # OpenCL, which defaults to 256). All kernels here are
                 # launched with default_block_size, so we tell the compiler.
@@ -575,10 +574,9 @@ class ContextCupy(XContext):
                 if settings.rocm_fast_kernels:
                     # Force inlining of every device function. Real calls on
                     # AMDGPU save/restore registers through scratch memory;
-                    # removing them makes track_line ~20% faster with
+                    # removing them can make kernels significantly faster with
                     # bit-identical results, but compilation is much slower.
-                    # These are internal LLVM options and may disappear in
-                    # future ROCm releases.
+                    # This is done using internal llvm options.
                     warnings.warn(
                         "XSUITE_ROCM_FAST_KERNELS is enabled: all device "
                         "functions are force-inlined. Kernels run faster, but "

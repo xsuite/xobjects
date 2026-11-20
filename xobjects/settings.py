@@ -60,8 +60,8 @@ class Settings:
         Values: ``False`` (default), ``True``
         CuPy on ROCm/HIP only. Forces full inlining of all device functions
         (``-mllvm -amdgpu-early-inline-all=true -mllvm
-        -amdgpu-function-calls=false``). Results are unchanged, and large
-        tracking kernels run ~20% faster, but compilation is much slower and
+        -amdgpu-function-calls=false``). Results are unchanged, and kernels
+        can be significantly faster, but compilation is much slower and
         uses more memory. Compiled kernels are cached, so the cost is paid
         once per kernel.
 

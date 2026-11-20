@@ -115,9 +115,9 @@ GPUFUN double   atomicAdd(GPUGLMEM double   *addr, double   val) { return atomic
 // -------------------------------------------
 #if defined(XO_CONTEXT_CUDA)
     // CUDA compiler may not have <stdint.h>, so define the types if needed.
-    #if defined(__CUDACC_RTC__) || defined(__HIPCC_RTC__)
-        // NVRTC and HIPRTC (CuPy RawModule default) can’t see <stdint.h>
-        // We detect via __CUDACC_RTC__ (Nvidia) or __HIPCC_RTC__ (ROCm)
+    #if defined(__CUDACC_RTC__) 
+        // NVRTC (CuPy RawModule default) can’t see <stdint.h>
+        // We detect via __CUDACC_RTC__. HIPRTC (AMD) appears to have the right defs
         typedef signed char        int8_t;
         typedef short              int16_t;
         typedef int                int32_t;

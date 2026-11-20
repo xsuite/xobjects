@@ -375,7 +375,7 @@ typedef unsigned int       uint32_t; //only_for_context cuda
 typedef unsigned short     uint16_t; //only_for_context cuda
 typedef unsigned char      uint8_t;  //only_for_context cuda
 
-#if defined(__CUDACC_RTC__) || defined(__HIPCC_RTC__)
+#if defined(__CUDACC_RTC__)
 typedef signed long long   int64_t;
 typedef unsigned long long uint64_t;
 #endif
@@ -548,6 +548,18 @@ class ContextCupy(XContext):
                 warnings.warn(
                     "Detected nvrtc version < 12.9, which does not support compile-time optimisation tuning. "
                     "Compilation time and memory usage might be high: if this is a problem, please update CUDA nvrtc."
+                )
+
+            if cupy.cuda.runtime.is_hip:
+                # Without __launch_bounds__, HIP assumes kernels may be
+                # launched with up to 1024 threads per block, which on CDNA
+                # (wave64) caps each lane at 128 registers (e.g. 64 VGPR +
+                # 64 AGPR on gfx908) and makes large kernels
+                # spill heavily to scratch memory (~2x slower than
+                # OpenCL, which defaults to 256). All kernels here are
+                # launched with default_block_size, so we tell the compiler.
+                nvrtc_args += (
+                    f"--gpu-max-threads-per-block={self.default_block_size}",
                 )
 
             if self.cuda_compute_capability is None:

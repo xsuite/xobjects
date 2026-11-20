@@ -460,6 +460,9 @@ class BufferPyopencl(XBuffer):
         return self.to_nplike(offset, dtype, shape).get()
 
     def update_from_nplike(self, offset, dest_dtype, arr):
+        if arr.nbytes == 0:
+            # Empty pyopencl arrays have no backing buffer (base_data is None)
+            return
         if arr.dtype != dest_dtype:
             arr = arr.astype(dest_dtype)
         self.update_from_native(offset, arr.base_data, arr.offset, arr.nbytes)

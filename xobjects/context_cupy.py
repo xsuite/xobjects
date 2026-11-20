@@ -403,6 +403,11 @@ class ContextCupy(XContext):
     ``xobjects.settings.cuda_fast_compile = False``, or equivalently the
     environment variable ``XSUITE_CUDA_FAST_COMPILE=0``, to disable it.
 
+    On ROCm/HIP, ``xobjects.settings.rocm_fast_kernels`` (environment variable
+    ``XSUITE_ROCM_FAST_KERNELS=1``) force-inlines all device functions. This
+    makes large tracking kernels ~20% faster with unchanged results, at the
+    cost of much slower compilation. It is disabled by default.
+
     Args:
         default_block_size (int):
             CUDA thread size that is used by default
@@ -565,6 +570,33 @@ class ContextCupy(XContext):
                 # launched with default_block_size, so we tell the compiler.
                 nvrtc_args += (
                     f"--gpu-max-threads-per-block={self.default_block_size}",
+                )
+
+                if settings.rocm_fast_kernels:
+                    # Force inlining of every device function. Real calls on
+                    # AMDGPU save/restore registers through scratch memory;
+                    # removing them makes track_line ~20% faster with
+                    # bit-identical results, but compilation is much slower.
+                    # These are internal LLVM options and may disappear in
+                    # future ROCm releases.
+                    warnings.warn(
+                        "XSUITE_ROCM_FAST_KERNELS is enabled: all device "
+                        "functions are force-inlined. Kernels run faster, but "
+                        "compilation will be much slower (minutes instead of "
+                        "seconds for large lines) and use more memory. "
+                        "Compiled kernels are cached, so this cost is paid "
+                        "once per kernel."
+                    )
+                    nvrtc_args += (
+                        "-mllvm",
+                        "-amdgpu-early-inline-all=true",
+                        "-mllvm",
+                        "-amdgpu-function-calls=false",
+                    )
+            elif settings.rocm_fast_kernels:
+                warnings.warn(
+                    "XSUITE_ROCM_FAST_KERNELS only applies to CuPy on "
+                    "ROCm/HIP and is ignored on CUDA."
                 )
 
             if self.cuda_compute_capability is None:

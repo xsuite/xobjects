@@ -538,7 +538,12 @@ class ContextCupy(XContext):
             # NVRTC (default): add NVRTC-specific flags
             nvrtc_args = (*extra_compile_args,)
             fast_compile = settings.cuda_fast_compile
-            if nvrtc and nvrtc.getVersion() >= (12, 9):
+            if cupy.cuda.runtime.is_hip:
+                # On ROCm, CuPy's nvrtc module is hiprtc and getVersion()
+                # returns the HIP version, so the NVRTC version check below
+                # does not apply (and hiprtc has no --Ofast-compile).
+                pass
+            elif nvrtc and nvrtc.getVersion() >= (12, 9):
                 # If supported, skip prohibitively heavy optimisations (e.g.
                 # involving cloning). This it at the expense of <20%
                 # runtime performance, but gain of a lot of compile time and memory.

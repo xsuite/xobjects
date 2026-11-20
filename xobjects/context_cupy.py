@@ -375,7 +375,7 @@ typedef unsigned int       uint32_t; //only_for_context cuda
 typedef unsigned short     uint16_t; //only_for_context cuda
 typedef unsigned char      uint8_t;  //only_for_context cuda
 
-#if defined(__CUDACC_RTC__) || defined(__HIPCC_RTC__)
+#if defined(__CUDACC_RTC__)
 typedef signed long long   int64_t;
 typedef unsigned long long uint64_t;
 #endif
@@ -402,6 +402,11 @@ class ContextCupy(XContext):
     memory usage, at the cost of some runtime performance. Set
     ``xobjects.settings.cuda_fast_compile = False``, or equivalently the
     environment variable ``XSUITE_CUDA_FAST_COMPILE=0``, to disable it.
+
+    On ROCm/HIP, ``xobjects.settings.rocm_fast_kernels`` (environment variable
+    ``XSUITE_ROCM_FAST_KERNELS=1``) force-inlines all device functions. This
+    makes tracking kernels significantly faster with unchanged results, at the
+    cost of much slower compilation. It is disabled by default. 
 
     Args:
         default_block_size (int):
@@ -538,7 +543,12 @@ class ContextCupy(XContext):
             # NVRTC (default): add NVRTC-specific flags
             nvrtc_args = (*extra_compile_args,)
             fast_compile = settings.cuda_fast_compile
-            if nvrtc and nvrtc.getVersion() >= (12, 9):
+            if cupy.cuda.runtime.is_hip:
+                # On ROCm, CuPy's nvrtc module is hiprtc and getVersion()
+                # returns the HIP version, so the NVRTC version check below
+                # does not apply (and hiprtc has no --Ofast-compile).
+                pass
+            elif nvrtc and nvrtc.getVersion() >= (12, 9):
                 # If supported, skip prohibitively heavy optimisations (e.g.
                 # involving cloning). This it at the expense of <20%
                 # runtime performance, but gain of a lot of compile time and memory.
@@ -548,6 +558,43 @@ class ContextCupy(XContext):
                 warnings.warn(
                     "Detected nvrtc version < 12.9, which does not support compile-time optimisation tuning. "
                     "Compilation time and memory usage might be high: if this is a problem, please update CUDA nvrtc."
+                )
+
+            if cupy.cuda.runtime.is_hip:
+                # Without __launch_bounds__, HIP assumes kernels may be
+                # launched with up to 1024 threads per block, which
+                # caps each lane at 128 registers and makes large kernels
+                # spill heavily to scratch memory (~2x slower than
+                # OpenCL, which defaults to 256). All kernels here are
+                # launched with default_block_size, so we tell the compiler.
+                nvrtc_args += (
+                    f"--gpu-max-threads-per-block={self.default_block_size}",
+                )
+
+                if settings.rocm_fast_kernels:
+                    # Force inlining of every device function. Real calls on
+                    # AMDGPU save/restore registers through scratch memory;
+                    # removing them can make kernels significantly faster with
+                    # bit-identical results, but compilation is much slower.
+                    # This is done using internal llvm options.
+                    warnings.warn(
+                        "XSUITE_ROCM_FAST_KERNELS is enabled: all device "
+                        "functions are force-inlined. Kernels run faster, but "
+                        "compilation will be much slower (minutes instead of "
+                        "seconds for large lines) and use more memory. "
+                        "Compiled kernels are cached, so this cost is paid "
+                        "once per kernel."
+                    )
+                    nvrtc_args += (
+                        "-mllvm",
+                        "-amdgpu-early-inline-all=true",
+                        "-mllvm",
+                        "-amdgpu-function-calls=false",
+                    )
+            elif settings.rocm_fast_kernels:
+                warnings.warn(
+                    "XSUITE_ROCM_FAST_KERNELS only applies to CuPy on "
+                    "ROCm/HIP and is ignored on CUDA."
                 )
 
             if self.cuda_compute_capability is None:

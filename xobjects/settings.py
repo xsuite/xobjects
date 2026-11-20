@@ -56,6 +56,15 @@ class Settings:
         Selects the CUDA virtual architecture used for PTX compilation.
         If unset, the compute capability is inferred from the active GPU.
 
+    ``rocm_fast_kernels`` — ``XSUITE_ROCM_FAST_KERNELS``
+        Values: ``False`` (default), ``True``
+        CuPy on ROCm/HIP only. Forces full inlining of all device functions
+        (``-mllvm -amdgpu-early-inline-all=true -mllvm
+        -amdgpu-function-calls=false``). Results are unchanged, and kernels
+        can be significantly faster, but compilation is much slower and
+        uses more memory. Compiled kernels are cached, so the cost is paid
+        once per kernel.
+
     Notes
     -----
     The same object is exposed as ``xobjects.settings`` and
@@ -337,6 +346,14 @@ settings._register(
     environment_variable="XSUITE_CUDA_COMPILER",
     environment_parser=_parse_optional_string,
     value_type=(str, type(None)),
+)
+settings._register(
+    "rocm_fast_kernels",
+    default=False,
+    environment_variable="XSUITE_ROCM_FAST_KERNELS",
+    choices=(False, True),
+    environment_parser=_parse_boolean,
+    value_type=bool,
 )
 settings._register(
     "cuda_compute_capability",

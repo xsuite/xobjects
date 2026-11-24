@@ -406,7 +406,7 @@ class ContextCupy(XContext):
     On ROCm/HIP, ``xobjects.settings.rocm_fast_kernels`` (environment variable
     ``XSUITE_ROCM_FAST_KERNELS=1``) force-inlines all device functions. This
     makes tracking kernels significantly faster with unchanged results, at the
-    cost of much slower compilation. It is disabled by default. 
+    cost of much slower compilation. It is disabled by default.
 
     Args:
         default_block_size (int):

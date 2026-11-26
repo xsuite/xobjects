@@ -12,11 +12,11 @@ from .typeutils import (
     allocate_on_buffer,
     Info,
     is_integer,
-    _to_slot_size,
     default_conf,
 )
 from .ref import is_ref, is_unionref
 from .scalar import Int64, is_scalar
+from .context import _align
 
 log = logging.getLogger(__name__)
 
@@ -186,7 +186,8 @@ class MetaArray(type):
                 data["_is_static_type"] = False
             else:
                 data["_is_static_type"] = True
-                static_size = _itemtype._size
+                static_size = _align(_itemtype._size, _itemtype._alignment)
+            data["_itemsize"] = static_size
             if "_shape" not in data:
                 raise ValueError(f"No shape defined for {cls}")
             if "_order" not in data:
@@ -213,14 +214,18 @@ class MetaArray(type):
                 )
 
             if data["_is_static_shape"] and data["_is_static_type"]:
-                _size = _itemtype._size
+                alignment = _itemtype._alignment
+                _size = static_size
                 for d in _shape:
                     _size *= d
-                _size = _to_slot_size(_size)
             else:
+                alignment = max(8, _itemtype._alignment)
                 _size = None
                 _data_offset += 8  # space for dynamic size
+                if data["_is_static_type"]:
+                    _data_offset = _align(_data_offset, _itemtype._alignment)
 
+            data["_alignment"] = alignment
             data["_size"] = _size
             data["_data_offset"] = _data_offset
         # need to applied to derived classes as well
@@ -256,6 +261,7 @@ class MetaArray(type):
 
 
 class Array(metaclass=MetaArray):
+    _alignment: int
     _shape: tuple
     _order: tuple
     _strides: tuple
@@ -326,8 +332,8 @@ class Array(metaclass=MetaArray):
             offset = 0
             for idx in iter_index(shape, order):
                 offsets[idx] = offset
-                offset += cls._itemtype._size
-            assert size == _to_slot_size(offset)
+                offset += cls._itemsize
+            assert size == offset
         else:  # handling other cases
             offset = 8  # space for size data
             # determine shape and order
@@ -379,19 +385,15 @@ class Array(metaclass=MetaArray):
                     offset += len(shape) * 8  # space for strides
                 order = mk_order(cls._order, shape)
                 if cls._is_static_type:
-                    strides = get_strides(shape, order, cls._itemtype._size)
+                    strides = get_strides(shape, order, cls._itemsize)
                 else:
                     strides = get_strides(shape, order, 8)
                 items = np.prod(shape)
 
             # needs items, order, shape, value
             if cls._is_static_type:
-                # offsets = np.empty(shape, dtype="int64")
-                # for idx in iter_index(shape, order):
-                #    offsets[idx] = offset
-                #    offset += cls._itemtype._size
-                offset += cls._itemtype._size * items
-                size = _to_slot_size(offset)
+                offset = cls._data_offset + cls._itemsize * items
+                size = _align(offset, cls._alignment)
 
             else:
                 # args must be an array of correct dimensions
@@ -399,9 +401,10 @@ class Array(metaclass=MetaArray):
                 offset += items * 8
                 for idx in iter_index(shape, order):
                     extra[idx] = cls._itemtype._inspect_args(value[idx])
+                    offset = _align(offset, cls._itemtype._alignment)
                     offsets[idx] = offset
                     offset += extra[idx].size
-                size = _to_slot_size(offset)
+                size = _align(offset, cls._alignment)
                 info.offsets = offsets
                 info.extra = extra
 
@@ -439,7 +442,7 @@ class Array(metaclass=MetaArray):
                     coffset += 8
             else:
                 if cls._is_static_type:
-                    strides = (cls._itemtype._size,)
+                    strides = (cls._itemsize,)
                 else:
                     strides = (8,)
             self._strides = tuple(strides)
@@ -473,6 +476,8 @@ class Array(metaclass=MetaArray):
         if not cls._is_static_type:
             Int64._array_to_buffer(buffer, coffset, info.offsets)
             coffset += 8 * len(info.offsets)
+        else:
+            coffset = offset + cls._data_offset
         if hasattr(cls._itemtype, "_dtype") and hasattr(
             value, "dtype"
         ):  # is a scalar type:
@@ -495,7 +500,7 @@ class Array(metaclass=MetaArray):
                     ioffset = offset + cls._data_offset
                     for idx in range(info.items):
                         cls._itemtype._to_buffer(buffer, ioffset, value, None)
-                        ioffset += cls._itemtype._size
+                        ioffset += cls._itemsize
                 else:
                     for idx in iter_index(info.shape, cls._order):
                         cls._itemtype._to_buffer(
@@ -513,7 +518,7 @@ class Array(metaclass=MetaArray):
                     cls._itemtype._to_buffer(
                         buffer, ioffset, value[idx], info=None
                     )
-                    ioffset += cls._itemtype._size
+                    ioffset += cls._itemsize
             else:
                 for idx in iter_index(info.shape, cls._order):
                     cls._itemtype._to_buffer(
@@ -529,7 +534,7 @@ class Array(metaclass=MetaArray):
         info = cls._inspect_args(*args)
 
         self._buffer, self._offset = allocate_on_buffer(
-            info.size, _context, _buffer, _offset
+            info.size, _context, _buffer, _offset, alignment=cls._alignment
         )
 
         cls._to_buffer(self._buffer, self._offset, info.value, info)

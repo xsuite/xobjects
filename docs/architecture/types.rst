@@ -16,32 +16,50 @@ The size of one instance cannot change after creation, but their content can.
 Data Layout
 -------------
 
-Data structure is organized in 64bit slots.
+Each type exposes its alignment requirement in bytes as ``_alignment``.
+Real and integer scalars align to their size. Complex scalars align to their
+components: 4 bytes for Complex64 and 8 bytes for Complex128, matching their
+``float[2]`` and ``double[2]`` representations. Static arrays inherit their
+item alignment and store items at aligned strides, without rounding small
+arrays to 8 bytes.
 
-Table indicates slot size and the description.
+Struct fields start at multiples of their type's alignment. A struct's
+alignment is the maximum alignment of its fields, and its total size is
+rounded up to that alignment so arrays of structs remain aligned.
+Dynamic structs and arrays also contain 64-bit size and offset headers,
+so their alignment is at least 8 bytes. References and strings align to
+8 bytes; raw unions use the maximum alignment of their members.
 
-Scalar
+Object allocations honor both type alignment and the buffer's default
+alignment (normally the context's minimum alignment). OpenCL sub-buffer
+alignment therefore affects allocation starts independently of field layout.
+Explicit numeric offsets and ``_offset="packed"`` bypass allocation alignment.
+
+The tables below describe storage sizes in bytes; padding is inserted
+where required by alignment.
+
+Scalar (s is the scalar size)
 
 =====  ===========
-Slots  Description
+Bytes  Description
 =====  ===========
-8      Data
+s      Data
 =====  ===========
 
 String of n-bytes
 
-=============     ===============================
-Slots             Description
-=============     ===============================
+===============   ===============================
+Bytes             Description
+===============   ===============================
 8                 Size in bytes
-ceil((n+1)/8)     Data in UTF-8 null terminated
-=============     ===============================
+8*ceil((n+1)/8)    Data in UTF-8 null terminated
+===============   ===============================
 
 
 Struct with static and *n* dynamical fields
 
 =======  ===============================
-Slots    Description
+Bytes    Description
 =======  ===============================
 8        Optional: size if n>0
 ...      Fixed-size field data
@@ -52,7 +70,7 @@ Slots    Description
 Array with n dimensions, whose l are dynamic of *m* items.
 
 =======  ===============================
-Slots    Description
+Bytes    Description
 =======  ===============================
 8        Optional: size
 8*l      Optional: size of l-variable dimensions
@@ -64,7 +82,7 @@ m*s      Data or offsets for m-items (s is the item-size or 8)
 Union
 
 =======  ===============================
-Slots    Description
+Bytes    Description
 =======  ===============================
 8        Type id
 ...      Item data
@@ -74,7 +92,7 @@ Slots    Description
 Ref
 
 =======  ======================================
-Slots    Description
+Bytes    Description
 =======  ======================================
 8        Offset from start of the buffer
 8        Optional: typeid
@@ -92,6 +110,7 @@ Class variables:
 name            Description
 ==============  ===============================
 _size           Size in bytes, None if not static size
+_alignment      Required alignment in bytes
 ==============  ===============================
 
 Class methods:

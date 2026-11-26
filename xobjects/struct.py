@@ -54,7 +54,6 @@ from .typeutils import (
     allocate_on_buffer,
     dispatch_arg,
     Info,
-    _to_slot_size,
     _is_dynamic,
     default_conf,
 )
@@ -62,7 +61,7 @@ from .typeutils import (
 from .settings import settings
 from .scalar import Int64
 from .array import Array
-from .context import Source, Arg, Kernel
+from .context import Source, Arg, Kernel, _align
 from .context_cpu import ContextCpu
 from .ref import is_unionref
 
@@ -184,14 +183,19 @@ class MetaStruct(type):
         data["_fields"] = fields
         data["_s_fields"] = s_fields
         data["_d_fields"] = d_fields
+        alignment = max((ff.ftype._alignment for ff in fields), default=1)
+        if not is_static:
+            alignment = max(alignment, Int64._alignment)
+        data["_alignment"] = alignment
 
         if is_static:
             offset = 0
             for field in fields:
+                offset = _align(offset, field.ftype._alignment)
                 field.offset = offset
                 field.is_reference = False
-                offset += _to_slot_size(field.ftype._size)
-            size = offset
+                offset += field.ftype._size
+            size = _align(offset, alignment)
 
             def _get_size(self):
                 return self.__class__._size
@@ -206,20 +210,21 @@ class MetaStruct(type):
 
         else:
             size = None
-            for field in fields:
-                offset = 8  # first slot is instance size
-                for field in s_fields:
-                    field.offset = offset
-                    field.is_reference = False
-                    offset += _to_slot_size(field.ftype._size)
-                # other dynamic fields
-                for field in d_fields[1:]:
-                    field.offset = offset
-                    field.is_reference = True
-                    offset += _to_slot_size(8)
-                # first dynamic field
-                d_fields[0].offset = offset
-                d_fields[0].is_reference = False
+            offset = 8  # first slot is instance size
+            for field in s_fields:
+                offset = _align(offset, field.ftype._alignment)
+                field.offset = offset
+                field.is_reference = False
+                offset += field.ftype._size
+            # Other dynamic fields are represented by Int64 offsets.
+            for field in d_fields[1:]:
+                offset = _align(offset, Int64._alignment)
+                field.offset = offset
+                field.is_reference = True
+                offset += 8
+            # The first dynamic field is stored inline.
+            d_fields[0].offset = _align(offset, d_fields[0].ftype._alignment)
+            d_fields[0].is_reference = False
 
             def _get_size(self):
                 return Int64._from_buffer(self._buffer, self._offset)
@@ -246,10 +251,11 @@ class MetaStruct(type):
                                 field.ftype._inspect_args, farg
                             )
                             extra[field.index] = finfo
+                            offset = _align(offset, field.ftype._alignment)
                             offsets[field.index] = offset
-                            offset += _to_slot_size(finfo.size)
+                            offset += finfo.size
                         # _offsets is used to because of field.get_offset(info)
-                        info.size = offset
+                        info.size = _align(offset, cls._alignment)
                         info._offsets = offsets
                         if len(extra) > 0:
                             info.extra = extra
@@ -389,7 +395,7 @@ class Struct(metaclass=MetaStruct):
         self._size = info.size
         # acquire buffer
         self._buffer, self._offset = allocate_on_buffer(
-            info.size, _context, _buffer, _offset
+            info.size, _context, _buffer, _offset, alignment=cls._alignment
         )
         # if dynamic struct store dynamic offsets
         if hasattr(info, "_offsets"):

@@ -22,7 +22,9 @@ def get_a_buffer(context=None, buffer=None, size=None):
         return buffer
 
 
-def allocate_on_buffer(size, context=None, buffer=None, offset=None):
+def allocate_on_buffer(
+    size, context=None, buffer=None, offset=None, alignment=1
+):
     if buffer is None:
         if offset is not None:
             raise ValueError("Cannot set `offset` without buffer")
@@ -35,9 +37,9 @@ def allocate_on_buffer(size, context=None, buffer=None, offset=None):
         )
 
     if offset is None:
-        offset = buffer.allocate(size)
+        offset = buffer.allocate(size, alignment=alignment)
     elif offset == "aligned":
-        offset = buffer.allocate(size, align=True)
+        offset = buffer.allocate(size, align=True, alignment=alignment)
     elif offset == "packed":
         offset = buffer.allocate(size, align=False)
 

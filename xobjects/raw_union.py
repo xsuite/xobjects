@@ -29,6 +29,9 @@ class MetaRawUnion(type):
             data["_members"] = members
             data["_dtype"] = dtype
             data["_size"] = size
+            data["_alignment"] = max(
+                member._alignment for member in members.values()
+            )
             if "_c_type" not in data:
                 data["_c_type"] = f"{name}_raw_t"
 
@@ -43,10 +46,15 @@ class MetaRawUnion(type):
 
 class RawUnion(metaclass=MetaRawUnion):
     _members = {}
+    _alignment = 1
 
     def __init__(self, value=0, _context=None, _buffer=None, _offset=None):
         self._buffer, self._offset = allocate_on_buffer(
-            self.__class__._size, _context, _buffer, _offset
+            self.__class__._size,
+            _context,
+            _buffer,
+            _offset,
+            alignment=self._alignment,
         )
         self.__class__._to_buffer(self._buffer, self._offset, value)
 

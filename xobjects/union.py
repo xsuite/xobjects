@@ -8,6 +8,7 @@ import numpy as np
 from .typeutils import allocate_on_buffer, Info
 from .scalar import Int64
 from .array import Array
+from .context import _align
 
 """
 union typ1 typ2 ...
@@ -44,6 +45,10 @@ class MetaUnion(type):
             data["_typeids"] = typeids
             data["_types"] = types
             data["_size"] = isize
+            data["_alignment"] = max(
+                8, *(itemtype._alignment for itemtype in itemtypes)
+            )
+            data["_data_offset"] = _align(8, data["_alignment"])
 
         return type.__new__(cls, name, bases, data)
 
@@ -52,6 +57,8 @@ class MetaUnion(type):
 
 
 class Union(metaclass=MetaUnion):
+    _alignment = 8
+    _data_offset = 8
     _types: list
     _size: None
     _typeids: dict
@@ -81,7 +88,9 @@ class Union(metaclass=MetaUnion):
         if len(args) == 1:
             value = args[0]
             if type(value) in cls._itemtypes:
-                size = value._get_size() + 8
+                size = _align(
+                    value._get_size() + cls._data_offset, cls._alignment
+                )
                 return Info(
                     size=size,
                     typeid=cls._get_type_index(value),
@@ -94,7 +103,7 @@ class Union(metaclass=MetaUnion):
                 typeid = cls._typeids[typename]
                 iinfo = itemtype._inspect_args(value)
                 return Info(
-                    size=iinfo.size + 8,
+                    size=_align(iinfo.size + cls._data_offset, cls._alignment),
                     typeid=typeid,
                     extra=iinfo,
                     is_raw=False,
@@ -117,7 +126,7 @@ class Union(metaclass=MetaUnion):
         if info is None:
             info = cls._inspect_args(value)
         Int64._to_buffer(buffer, offset, info.typeid)
-        coffset = offset + 8
+        coffset = offset + cls._data_offset
         if info.is_raw:
             info.itemtype._buffer.copy_from(
                 coffset, value._buffer, value._offset, info.size
@@ -128,7 +137,7 @@ class Union(metaclass=MetaUnion):
     def __init__(self, *args, _context=None, _buffer=None, _offset=None):
         info = self.__class__._inspect_args(*args)
         self._buffer, self._offset = allocate_on_buffer(
-            info.size, _context, _buffer, _offset
+            info.size, _context, _buffer, _offset, alignment=self._alignment
         )
 
         self.__class__._to_buffer(self._buffer, self._offset, info.value, info)
@@ -137,7 +146,9 @@ class Union(metaclass=MetaUnion):
         self._itemtype = info._itemtype
 
     def get(self):
-        return self._itemtype._from_buffer(self._buffer, self._offset + 8)
+        return self._itemtype._from_buffer(
+            self._buffer, self._offset + self._data_offset
+        )
 
     def _get_size(self):
         if self.__class__._size is None:

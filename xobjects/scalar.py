@@ -22,6 +22,7 @@ class NumpyScalar:
         self.__name__ = dtype.capitalize()
         self._dtype = np.dtype(dtype)
         self._size = self._dtype.itemsize
+        self._alignment = self._dtype.alignment
         self._c_type = cname
 
     def _from_buffer(self, buffer, offset=0, container=None):
@@ -83,3 +84,4 @@ def is_scalar(cls):
 class Void:
     _c_type = "void"
     _size = None
+    _alignment = None

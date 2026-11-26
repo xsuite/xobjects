@@ -143,7 +143,7 @@ def _concatenate_sources(sources, apply_to_source=()):
 
 
 def _align(offset, alignment):
-    "round to nearest multiple of 8"
+    "Round up to a multiple of the power-of-two alignment."
     return (offset + alignment - 1) & (-alignment)
 
 
@@ -493,11 +493,11 @@ class XBuffer(ABC):
     def _make_context(self):
         "return a default context"
 
-    def allocate(self, size, align=True):
+    def allocate(self, size, align=True, alignment=1):
         # find available free slot
         # and update free slot if exists
         if align:
-            alignment = self.default_alignment
+            alignment = max(self.default_alignment, alignment)
         else:
             alignment = 1
         # sizepa = size + alignment - 1
@@ -520,7 +520,7 @@ class XBuffer(ABC):
             self.grow(self.capacity)
 
         # try again
-        return self.allocate(size, align=align)
+        return self.allocate(size, align=align, alignment=alignment)
 
     def grow(self, capacity):
         """

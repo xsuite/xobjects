@@ -102,6 +102,7 @@ class MetaString(type):
 
 class String(metaclass=MetaString):
     _size = None
+    _alignment = 8
     _c_type = "char*"
 
     def __init__(
@@ -110,7 +111,7 @@ class String(metaclass=MetaString):
         info = self.__class__._inspect_args(string_or_int)
         size = info.size
         self._buffer, self._offset = allocate_on_buffer(
-            size, _context, _buffer, _offset
+            size, _context, _buffer, _offset, alignment=self._alignment
         )
 
         self.__class__._to_buffer(

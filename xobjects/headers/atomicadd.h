@@ -56,6 +56,19 @@ DEF_ATOMIC_ADD(uint64_t, u64)
 DEF_ATOMIC_ADD(float   , f32)
 DEF_ATOMIC_ADD(double  , f64)
 
+#ifdef __cplusplus
+// _Generic is C11 only, but not supported in C++ (with g++).
+GPUFUN int8_t   atomicAdd(GPUGLMEM int8_t   *addr, int8_t   val) { return atomicAdd_i8 (addr, val); }
+GPUFUN int16_t  atomicAdd(GPUGLMEM int16_t  *addr, int16_t  val) { return atomicAdd_i16(addr, val); }
+GPUFUN int32_t  atomicAdd(GPUGLMEM int32_t  *addr, int32_t  val) { return atomicAdd_i32(addr, val); }
+GPUFUN int64_t  atomicAdd(GPUGLMEM int64_t  *addr, int64_t  val) { return atomicAdd_i64(addr, val); }
+GPUFUN uint8_t  atomicAdd(GPUGLMEM uint8_t  *addr, uint8_t  val) { return atomicAdd_u8 (addr, val); }
+GPUFUN uint16_t atomicAdd(GPUGLMEM uint16_t *addr, uint16_t val) { return atomicAdd_u16(addr, val); }
+GPUFUN uint32_t atomicAdd(GPUGLMEM uint32_t *addr, uint32_t val) { return atomicAdd_u32(addr, val); }
+GPUFUN uint64_t atomicAdd(GPUGLMEM uint64_t *addr, uint64_t val) { return atomicAdd_u64(addr, val); }
+GPUFUN float    atomicAdd(GPUGLMEM float    *addr, float    val) { return atomicAdd_f32(addr, val); }
+GPUFUN double   atomicAdd(GPUGLMEM double   *addr, double   val) { return atomicAdd_f64(addr, val); }
+#else
 // Using _Generic to select the right function based on type (since C11).
 // See https://en.cppreference.com/w/c/language/generic.html
 #define atomicAdd(addr, val) _Generic((addr),        \
@@ -70,6 +83,7 @@ DEF_ATOMIC_ADD(double  , f64)
     float*:    atomicAdd_f32,                        \
     double*:   atomicAdd_f64                         \
 )(addr, (val))
+#endif // __cplusplus
 #endif // XO_CONTEXT_CPU
 
 
@@ -102,7 +116,7 @@ DEF_ATOMIC_ADD(double  , f64)
 #if defined(XO_CONTEXT_CUDA)
     // CUDA compiler may not have <stdint.h>, so define the types if needed.
     #if defined(__CUDACC_RTC__) || defined(__HIPCC_RTC__)
-        // NVRTC and HIPRTC (CuPy RawModule default) can’t see <stdint.h> 
+        // NVRTC and HIPRTC (CuPy RawModule default) can’t see <stdint.h>
         // We detect via __CUDACC_RTC__ (Nvidia) or __HIPCC_RTC__ (ROCm)
         typedef signed char        int8_t;
         typedef short              int16_t;
@@ -121,8 +135,24 @@ DEF_ATOMIC_ADD(double  , f64)
         typedef unsigned short     uint16_t;
         typedef unsigned int       uint32_t;
     #else
-        // Alternatively, NVCC path is fine with host headers
+        // NVCC and Clang have system headers available
         #include <stdint.h>
+        #if defined(__clang__)
+        // On LP64 Linux, stdint.h maps uint64_t -> unsigned long, but CUDA
+        // atomics only have overloads for unsigned long long.  Provide
+        // transparent forwarding overloads so that atomicCAS/atomicAdd
+        // called with uint64_t* compile and behave correctly.
+        __device__ static inline unsigned long
+        atomicCAS(volatile unsigned long* a, unsigned long c, unsigned long v) {
+            return (unsigned long)atomicCAS((unsigned long long*)(void*)a,
+                                           (unsigned long long)c, (unsigned long long)v);
+        }
+        __device__ static inline unsigned long
+        atomicAdd(volatile unsigned long* a, unsigned long v) {
+            return (unsigned long)atomicAdd((unsigned long long*)(void*)a,
+                                           (unsigned long long)v);
+        }
+        #endif // __clang__
     #endif // __CUDACC_RTC__
     #define GPUVOLATILE    GPUGLMEM
     #define __XT_CAS_U32(ptr, exp, val) atomicCAS((GPUVOLATILE uint32_t*)(ptr), (uint32_t)(exp), (uint32_t)(val))

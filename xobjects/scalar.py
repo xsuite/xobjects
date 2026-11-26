@@ -24,11 +24,11 @@ class NumpyScalar:
         self._size = self._dtype.itemsize
         self._c_type = cname
 
-    def _from_buffer(self, buffer, offset=0):
+    def _from_buffer(self, buffer, offset=0, container=None):
         data = buffer.to_bytearray(offset, self._size)
         return np.frombuffer(data, dtype=self._dtype)[0]
 
-    def _to_buffer(self, buffer, offset, value, info=None):
+    def _to_buffer(self, buffer, offset, value, info=None, container=None):
         data = self._dtype.type(value).tobytes()
         buffer.update_from_buffer(offset, data)
 

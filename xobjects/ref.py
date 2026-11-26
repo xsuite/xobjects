@@ -37,7 +37,7 @@ class Ref(metaclass=MetaRef):
 
         self._size = 8
 
-    def _from_buffer(self, buffer, offset=0):
+    def _from_buffer(self, buffer, offset=0, container=None):
         refoffset = Int64._from_buffer(buffer, offset)
         if refoffset == NULLVALUE:
             return None
@@ -45,7 +45,7 @@ class Ref(metaclass=MetaRef):
             refoffset += offset  # from relative to absolute offset
             return self._reftype._from_buffer(buffer, refoffset)
 
-    def _to_buffer(self, buffer, offset, value, info=None):
+    def _to_buffer(self, buffer, offset, value, info=None, container=None):
         # Get/set content
         if value is None:
             refoffset = NULLVALUE  # NULL value
@@ -153,7 +153,7 @@ class MetaUnionRef(type):
         # If no match found:
         raise TypeError(f"Invalid id: {typeid}!")
 
-    def _from_buffer(cls, buffer, offset=0):
+    def _from_buffer(cls, buffer, offset=0, container=None):
         refoffset, typeid = Int64._array_from_buffer(buffer, offset, 2)
         if refoffset == NULLVALUE:
             return None
@@ -175,7 +175,7 @@ class MetaUnionRef(type):
         info = Info(size=cls._size)
         return info
 
-    def _to_buffer(cls, buffer, offset, value, info=None):
+    def _to_buffer(cls, buffer, offset, value, info=None, container=None):
         if isinstance(value, cls):  # binary copy
             buffer.update_from_xbuffer(
                 offset, value._buffer, value._offset, value._size

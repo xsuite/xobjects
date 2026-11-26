@@ -61,7 +61,7 @@ class MetaString(type):
         else:
             return Info(size=cls._size)
 
-    def _to_buffer(cls, buffer, offset, value, info=None):
+    def _to_buffer(cls, buffer, offset, value, info=None, container=None):
         # log.debug(f"{cls} to buffer {offset}  `{value}`")
         if info is None:
             info = cls._inspect_args(value)
@@ -87,7 +87,7 @@ class MetaString(type):
         ll = Int64._from_buffer(buffer, offset)
         return buffer.to_bytearray(offset + 8, ll - 8)
 
-    def _from_buffer(cls, buffer, offset=0, encoding="utf8"):
+    def _from_buffer(cls, buffer, offset=0, encoding="utf8", container=None):
         # TODO keep in mind that in windows many funcitons returns wchar encoded in utf16
         return cls._get_data(buffer, offset).decode(encoding).rstrip("\x00")
 

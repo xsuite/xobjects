@@ -59,7 +59,7 @@ from .typeutils import (
     default_conf,
 )
 
-from .general import Print
+from .settings import settings
 from .scalar import Int64
 from .array import Array
 from .context import Source, Arg, Kernel
@@ -104,7 +104,9 @@ class Field:
             return self
         else:
             ftype, offset = self.get_offset(instance)
-            return ftype._from_buffer(instance._buffer, offset)
+            return ftype._from_buffer(
+                instance._buffer, offset, container=instance
+            )
 
     def __set__(self, instance, value):
         """
@@ -120,7 +122,9 @@ class Field:
             self.__get__(instance)._update(value)
         else:  # TODO check if below is really needed
             ftype, offset = self.get_offset(instance)
-            ftype._to_buffer(instance._buffer, offset, value)
+            ftype._to_buffer(
+                instance._buffer, offset, value, container=instance
+            )
 
     def get_offset(self, instance):  # compatible with info
         if self.is_reference:
@@ -321,7 +325,7 @@ class Struct(metaclass=MetaStruct):
         pass
 
     @classmethod
-    def _from_buffer(cls, buffer, offset=0):
+    def _from_buffer(cls, buffer, offset=0, container=None):
         self = object.__new__(cls)
         self._buffer = buffer
         self._offset = offset
@@ -336,7 +340,7 @@ class Struct(metaclass=MetaStruct):
         return self
 
     @classmethod
-    def _to_buffer(cls, buffer, offset, value, info=None):
+    def _to_buffer(cls, buffer, offset, value, info=None, container=None):
         if isinstance(value, cls) and not cls._has_refs:  # binary copy
             buffer.update_from_xbuffer(
                 offset, value._buffer, value._offset, value._size
@@ -518,14 +522,15 @@ class Struct(metaclass=MetaStruct):
         extra_classes=(),
         extra_compile_args=(),
     ):
-        if context.allow_prebuilt_kernels:
-            _print_state = Print.suppress
-            Print.suppress = True
-            try:
+        if (
+            context.allow_prebuilt_kernels
+            and not settings.force_kernel_compilation
+        ):
+            with settings.override(print_mode="suppress"):
                 try:
                     from xsuite import (
                         get_suitable_kernel,
-                        XSK_PREBUILT_KERNELS_LOCATION,
+                        PREBUILT_KERNELS_LOCATION,
                     )
 
                     kernel_info = get_suitable_kernel(
@@ -538,21 +543,20 @@ class Struct(metaclass=MetaStruct):
                     from . import context_cpu
 
                     if not context_cpu.require_prebuilt_kernel(
-                            context, classes=list(extra_classes) + [cls]):
+                        context, classes=list(extra_classes) + [cls]
+                    ):
                         kernel_info = None
                     else:
                         raise ImportError(
-                            'Xsuite is required to load prebuilt kernels but could '
-                            'not be imported. Please install it with '
-                            f'`pip install xsuite`. '
-                            f'{context_cpu.no_prebuilt_kernel_jit_message()}'
+                            "Xsuite is required to load prebuilt kernels but could "
+                            "not be imported. Please install it with "
+                            f"`pip install xsuite`. "
+                            f"{context_cpu.kernel_compilation_help_message()}"
                         ) from err
-            finally:
-                Print.suppress = _print_state
             if kernel_info:
                 kernels = context.kernels_from_file(
                     module_name=kernel_info["module_name"],
-                    containing_dir=XSK_PREBUILT_KERNELS_LOCATION,
+                    containing_dir=PREBUILT_KERNELS_LOCATION,
                     kernel_descriptions=cls._kernels,
                 )
                 context.kernels.update(kernels)

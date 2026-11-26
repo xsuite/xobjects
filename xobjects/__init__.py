@@ -16,6 +16,7 @@ from .scalar import (
     UInt8,
 )
 from .array import Array
+from .raw_union import RawUnion
 from .string import String
 from .struct import Struct, Field, ThisClass
 from .ref import Ref, UnionRef
@@ -36,6 +37,7 @@ from .hybrid_class import JEncoder, HybridClass, MetaHybridClass
 from .linkedarray import BypassLinked
 
 from .general import _print
+from .settings import settings
 
 from .general import assert_allclose
 

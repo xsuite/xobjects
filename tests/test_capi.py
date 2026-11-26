@@ -21,6 +21,15 @@ class Struct1(xo.Struct):
     field2 = xo.Float64
 
 
+class RawValue(xo.RawUnion):
+    scalar = xo.Float64
+    bits = xo.UInt64
+
+
+class StructRawUnion(xo.Struct):
+    value = RawValue
+
+
 class Struct2(xo.Struct):
     field1 = xo.Int32
     field2 = xo.Float64[:]
@@ -241,6 +250,36 @@ def test_struct1():
     assert ffi.cast("double *", ps)[1] == s1.field2
     assert p1[0] == s1.field1
     assert p2[0] == s1.field2
+
+
+def test_raw_union_member_getters():
+    kernels = StructRawUnion._gen_kernels()
+    ctx = xo.ContextCpu()
+    ctx.add_kernels(kernels=kernels)
+
+    source = StructRawUnion._gen_c_api().source
+    assert "StructRawUnion_get_value_scalar" in source
+    assert "StructRawUnion_get_value_bits" in source
+    assert "StructRawUnion_get_value(" not in source
+
+    value = 3.5
+    value_bits = np.array([value], dtype=np.float64).view(np.uint64)[0]
+    s1 = StructRawUnion(value=value)
+    s2 = StructRawUnion(value=("bits", value_bits))
+    raw_value = RawValue(value)
+
+    assert isinstance(s1.value, RawValue)
+    assert s1.value.scalar == value
+    assert s1.value.bits == value_bits
+    assert s2.value.scalar == value
+    assert s2.value.bits == value_bits
+    assert raw_value.scalar == value
+    assert raw_value.bits == value_bits
+
+    assert ctx.kernels.StructRawUnion_get_value_scalar(obj=s1) == value
+    assert ctx.kernels.StructRawUnion_get_value_bits(obj=s1) == value_bits
+    assert ctx.kernels.StructRawUnion_get_value_scalar(obj=s2) == value
+    assert ctx.kernels.StructRawUnion_get_value_bits(obj=s2) == value_bits
 
 
 def test_struct2():

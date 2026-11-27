@@ -369,9 +369,16 @@ class BufferPyopencl(XBuffer):
         return ContextPyopencl()
 
     def _new_buffer(self, capacity):
-        return cl.Buffer(
+        buffer = cl.Buffer(
             self.context.context, cl.mem_flags.READ_WRITE, capacity
         )
+        # OpenCL buffers are not initialised on allocation. Zero them, like
+        # the CPU and CUDA buffers, so that unused bytes (e.g. padding between
+        # struct fields) do not contain leftover data.
+        cl.enqueue_fill_buffer(
+            self.context.queue, buffer, np.uint8(0), 0, capacity
+        )
+        return buffer
 
     def copy_from(self, source, src_offset, dest_offset, byte_count):
         # Does not pass through cpu if it can
@@ -460,6 +467,9 @@ class BufferPyopencl(XBuffer):
         return self.to_nplike(offset, dtype, shape).get()
 
     def update_from_nplike(self, offset, dest_dtype, arr):
+        if arr.nbytes == 0:
+            # Empty pyopencl arrays have no backing buffer (base_data is None)
+            return
         if arr.dtype != dest_dtype:
             arr = arr.astype(dest_dtype)
         self.update_from_native(offset, arr.base_data, arr.offset, arr.nbytes)

@@ -63,6 +63,19 @@ def test_new_buffer(test_context):
 
 
 @for_all_test_contexts
+def test_new_buffer_is_zeroed(test_context):
+    buff = test_context.new_buffer(capacity=200)
+    assert buff.to_bytearray(0, 200) == bytearray(200)
+
+    # The capacity added when growing must be zeroed too, while the existing
+    # data is kept.
+    buff.update_from_buffer(0, b"\xff" * 200)
+    buff.grow(300)
+    assert buff.to_bytearray(0, 200) == b"\xff" * 200
+    assert buff.to_bytearray(200, 300) == bytearray(300)
+
+
+@for_all_test_contexts
 def test_read_write(test_context):
     buff = test_context.new_buffer()
     bb = b"asdfasdfafsdf"
@@ -130,14 +143,35 @@ def test_free(test_context):
 @for_all_test_contexts
 def test_grow(test_context):
     ch = Check(test_context, 200)
+    alignment = ch.buffer.default_alignment
+
+    def aligned(offset):
+        return -(-offset // alignment) * alignment
+
+    def grown(capacity, size):
+        # Without grow_step, a full buffer grows by its own capacity, or by
+        # enough to fit an aligned allocation of `size`, whichever is larger.
+        return capacity + max(capacity, size + alignment - 1)
+
     st = ch.new_string(150)
+    assert st == 0
+
+    # The second string never fits after the first one in 200 bytes.
     st = ch.new_string(60)
     ch.check()
-    assert ch.buffer.capacity == 400
+    capacity = grown(200, 60)
+    assert st == aligned(150)
+    assert ch.buffer.capacity == capacity
     assert ch.buffer.chunks[0].start == st + 60
-    assert ch.buffer.chunks[0].end == 400
+    assert ch.buffer.chunks[0].end == capacity
+
+    # The third string is larger than the whole buffer.
+    free_start = st + 60
     st = ch.new_string(500)
-    assert ch.buffer.capacity == 900 + ch.buffer.default_alignment - 1
+    assert aligned(free_start) + 500 > capacity
+    capacity = grown(capacity, 500)
+    assert st == aligned(free_start)
+    assert ch.buffer.capacity == capacity
     ch.check()
 
 

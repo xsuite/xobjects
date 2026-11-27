@@ -63,6 +63,19 @@ def test_new_buffer(test_context):
 
 
 @for_all_test_contexts
+def test_new_buffer_is_zeroed(test_context):
+    buff = test_context.new_buffer(capacity=200)
+    assert buff.to_bytearray(0, 200) == bytearray(200)
+
+    # The capacity added when growing must be zeroed too, while the existing
+    # data is kept.
+    buff.update_from_buffer(0, b"\xff" * 200)
+    buff.grow(300)
+    assert buff.to_bytearray(0, 200) == b"\xff" * 200
+    assert buff.to_bytearray(200, 300) == bytearray(300)
+
+
+@for_all_test_contexts
 def test_read_write(test_context):
     buff = test_context.new_buffer()
     bb = b"asdfasdfafsdf"

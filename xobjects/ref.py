@@ -25,6 +25,7 @@ class MetaRef(type):
 
 class Ref(metaclass=MetaRef):
     _has_refs = True
+    _alignment = 8
 
     def __init__(self, reftype):
         if hasattr(reftype, "_XoStruct"):
@@ -229,6 +230,7 @@ class MetaUnionRef(type):
 
 class UnionRef(metaclass=MetaUnionRef):
     _size = 16
+    _alignment = 8
     _reftypes: list
 
     def __init__(
@@ -239,7 +241,7 @@ class UnionRef(metaclass=MetaUnionRef):
         args, _ = self._pre_init(*args, **kwargs)
 
         self._buffer, self._offset = allocate_on_buffer(
-            cls._size, _context, _buffer, _offset
+            cls._size, _context, _buffer, _offset, alignment=cls._alignment
         )
 
         cls._to_buffer(self._buffer, self._offset, args)
